@@ -13,6 +13,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/platform_downloader.dart';
 import '../theme/app_theme.dart';
 
 /// Modelo de dados da versão retornado pelo Cloudflare Worker / R2 / Pages
@@ -186,8 +187,15 @@ class AppUpdateService {
   /// Baixa o APK no Android e abre o instalador nativo, ou abre a URL no navegador
   Future<void> downloadAndInstallApk(BuildContext context, String url) async {
     if (kIsWeb) {
-      final uri = Uri.parse(url);
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      // No navegador (Web / PWA), dispara o download nativo do arquivo APK sem abrir nova aba
+      triggerBrowserDownload(url, fileName: 'keryxApp.apk');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Download do keryxApp.apk iniciado! Verifique as notificações de download.'),
+          backgroundColor: Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
