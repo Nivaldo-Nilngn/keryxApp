@@ -27,6 +27,8 @@ class UpdateBanner extends ConsumerWidget {
 
     final isMobile = defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
+        isIosClient() ||
+        isAndroidClient() ||
         isWebMobile;
 
     // Se for Desktop real (sem ser simulação de largura mobile), esconde
@@ -45,8 +47,8 @@ class UpdateBanner extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Detectamos se é iOS pelo platform
-    final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+    // Detectamos se é iOS pelo platform ou userAgent no navegador
+    final bool isIOS = isIosClient();
 
     // Caso 1: Aplicativo Instalado no Android / iOS (!kIsWeb)
     String title = 'Nova Atualização Disponível';
