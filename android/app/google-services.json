@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "809342545607",
+    "project_id": "bibliapeniel-nilngn",
+    "storage_bucket": "bibliapeniel-nilngn.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:809342545607:android:7b4e0347ec2ede5ab118e2",
+        "android_client_info": {
+          "package_name": "com.example.keryx_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "809342545607-mdbs8b13gdo81et56rf4k9rf75ibkdcs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAuR6x-tQ3RoTMostmAdImyIHMl84e4kU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "809342545607-mdbs8b13gdo81et56rf4k9rf75ibkdcs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

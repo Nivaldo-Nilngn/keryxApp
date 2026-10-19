@@ -1,0 +1,33 @@
+name = "biblia-ia-esboco"
+main = "worker/index.js"
+compatibility_date = "2025-01-01"
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB_BIBLIA"
+database_id = "cde8b47c-8d61-4854-9ee0-62e392b2481a"
+
+[[d1_databases]]
+binding = "DB_COMMENTARIES"
+database_id = "279b457d-e0ae-4c2e-9cc6-a1c4bb0d102f"
+
+[[d1_databases]]
+binding = "DB_DICTIONARIOS"
+database_id = "39bf9150-b1c9-4143-a304-16a53f79b25a"
+
+[[kv_namespaces]]
+binding = "PDF_CATALOG"
+id = "0f9061fc3fbd4a9a82925efcb7aa1126"
+
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "439fb3913b7e4093a65338d444467a75"
+
+[vars]
+GROQ_MODELS = "llama-3.3-70b-versatile,openai/gpt-oss-120b,openai/gpt-oss-20b,llama-3.1-8b-instant"
+GOOGLE_MODELS = "gemini-3.8-flash,gemini-2.5-flash"
+MISTRAL_MODELS = "mistral-small-latest,mistral-large-latest"
+ZHIPU_MODELS = "glm-4.5-flash,glm-4-flash"
+RATE_LIMIT_PER_MIN = "20"

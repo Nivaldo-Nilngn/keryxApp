@@ -1,0 +1,40 @@
+{
+  "name": "Keryx - Estudo Bíblico & Ministério",
+  "short_name": "KeryxApp",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#111223",
+  "theme_color": "#111223",
+  "description": "Aplicativo completo de estudo bíblico, comentários, esboços de sermão e teologia.",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/Icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/Icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

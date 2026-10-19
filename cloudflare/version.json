@@ -1,0 +1,10 @@
+{
+  "latest_version": 2,
+  "version_name": "1.0.1",
+  "release_date": "2026-10-19",
+  "download_url": "https://github.com/nivaldo/keryx/releases/latest/download/app-release.apk",
+  "ios_url": "https://bibliapeniel-nilngn.firebaseapp.com",
+  "release_notes": "Novo suporte a PWA para iPhone e sistema de notificações de versão.",
+  "force_update": false,
+  "min_version": 1
+}

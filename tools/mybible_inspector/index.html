@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Keryx Studio • Inspetor & Leitor de Módulos MyBible</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #101726;
+      --bg-card: #162035;
+      --bg-card-hover: #1e2b47;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-color-active: rgba(234, 179, 8, 0.4);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --gold-primary: #f59e0b;
+      --gold-light: #fbbf24;
+      --gold-glow: rgba(245, 158, 11, 0.2);
+      --indigo-accent: #6366f1;
+      --emerald-accent: #10b981;
+      --rose-accent: #f43f5e;
+      --amber-accent: #f59e0b;
+      --cyan-accent: #06b6d4;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-reader: 'Lora', Georgia, serif;
+      --reader-font-size: 19px;
+      --reader-line-height: 1.8;
+      --reader-max-width: 860px;
+      --reader-bg: #121927;
+      --reader-text: #e2e8f0;
+    }
+
+    .reader-theme-dark { --reader-bg: #111827; --reader-text: #f3f4f6; }
+    .reader-theme-black { --reader-bg: #050505; --reader-text: #d1d5db; }
+    .reader-theme-sepia { --reader-bg: #221c15; --reader-text: #f4ead5; }
+    .reader-theme-light { --reader-bg: #faf8f5; --reader-text: #1f2937; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-ui);
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(16, 23, 38, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 15px var(--gold-glow);
+    }
+
+    .brand-title {
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--gold-primary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+    }
+
+    /* Category Navigation Tabs */
+    .category-tabs {
+      display: flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .cat-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .cat-tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .cat-tab-btn.active {
+      background: linear-gradient(135deg, var(--gold-primary), #d97706);
+      color: #000;
+      font-weight: 700;
+      box-shadow: 0 2px 10px var(--gold-glow);
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 10px;
+    }
+
+    .stat-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-pill strong {
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stat-pill.duplicates { border-color: rgba(244, 63, 94, 0.3); color: #fda4af; }
+    .stat-pill.duplicates strong { color: #f43f5e; }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-apply-loja {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-apply-loja:hover {
+      background: rgba(16, 185, 129, 0.3);
+      border-color: #10b981;
+      color: #fff;
+    }
+
+    .app-main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sidebar {
+      width: 380px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-search {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input-wrap svg {
+      position: absolute;
+      left: 12px;
+      width: 16px;
+      height: 16px;
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .search-input-wrap input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px 9px 38px;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input-wrap input:focus {
+      border-color: var(--gold-primary);
+    }
+
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .filter-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+
+    .filter-chip:hover {
+      color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .filter-chip.active {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: var(--gold-primary);
+      color: var(--gold-light);
+      font-weight: 600;
+    }
+
+    .modules-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .module-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .module-item:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateX(2px);
+    }
+
+    .module-item.active {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+    }
+
+    .module-item-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .module-item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      line-height: 1.3;
+    }
+
+    .module-item-author {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .module-item-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-full { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-nt { background: rgba(6, 182, 212, 0.15); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-ot { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-mono { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-book { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
+    .badge-dict { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-duplicate { background: rgba(244, 63, 94, 0.2); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.4); }
+
+    .module-item-stats {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+
+    .content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-base);
+    }
+
+    .module-action-bar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+
+    .module-heading {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      overflow: hidden;
+    }
+
+    .module-current-title {
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gold-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .module-meta-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .classification-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .btn-action {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-action.dupe {
+      background: rgba(244, 63, 94, 0.12);
+      border-color: rgba(244, 63, 94, 0.35);
+      color: #fda4af;
+    }
+    .btn-action.dupe:hover {
+      background: rgba(244, 63, 94, 0.25);
+      color: #fff;
+    }
+
+    .btn-action.book {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: rgba(99, 102, 241, 0.35);
+      color: #c7d2fe;
+    }
+    .btn-action.book:hover {
+      background: rgba(99, 102, 241, 0.25);
+      color: #fff;
+    }
+
+    .btn-action.ok {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: #a7f3d0;
+    }
+    .btn-action.ok:hover {
+      background: rgba(16, 185, 129, 0.25);
+      color: #fff;
+    }
+
+    /* Reader Toolbar */
+    .reader-toolbar {
+      background: rgba(18, 25, 39, 0.8);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .selectors-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .select-wrap label {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .toolbar-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+      max-width: 260px;
+    }
+
+    .toolbar-select:focus {
+      border-color: var(--gold-primary);
+    }
+
+    .reader-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tool-group {
+      display: flex;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .tool-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .tool-btn:hover {
+      color: var(--text-main);
+      background: var(--bg-card-hover);
+    }
+
+    .theme-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .theme-dot.dark { background: #111827; }
+    .theme-dot.black { background: #000; }
+    .theme-dot.sepia { background: #221c15; border-color: #d97706; }
+    .theme-dot.light { background: #faf8f5; }
+
+    /* Reader View */
+    .reader-container {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--reader-bg);
+      color: var(--reader-text);
+      transition: background-color 0.2s, color 0.2s;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .reader-article {
+      width: 100%;
+      max-width: var(--reader-max-width);
+      font-family: var(--font-reader);
+      font-size: var(--reader-font-size);
+      line-height: var(--reader-line-height);
+    }
+
+    .entry-header-meta {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .entry-number-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--gold-primary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .entry-title {
+      font-family: 'Cinzel', serif;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+
+    .reader-body {
+      word-break: break-word;
+    }
+
+    .reader-body p { margin-bottom: 1.4em; }
+    .reader-body h1, .reader-body h2, .reader-body h3 {
+      font-family: 'Cinzel', serif;
+      margin: 1.4em 0 0.6em 0;
+      color: var(--gold-light);
+    }
+
+    .reader-body blockquote {
+      border-left: 3px solid var(--gold-primary);
+      padding-left: 18px;
+      margin: 1.5em 0;
+      font-style: italic;
+      color: var(--text-muted);
+    }
+
+    .reader-body a.bible, .reader-body a {
+      color: #38bdf8;
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(56, 189, 248, 0.4);
+      padding: 1px 3px;
+      border-radius: 3px;
+    }
+
+    .reader-body a:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-bottom-color: #38bdf8;
+    }
+
+    .reader-body img {
+      max-width: 100%;
+      height: auto;
+      border-radius: var(--radius-sm);
+      margin: 16px 0;
+      display: block;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .reader-nav-footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .nav-arrow-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nav-arrow-btn:hover:not(:disabled) {
+      background: var(--bg-card-hover);
+      border-color: var(--gold-primary);
+      color: var(--gold-light);
+    }
+
+    .nav-arrow-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      gap: 16px;
+      text-align: center;
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      opacity: 0.4;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color-active);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border-radius: var(--radius-md);
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 1000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="reader-theme-dark">
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">📜</div>
+      <div>
+        <div class="brand-title">KERYX STUDIO</div>
+        <div class="brand-sub">Inspetor MyBible Pro</div>
+      </div>
+    </div>
+
+    <!-- Category Switcher Tabs -->
+    <div class="category-tabs">
+      <button class="cat-tab-btn active" id="tab-comentarios" onclick="switchCategory('comentarios')">
+        💬 Comentários <span id="badge-count-comentarios" style="opacity:0.7;">(252)</span>
+      </button>
+      <button class="cat-tab-btn" id="tab-dicionarios" onclick="switchCategory('dicionarios')">
+        📖 Dicionários <span id="badge-count-dicionarios" style="opacity:0.7;">(91)</span>
+      </button>
+      <button class="cat-tab-btn" id="tab-livros" onclick="switchCategory('livros')">
+        📚 Livros <span id="badge-count-livros" style="opacity:0.7;">(32)</span>
+      </button>
+      <button class="cat-tab-btn" id="tab-biblias" onclick="switchCategory('biblias')">
+        📜 Bíblias <span id="badge-count-biblias" style="opacity:0.7;">(91)</span>
+      </button>
+    </div>
+
+    <div class="header-stats">
+      <div class="stat-pill">Total: <strong id="stat-total">0</strong></div>
+      <div class="stat-pill duplicates">⚠️ Duplicados: <strong id="stat-duplicates">0</strong></div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-apply-loja" onclick="applyToLojaJson()">
+        💾 Sincronizar Loja
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="app-main">
+    
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-search">
+        <div class="search-input-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="search-modules" placeholder="Buscar módulo ou autor..." oninput="filterModules()">
+        </div>
+
+        <div class="filter-pills" id="filter-pills-container">
+          <!-- Injected dynamically based on category -->
+        </div>
+      </div>
+
+      <div class="modules-list" id="modules-list">
+        <div style="padding: 20px; text-align: center; color: var(--text-dim);">
+          Carregando módulos...
+        </div>
+      </div>
+    </aside>
+
+    <!-- Content Area -->
+    <main class="content-area">
+      
+      <!-- Module Action Header -->
+      <div class="module-action-bar">
+        <div class="module-heading">
+          <div class="module-current-title" id="current-module-title">Selecione um módulo na lista</div>
+          <div class="module-meta-desc" id="current-module-desc">Detalhes da estrutura e notas...</div>
+        </div>
+
+        <div class="classification-actions" id="classification-actions" style="display: none;">
+          <button class="btn-action dupe" onclick="performAction('move_to_duplicates')" title="Mover este arquivo para Duplicados_Removidos">
+            ⚠️ Isolar Duplicado
+          </button>
+          <button class="btn-action book" onclick="performAction('move_to_books')" title="Mover para a pasta de Livros/E-books">
+            📚 Mover para Livros
+          </button>
+          <button class="btn-action ok" onclick="classifyCurrent('commentary')">
+            ✅ Manter Comentário
+          </button>
+        </div>
+      </div>
+
+      <!-- Reader Toolbar -->
+      <div class="reader-toolbar" id="reader-toolbar">
+        <div class="selectors-row">
+          <!-- Book Selector (for commentaries) -->
+          <div class="select-wrap" id="book-select-wrap">
+            <label>Livro:</label>
+            <select class="toolbar-select" id="book-select" onchange="onBookChange(this.value)">
+              <option value="">Todos os Livros</option>
+            </select>
+          </div>
+
+          <!-- Chapter / Verse / Entry Selector -->
+          <div class="select-wrap">
+            <label id="chapter-label">Seção / Versículo:</label>
+            <select class="toolbar-select" id="chapter-select" onchange="goToEntry(this.value)">
+              <option>Selecione...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="reader-tools">
+          <div class="tool-group">
+            <button class="tool-btn" onclick="changeFontSize(-1)">A-</button>
+            <span style="font-size: 11px; padding: 0 6px; font-family: monospace;" id="font-size-label">19px</span>
+            <button class="tool-btn" onclick="changeFontSize(1)">A+</button>
+          </div>
+
+          <div class="tool-group">
+            <button class="tool-btn" onclick="setFontFamily('Lora')">Serif</button>
+            <button class="tool-btn" onclick="setFontFamily('Inter')">Sans</button>
+          </div>
+
+          <div class="tool-group" style="gap: 6px; padding: 4px 8px;">
+            <div class="theme-dot dark" title="Escuro" onclick="setTheme('reader-theme-dark')"></div>
+            <div class="theme-dot black" title="Preto" onclick="setTheme('reader-theme-black')"></div>
+            <div class="theme-dot sepia" title="Sépia" onclick="setTheme('reader-theme-sepia')"></div>
+            <div class="theme-dot light" title="Claro" onclick="setTheme('reader-theme-light')"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reader Container -->
+      <div class="reader-container" id="reader-view">
+        <div class="empty-state" id="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+          <div>Selecione qualquer módulo à esquerda para navegar e ler</div>
+        </div>
+
+        <article class="reader-article" id="reader-article" style="display: none;">
+          <header class="entry-header-meta">
+            <div class="entry-number-badge" id="entry-badge">NOTA 1 DE 100</div>
+            <h1 class="entry-title" id="entry-title">Referência Bíblica</h1>
+          </header>
+
+          <div class="reader-body" id="reader-body">
+            Conteúdo do comentário...
+          </div>
+
+          <footer class="reader-nav-footer">
+            <button class="nav-arrow-btn" id="btn-prev-chap" onclick="navigateEntry(-1)">
+              ← Nota Anterior
+            </button>
+            <div style="font-size: 12px; color: var(--text-dim);" id="nav-pos-indicator">1 / 100</div>
+            <button class="nav-arrow-btn" id="btn-next-chap" onclick="navigateEntry(1)">
+              Próxima Nota →
+            </button>
+          </footer>
+        </article>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span id="toast-icon">✅</span>
+    <span id="toast-message">Salvo com sucesso!</span>
+  </div>
+
+  <script>
+    let currentCategory = 'comentarios';
+    let allModules = [];
+    let currentModule = null;
+    let currentBooks = [];
+    let currentEntries = [];
+    let currentIndex = 0;
+    let activeFilter = 'all';
+    let currentFontSize = 19;
+
+    async function init() {
+      renderFilterPills();
+      await loadModules();
+
+      // Keyboard navigation
+      document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        if (e.key === 'ArrowLeft') navigateEntry(-1);
+        if (e.key === 'ArrowRight') navigateEntry(1);
+      });
+    }
+
+    function switchCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tab-${cat}`).classList.add('active');
+      activeFilter = 'all';
+      renderFilterPills();
+      loadModules();
+    }
+
+    function renderFilterPills() {
+      const container = document.getElementById('filter-pills-container');
+      if (currentCategory === 'comentarios') {
+        container.innerHTML = `
+          <div class="filter-chip active" onclick="setFilter('all', this)">Todos</div>
+          <div class="filter-chip" onclick="setFilter('full_bible', this)">🌟 Bíblia Completa</div>
+          <div class="filter-chip" onclick="setFilter('nt', this)">📖 Novo Testamento</div>
+          <div class="filter-chip" onclick="setFilter('ot', this)">📜 Antigo Testamento</div>
+          <div class="filter-chip" onclick="setFilter('monograph', this)">📌 Monografias (1 Livro)</div>
+          <div class="filter-chip" onclick="setFilter('duplicate', this)">⚠️ Duplicados</div>
+        `;
+      } else if (currentCategory === 'dicionarios') {
+        container.innerHTML = `
+          <div class="filter-chip active" onclick="setFilter('all', this)">Todos</div>
+          <div class="filter-chip" onclick="setFilter('dict', this)">📖 Dicionários A-Z</div>
+          <div class="filter-chip" onclick="setFilter('book', this)">📚 Sugeridos como Livros</div>
+          <div class="filter-chip" onclick="setFilter('duplicate', this)">⚠️ Duplicados</div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="filter-chip active" onclick="setFilter('all', this)">Todos</div>
+        `;
+      }
+    }
+
+    async function loadModules() {
+      try {
+        const res = await fetch(`/api/modules?category=${currentCategory}`);
+        allModules = await res.json();
+        updateStats();
+        renderModulesList();
+
+        if (allModules.length > 0) {
+          selectModule(allModules[0].filename);
+        } else {
+          document.getElementById('empty-state').style.display = 'flex';
+          document.getElementById('reader-article').style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Erro ao carregar módulos:', e);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('stat-total').textContent = allModules.length;
+      document.getElementById('stat-duplicates').textContent = allModules.filter(m => m.is_duplicate_of).length;
+      const countEl = document.getElementById(`badge-count-${currentCategory}`);
+      if (countEl) countEl.textContent = `(${allModules.length})`;
+    }
+
+    function renderModulesList() {
+      const container = document.getElementById('modules-list');
+      const search = document.getElementById('search-modules').value.toLowerCase();
+
+      const filtered = allModules.filter(m => {
+        if (activeFilter === 'duplicate' && !m.is_duplicate_of) return false;
+        if (activeFilter === 'full_bible' && m.suggested_type !== 'full_bible') return false;
+        if (activeFilter === 'nt' && m.suggested_type !== 'nt') return false;
+        if (activeFilter === 'ot' && m.suggested_type !== 'ot') return false;
+        if (activeFilter === 'monograph' && m.suggested_type !== 'monograph') return false;
+        if (activeFilter === 'book' && m.suggested_type !== 'book') return false;
+        if (activeFilter === 'dict' && m.suggested_type !== 'dict') return false;
+
+        if (search) {
+          const matchTitle = (m.title || '').toLowerCase().includes(search);
+          const matchFile = (m.filename || '').toLowerCase().includes(search);
+          const matchAuthor = (m.author || '').toLowerCase().includes(search);
+          if (!matchTitle && !matchFile && !matchAuthor) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-dim);">Nenhum módulo encontrado</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(m => {
+        const isActive = currentModule && currentModule.filename === m.filename;
+        let badgeHtml = '';
+
+        if (m.suggested_type === 'full_bible') {
+          badgeHtml = `<span class="badge badge-full">🌟 66 LIVROS</span>`;
+        } else if (m.suggested_type === 'nt') {
+          badgeHtml = `<span class="badge badge-nt">📖 NOVO TESTAMENTO</span>`;
+        } else if (m.suggested_type === 'ot') {
+          badgeHtml = `<span class="badge badge-ot">📜 ANTIGO TESTAMENTO</span>`;
+        } else if (m.suggested_type === 'monograph') {
+          badgeHtml = `<span class="badge badge-mono">📌 MONOGRAFIA</span>`;
+        } else if (m.suggested_type === 'book') {
+          badgeHtml = `<span class="badge badge-book">📚 LIVRO</span>`;
+        } else {
+          badgeHtml = `<span class="badge badge-dict">📖 DIC</span>`;
+        }
+
+        const dupBadge = m.is_duplicate_of ? `<span class="badge badge-duplicate">⚠️ DUPLICATA</span>` : '';
+
+        return `
+          <div class="module-item ${isActive ? 'active' : ''}" onclick="selectModule('${m.filename}')">
+            <div class="module-item-header">
+              <span class="module-item-title">${escapeHtml(m.title)}</span>
+              <span class="module-item-stats">${m.size_mb} MB</span>
+            </div>
+            ${m.author ? `<div class="module-item-author">${escapeHtml(m.author)}</div>` : ''}
+            <div class="module-item-badges">
+              ${badgeHtml}
+              ${dupBadge}
+              <span class="module-item-stats">${m.total_entries || 0} notas</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setFilter(filter, el) {
+      activeFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      renderModulesList();
+    }
+
+    function filterModules() {
+      renderModulesList();
+    }
+
+    async function selectModule(filename) {
+      currentModule = allModules.find(m => m.filename === filename);
+      renderModulesList();
+
+      document.getElementById('current-module-title').innerHTML = `
+        ${escapeHtml(currentModule.title)} 
+        <span style="font-size: 11px; font-weight: normal; color: var(--text-dim);">(${currentModule.filename})</span>
+      `;
+      document.getElementById('current-module-desc').textContent = currentModule.description || currentModule.suggested_reason || '';
+      document.getElementById('classification-actions').style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/module_details?file=${encodeURIComponent(filename)}&category=${currentCategory}`);
+        const data = await res.json();
+        currentBooks = data.books || [];
+        currentEntries = data.entries || [];
+        currentIndex = 0;
+
+        populateBookSelect();
+        populateChapterSelect();
+
+        if (currentEntries.length > 0) {
+          loadEntry(0);
+        } else {
+          document.getElementById('empty-state').style.display = 'flex';
+          document.getElementById('reader-article').style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Erro ao carregar detalhes:', e);
+      }
+    }
+
+    function populateBookSelect() {
+      const bookWrap = document.getElementById('book-select-wrap');
+      const bookSelect = document.getElementById('book-select');
+
+      if (currentBooks.length > 0) {
+        bookWrap.style.display = 'flex';
+        bookSelect.innerHTML = `<option value="">Todos os Livros (${currentBooks.length})</option>` + currentBooks.map(b => `
+          <option value="${b.id}">${b.name} (${b.count} notas)</option>
+        `).join('');
+      } else {
+        bookWrap.style.display = 'none';
+      }
+    }
+
+    function onBookChange(bookId) {
+      if (!bookId) {
+        populateChapterSelect(currentEntries);
+        if (currentEntries.length > 0) loadEntry(0);
+        return;
+      }
+      const bId = parseInt(bookId);
+      const filtered = currentEntries.filter(e => e.book === bId);
+      populateChapterSelect(filtered);
+      if (filtered.length > 0) {
+        loadEntry(filtered[0].index);
+      }
+    }
+
+    function populateChapterSelect(entries = currentEntries) {
+      const select = document.getElementById('chapter-select');
+      select.innerHTML = entries.map(e => `
+        <option value="${e.index}">${escapeHtml(e.word)}</option>
+      `).join('');
+    }
+
+    async function loadEntry(index) {
+      if (!currentModule || currentEntries.length === 0) return;
+      currentIndex = index;
+
+      try {
+        const res = await fetch(`/api/entry?file=${encodeURIComponent(currentModule.filename)}&category=${currentCategory}&index=${index}`);
+        const data = await res.json();
+
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('reader-article').style.display = 'block';
+
+        document.getElementById('entry-badge').textContent = `NOTA ${data.index + 1} DE ${data.total}`;
+        document.getElementById('entry-title').textContent = data.word;
+        document.getElementById('reader-body').innerHTML = data.content;
+
+        document.getElementById('chapter-select').value = data.index;
+        document.getElementById('nav-pos-indicator').textContent = `${data.index + 1} / ${data.total}`;
+        document.getElementById('btn-prev-chap').disabled = !data.has_prev;
+        document.getElementById('btn-next-chap').disabled = !data.has_next;
+
+        document.getElementById('reader-view').scrollTop = 0;
+      } catch (e) {
+        console.error('Erro ao carregar entrada:', e);
+      }
+    }
+
+    function goToEntry(index) {
+      loadEntry(parseInt(index));
+    }
+
+    function navigateEntry(delta) {
+      const target = currentIndex + delta;
+      if (target >= 0 && target < currentEntries.length) {
+        loadEntry(target);
+      }
+    }
+
+    function changeFontSize(delta) {
+      currentFontSize = Math.max(14, Math.min(32, currentFontSize + delta));
+      document.documentElement.style.setProperty('--reader-font-size', currentFontSize + 'px');
+      document.getElementById('font-size-label').textContent = currentFontSize + 'px';
+    }
+
+    function setFontFamily(font) {
+      const val = font === 'Lora' ? "'Lora', Georgia, serif" : "'Inter', sans-serif";
+      document.documentElement.style.setProperty('--font-reader', val);
+    }
+
+    function setTheme(themeClass) {
+      document.body.className = themeClass;
+    }
+
+    async function performAction(action) {
+      if (!currentModule) return;
+      const fn = currentModule.filename;
+      const promptText = action === 'move_to_duplicates'
+        ? `Isolar "${fn}" em Duplicados_Removidos/?`
+        : `Mover "${fn}" para a pasta Livros/?`;
+
+      if (!confirm(promptText)) return;
+
+      try {
+        const res = await fetch('/api/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action, filename: fn })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, '📁');
+          // remove from local list and reload
+          allModules = allModules.filter(m => m.filename !== fn);
+          updateStats();
+          renderModulesList();
+          if (allModules.length > 0) {
+            selectModule(allModules[0].filename);
+          } else {
+            document.getElementById('empty-state').style.display = 'flex';
+            document.getElementById('reader-article').style.display = 'none';
+          }
+        }
+      } catch (e) {
+        showToast('Erro ao executar ação', '❌');
+      }
+    }
+
+    async function classifyCurrent(category) {
+      if (!currentModule) return;
+      try {
+        const res = await fetch('/api/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: currentModule.filename, category: category })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentModule.user_category = category;
+          showToast(`Confirmado como: ${category}`);
+        }
+      } catch (e) {
+        showToast('Erro ao salvar classificação', '❌');
+      }
+    }
+
+    async function applyToLojaJson() {
+      if (!confirm('Deseja sincronizar as alterações e categorias com loja_keryx.json e banco SQLite da loja?')) return;
+      try {
+        const res = await fetch('/api/apply_to_loja', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Loja sincronizada com sucesso!`, '🎉');
+        }
+      } catch (e) {
+        showToast('Erro ao sincronizar loja', '❌');
+      }
+    }
+
+    function showToast(msg, icon = '✅') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-icon').textContent = icon;
+      document.getElementById('toast-message').textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>

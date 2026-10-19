@@ -1,0 +1,6 @@
+name = "keryx-telegram-proxy"
+main = "worker.js"
+compatibility_date = "2024-03-22"
+
+# O BOT_TOKEN deve ser configurado como Secret (nunca commitado):
+#   npx wrangler secret put BOT_TOKEN

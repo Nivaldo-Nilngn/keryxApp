@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+
+    function counterDelta(field) {
+      return request.resource.data.get(field, 0) - resource.data.get(field, 0);
+    }
+    function likeRef(id) {
+      return /databases/$(db)/documents/annotations/$(id)/likes/$(request.auth.uid);
+    }
+    function likeCountOk(id) {
+      let d = counterDelta('likeCount');
+      return d == 0
+        || (d == 1  && !exists(likeRef(id)) && existsAfter(likeRef(id)))
+        || (d == -1 && exists(likeRef(id))  && !existsAfter(likeRef(id)));
+    }
+
+    match /annotations/{id} {
+      allow read: if resource.data.get('isPublic', false) == true || (signedIn() && resource.data.authorId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.get('likeCount', 0) == 0
+                    && request.resource.data.get('commentCount', 0) == 0
+                    && request.resource.data.get('isLocked', false) == false;
+      allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
+      allow update: if signedIn() && (
+        // O dono atualiza, mas não muda authorId nem forja contadores
+        (resource.data.authorId == request.auth.uid 
+         && request.resource.data.authorId == resource.data.authorId
+         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['likeCount','commentCount'])) ||
+        // Outros usuários atualizando apenas métricas
+        (resource.data.get('isPublic', false) == true &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount', 'likeCount', 'lastActivityAt'])
+         && likeCountOk(id) 
+         && counterDelta('commentCount') >= -1 && counterDelta('commentCount') <= 1)
+      );
+
+      match /comments/{cid} {
+        // Dono da anotação também pode ler, mesmo que fique privada
+        allow read: if get(/databases/$(db)/documents/annotations/$(id)).data.get('isPublic', false) == true || 
+                       (signedIn() && get(/databases/$(db)/documents/annotations/$(id)).data.authorId == request.auth.uid);
+        
+        allow create: if signedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.get('isAccepted', false) == false
+          && get(/databases/$(db)/documents/annotations/$(id)).data.get('isPublic', false) == true
+          && get(/databases/$(db)/documents/annotations/$(id)).data.get('isLocked', false) == false;
+          
+        allow update: if signedIn() && (
+          // O autor do comentário não altera isAccepted nem authorId
+          (resource.data.authorId == request.auth.uid && 
+           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorId','isAccepted'])) ||
+          // Dono da anotação altera apenas isAccepted
+          (get(/databases/$(db)/documents/annotations/$(id)).data.authorId == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAccepted']))
+        );
+        
+        // Dono da anotação modera (deleta) comentários indesejados
+        allow delete: if signedIn() && 
+          (resource.data.authorId == request.auth.uid || 
+           get(/databases/$(db)/documents/annotations/$(id)).data.authorId == request.auth.uid);
+      }
+
+      match /likes/{uid} {
+        // Apenas lê se for pública ou dono
+        allow read: if signedIn() && 
+          (get(/databases/$(db)/documents/annotations/$(id)).data.get('isPublic', false) == true || 
+           get(/databases/$(db)/documents/annotations/$(id)).data.authorId == request.auth.uid);
+           
+        allow create: if signedIn() && request.auth.uid == uid && 
+          get(/databases/$(db)/documents/annotations/$(id)).data.get('isPublic', false) == true &&
+          request.resource.data.size() <= 5;
+          
+        allow delete: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /store_comments/{docId} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.authorId == request.auth.uid;
+    }
+
+    function isPrimaryAdmin() {
+      return signedIn() && (
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'nivaldo.nilngn@gmail.com') ||
+        request.auth.uid == 'I5v6l4CDUQRaliO9upJrE36QEHx1'
+      );
+    }
+
+    match /authorized_emails/{email} {
+      allow read: if signedIn();
+      allow write: if isPrimaryAdmin();
+    }
+
+    match /access_logs/{logId} {
+      allow read, write: if isPrimaryAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isPrimaryAdmin());
+      
+      // Criação de perfil
+      allow create: if signedIn() && (
+        isPrimaryAdmin() || 
+        (request.auth.uid == uid && 
+         request.resource.data.get('role', 'user') != 'admin')
+      );
+
+      // Atualização de perfil
+      allow update: if signedIn() && (
+        // Administrador Principal pode alterar status e permissões
+        (isPrimaryAdmin() && 
+         // Impede alteração acidental do próprio admin principal
+         (resource.data.get('email', '').lower() != 'nivaldo.nilngn@gmail.com' || 
+          (request.resource.data.get('role', 'admin') == 'admin' && 
+           request.resource.data.get('status', 'authorized') == 'authorized'))) ||
+        // Usuário comum pode atualizar apenas seus próprios dados pessoais, nunca permissões
+        (request.auth.uid == uid && 
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'approvedAt', 'approvedBy']))
+      );
+
+      allow delete: if isPrimaryAdmin() && resource.data.get('email', '').lower() != 'nivaldo.nilngn@gmail.com';
+
+      match /annotations/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+      match /highlights/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+      match /favorites/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+      match /reading_history/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+      match /outlines/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+      match /notifications/{nid} {
+        allow read, delete: if signedIn() && request.auth.uid == uid;
+        allow update: if signedIn() && request.auth.uid == uid && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+        allow create: if signedIn() && (
+          (request.resource.data.fromUserId == request.auth.uid && uid != request.auth.uid) ||
+          request.auth.uid == uid
+        );
+      }
+    }
+  }
+}
+
