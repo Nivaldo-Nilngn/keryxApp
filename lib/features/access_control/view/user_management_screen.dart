@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/app_update_service.dart';
 import '../model/user_access_model.dart';
 import '../service/access_control_service.dart';
 import '../state/access_control_providers.dart';
@@ -489,6 +490,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             children: [
               // ── 1. Meu Usuário Administrador (Card em destaque) ──────────────────
               _buildAdminProfileCard(context),
+              const SizedBox(height: 16),
+
+              // ── 1.1 Gerenciador de Versão do App (Cloudflare KV & PWA) ─────────────
+              _buildVersionControlCard(context),
               const SizedBox(height: 20),
 
               // ── 2. Barra de Pesquisa ──────────────────────────────────────────────
@@ -868,6 +873,635 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       ),
     );
   }
+
+  Widget _buildVersionControlCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final latestUpdateAsync = ref.watch(latestUpdateInfoProvider);
+    final currentVersionAsync = ref.watch(currentAppVersionProvider);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.system_update_rounded,
+                  color: AppTheme.kPrimaryGold,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Controle de Versão',
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'CLOUDFLARE KV',
+                            style: GoogleFonts.outfit(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF10B981),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Gerencie a versão distribuída para Android e iPhone',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: Colors.white10),
+          const SizedBox(height: 14),
+          latestUpdateAsync.when(
+            data: (info) {
+              final latestBuild = info?.latestVersion ?? 1;
+              final latestName = info?.versionName ?? '1.0.0';
+              final notes = info?.releaseNotes.isNotEmpty == true
+                  ? info!.releaseNotes
+                  : 'Nenhuma nota informada.';
+              final iosUrl = info?.iosUrl.isNotEmpty == true
+                  ? info!.iosUrl
+                  : 'https://keryxapp.pages.dev';
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildVersionStatItem(
+                          context,
+                          title: 'VERSÃO NO CLOUDFLARE',
+                          value: 'v$latestName (Build $latestBuild)',
+                          icon: Icons.cloud_done_rounded,
+                          color: AppTheme.kPrimaryGold,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildVersionStatItem(
+                          context,
+                          title: 'MEU APP INSTALADO',
+                          value: currentVersionAsync.when(
+                            data: (v) => 'v${v.versionName} (${v.buildNumber})',
+                            loading: () => '...',
+                            error: (_, __) => '1.0.0',
+                          ),
+                          icon: Icons.phone_android_rounded,
+                          color: const Color(0xFF38BDF8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'NOTAS DA VERSÃO:',
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          notes,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.apple_rounded, size: 14, color: Colors.white70),
+                            const SizedBox(width: 4),
+                            Text(
+                              'PWA iOS: ',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                iosUrl,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 11,
+                                  color: AppTheme.kPrimaryGold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.kPrimaryGold,
+                        foregroundColor: const Color(0xFF111223),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => _showEditVersionDialog(context, info),
+                      icon: const Icon(Icons.edit_note_rounded, size: 20),
+                      label: Text(
+                        'Alterar Versão do Aplicativo',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(color: AppTheme.kPrimaryGold),
+              ),
+            ),
+            error: (e, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Não foi possível consultar a versão no Cloudflare ($e).',
+                  style: GoogleFonts.manrope(color: Colors.redAccent, fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: () => ref.invalidate(latestUpdateInfoProvider),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Recarregar'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVersionStatItem(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  value,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditVersionDialog(BuildContext context, AppUpdateInfo? currentInfo) {
+    final formKey = GlobalKey<FormState>();
+    final buildController = TextEditingController(
+      text: ((currentInfo?.latestVersion ?? 1) + 1).toString(),
+    );
+    final versionNameController = TextEditingController(
+      text: currentInfo?.versionName ?? '1.0.1',
+    );
+    final apkUrlController = TextEditingController(
+      text: currentInfo?.downloadUrl.isNotEmpty == true
+          ? currentInfo!.downloadUrl
+          : 'https://github.com/Nivaldo-Nilngn/keryxApp/releases/latest/download/keryxApp.apk',
+    );
+    final iosUrlController = TextEditingController(
+      text: currentInfo?.iosUrl.isNotEmpty == true
+          ? currentInfo!.iosUrl
+          : 'https://keryxapp.pages.dev',
+    );
+    final notesController = TextEditingController(
+      text: currentInfo?.releaseNotes ?? '',
+    );
+    bool forceUpdate = currentInfo?.forceUpdate ?? false;
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isSaving,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final theme = Theme.of(ctx);
+          return AlertDialog(
+            backgroundColor: theme.colorScheme.surfaceContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+              ),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.edit_note_rounded,
+                    color: AppTheme.kPrimaryGold,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Lançar Nova Versão',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Altere o número de versão para que os celulares dos membros recebam o alerta de atualização imediatamente.',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Nº DE BUILD (INCREMENTAL)',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                TextFormField(
+                                  controller: buildController,
+                                  keyboardType: TextInputType.number,
+                                  style: GoogleFonts.manrope(
+                                    color: theme.colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Ex: 2',
+                                    filled: true,
+                                    fillColor: theme.scaffoldBackgroundColor,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'Informe o build';
+                                    if (int.tryParse(v.trim()) == null) return 'Apenas números';
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'NOME DA VERSÃO',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                TextFormField(
+                                  controller: versionNameController,
+                                  style: GoogleFonts.manrope(
+                                    color: theme.colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Ex: 1.0.1',
+                                    filled: true,
+                                    fillColor: theme.scaffoldBackgroundColor,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                  validator: (v) => v == null || v.trim().isEmpty
+                                      ? 'Informe o nome'
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'URL DE DOWNLOAD DO APK (ANDROID)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: apkUrlController,
+                        style: GoogleFonts.manrope(fontSize: 12, color: theme.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText: 'https://github.com/.../keryxApp.apk',
+                          filled: true,
+                          fillColor: theme.scaffoldBackgroundColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'URL DO PWA (IPHONE / WEB)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: iosUrlController,
+                        style: GoogleFonts.manrope(fontSize: 12, color: theme.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText: 'https://keryxapp.pages.dev',
+                          filled: true,
+                          fillColor: theme.scaffoldBackgroundColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'NOTAS DA VERSÃO / O QUE MUDOU',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: notesController,
+                        maxLines: 3,
+                        style: GoogleFonts.manrope(fontSize: 13, color: theme.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText: 'Descreva as novidades desta versão...',
+                          filled: true,
+                          fillColor: theme.scaffoldBackgroundColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Forçar Atualização?',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Exige que os usuários atualizem para continuar usando o app.',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        activeColor: AppTheme.kPrimaryGold,
+                        value: forceUpdate,
+                        onChanged: (val) => setDialogState(() => forceUpdate = val),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
+                child: Text(
+                  'Cancelar',
+                  style: GoogleFonts.manrope(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.kPrimaryGold,
+                  foregroundColor: const Color(0xFF111223),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialogState(() => isSaving = true);
+
+                        final newInfo = AppUpdateInfo(
+                          latestVersion: int.parse(buildController.text.trim()),
+                          versionName: versionNameController.text.trim(),
+                          downloadUrl: apkUrlController.text.trim(),
+                          iosUrl: iosUrlController.text.trim(),
+                          releaseNotes: notesController.text.trim(),
+                          forceUpdate: forceUpdate,
+                          minVersion: forceUpdate
+                              ? int.parse(buildController.text.trim())
+                              : (currentInfo?.minVersion ?? 1),
+                          releaseDate: DateTime.now().toIso8601String().split('T')[0],
+                        );
+
+                        final success = await ref
+                            .read(appUpdateServiceProvider)
+                            .publishNewVersion(newInfo);
+
+                        ref.invalidate(latestUpdateInfoProvider);
+                        ref.invalidate(isUpdateAvailableProvider);
+
+                        if (context.mounted) {
+                          Navigator.pop(dialogCtx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                success
+                                    ? 'Versão v${newInfo.versionName} divulgada com sucesso no Cloudflare!'
+                                    : 'A versão foi salva no Firestore (verifique a conexão com o Cloudflare).',
+                              ),
+                              backgroundColor: success
+                                  ? const Color(0xFF10B981)
+                                  : Colors.orangeAccent,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF111223),
+                        ),
+                      )
+                    : Text(
+                        'Salvar e Divulgar',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
 
   Widget _buildFilterChip(
     BuildContext context, {

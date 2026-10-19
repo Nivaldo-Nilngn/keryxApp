@@ -12,6 +12,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 
 /// Modelo de dados da versão retornado pelo Cloudflare Worker / R2 / Pages
@@ -137,6 +138,50 @@ class AppUpdateService {
       return null;
     }
   }
+
+  /// Publica uma nova versão tanto no Cloudflare Worker (KV) quanto no Firestore
+  Future<bool> publishNewVersion(AppUpdateInfo newInfo) async {
+    bool cloudflareSuccess = false;
+    final token = dotenv.env['APP_TOKEN']?.trim() ?? 'KeryxAppToken2026';
+    final url = dotenv.env['CLOUDFLARE_VERSION_URL']?.trim() ?? defaultVersionUrl;
+
+    final payload = newInfo.toJson();
+
+    // 1. Atualiza no Cloudflare Worker via POST
+    try {
+      final response = await _client.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+          'x-app-token': token,
+        },
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        cloudflareSuccess = true;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Erro ao atualizar versão no Cloudflare: $e');
+    }
+
+    // 2. Sincroniza também no Firestore (app_config/version) para redundância
+    try {
+      await FirebaseFirestore.instance
+          .collection('app_config')
+          .doc('version')
+          .set({
+        ...payload,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      if (kDebugMode) print('Erro ao atualizar versão no Firestore: $e');
+    }
+
+    return cloudflareSuccess;
+  }
+
 
   /// Baixa o APK no Android e abre o instalador nativo, ou abre a URL no navegador
   Future<void> downloadAndInstallApk(BuildContext context, String url) async {
