@@ -82,7 +82,7 @@ class AppUpdateService {
       return envUrl;
     }
     // Fallback padrão configurável pelo Cloudflare
-    return 'https://keryx-version.pages.dev/version.json';
+    return 'https://keryx-version.nivaldo-nilngn.workers.dev';
   }
 
   AppUpdateService({
