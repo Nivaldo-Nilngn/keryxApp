@@ -3,58 +3,83 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/app_update_service.dart';
-import 'pwa_install_guide_modal.dart';
+import '../services/internal_download_service.dart';
+import '../utils/platform_utils.dart';
+
+final isBannerDismissedProvider = StateProvider<bool>((ref) => false);
 
 class UpdateBanner extends ConsumerWidget {
   const UpdateBanner({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final updateInfoAsync = ref.watch(latestUpdateInfoProvider);
-    final isUpdateAvailable = ref.watch(isUpdateAvailableProvider);
-    final dismissedVersion = ref.watch(dismissedUpdateVersionProvider);
-    final updateInfo = updateInfoAsync.valueOrNull;
+    // 1. Ouvinte em tempo real: Se a versão mudar, reseta o "fechar" (X)
+    // para que o banner apareça novamente para a NOVA atualização.
+    ref.listen<AppUpdateInfo?>(latestUpdateInfoProvider.select((v) => v.valueOrNull), (prev, next) {
+      if (next != null && prev?.latestVersion != next.latestVersion) {
+        ref.read(isBannerDismissedProvider.notifier).state = false;
+      }
+    });
 
-    // Se já foi dispensado para esta versão específica, oculta
-    if (updateInfo != null && dismissedVersion == updateInfo.latestVersion) {
-      return const SizedBox.shrink();
-    }
+    // 2. Verificação inteligente para Web / Mobile:
+    // Se for Web e a largura for pequena (< 600px), assume que é mobile para o banner aparecer
+    final isWebMobile = kIsWeb && MediaQuery.of(context).size.width < 600;
 
-    final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-    final isWebMobile = kIsWeb && MediaQuery.of(context).size.width < 768;
+    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        isWebMobile;
 
-    // Mostra o banner caso haja nova versão ou se for acesso mobile no Web
-    final shouldShow = isUpdateAvailable || (kIsWeb && isWebMobile && updateInfo != null);
+    // Se for Desktop real (sem ser simulação de largura mobile), esconde
+    if (!isMobile) return const SizedBox.shrink();
 
-    if (!shouldShow || updateInfo == null) {
-      return const SizedBox.shrink();
-    }
+    final isDismissed = ref.watch(isBannerDismissedProvider);
+    if (isDismissed) return const SizedBox.shrink();
 
+    final isAvailable = ref.watch(isUpdateAvailableProvider);
+    final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
+
+    return _buildLayout(context, ref, isAvailable, updateInfo);
+  }
+
+  Widget _buildLayout(BuildContext context, WidgetRef ref, bool isUpdateAvailable, AppUpdateInfo? updateInfo) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Estilo simples e elegante idêntico ao modelo Peniel Finanças
-    const brandGreen = Color(0xFF22C55E);
+    // Detectamos se é iOS pelo platform
+    final bool isIOS = defaultTargetPlatform == TargetPlatform.iOS;
 
-    String title;
-    String subtitle;
-    String buttonText;
-    IconData icon;
+    // Caso 1: Aplicativo Instalado no Android / iOS (!kIsWeb)
+    String title = 'Nova Atualização Disponível';
+    String subtitle = 'Toque para atualizar agora';
+    String buttonLabel = 'ATUALIZAR';
+    Color mainColor = const Color(0xFF22C55E); // Verde padrão de atualização
+    IconData icon = Icons.system_update_rounded;
 
-    if (kIsWeb && isIOS) {
-      title = 'Instale o Keryx no iPhone';
-      subtitle = 'Toque para adicionar à Tela de Início';
-      buttonText = 'INSTALAR';
-      icon = Icons.apple_rounded;
-    } else {
-      title = 'Nova Atualização Disponível';
-      subtitle = 'Toque para atualizar agora';
-      buttonText = 'ATUALIZAR';
-      icon = Icons.system_update_rounded;
+    // Caso 2: Acessando via Navegador Web (kIsWeb)
+    if (kIsWeb) {
+      if (isIOS) {
+        // iPhone no Safari / Chrome
+        title = 'Aplicativo no seu iPhone';
+        subtitle = 'Toque e adicione à Tela de Início';
+        buttonLabel = 'INSTALAR';
+        mainColor = Colors.blue;
+        icon = Icons.add_to_home_screen_rounded;
+      } else {
+        // Android no Navegador (não está instalado via APK)
+        title = 'Baixe o Aplicativo Oficial';
+        subtitle = 'Para uma experiência completa e mais rápida';
+        buttonLabel = 'BAIXAR';
+        mainColor = Colors.blue;
+        icon = Icons.install_mobile_rounded;
+      }
     }
 
-    final String finalDownloadUrl = updateInfo.downloadUrl.isNotEmpty
-        ? updateInfo.downloadUrl
+    // Se estiver no app nativo instalado e já estiver na versão mais recente, não exibe
+    final bool shouldShow = kIsWeb || isUpdateAvailable;
+    if (!shouldShow) return const SizedBox.shrink();
+
+    final String url = (updateInfo?.downloadUrl.isNotEmpty ?? false)
+        ? updateInfo!.downloadUrl.trim()
         : 'https://keryx-version.nivaldo-nilngn.workers.dev/download';
 
     return Container(
@@ -65,12 +90,12 @@ class UpdateBanner extends ConsumerWidget {
         color: isDark ? const Color(0xFF131D17) : const Color(0xFFF0FDF4),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: brandGreen.withValues(alpha: 0.45),
+          color: mainColor.withValues(alpha: 0.45),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            color: mainColor.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -79,104 +104,148 @@ class UpdateBanner extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Ícone simples e limpo (Smartphone com seta para baixo)
-          Icon(
-            icon,
-            color: brandGreen,
-            size: 28,
-          ),
+          Icon(icon, color: mainColor, size: 24),
           const SizedBox(width: 12),
-
-          // Textos compactos
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
                     color: theme.colorScheme.onSurface,
                   ),
-                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.normal,
-                    fontSize: 11.5,
+                    fontSize: 10.5,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
                   ),
-                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
-
-          // Botão pílula verde "ATUALIZAR"
+          const SizedBox(width: 8),
           Material(
-            color: Colors.transparent,
+            color: mainColor,
+            borderRadius: BorderRadius.circular(16),
             child: InkWell(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               onTap: () {
-                if (kIsWeb && isIOS) {
-                  showPwaInstallGuide(context);
+                if (kIsWeb) {
+                  if (isIOS) {
+                    _showIOSInstructions(context);
+                  } else {
+                    downloadFile(url);
+                  }
                 } else {
-                  ref
-                      .read(appUpdateServiceProvider)
-                      .downloadAndInstallApk(context, finalDownloadUrl);
+                  ref.read(downloadServiceProvider).downloadAndInstall(context, url);
                 }
               },
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: brandGreen,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 child: Text(
-                  buttonText,
+                  buttonLabel,
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
                     color: Colors.white,
-                    letterSpacing: 0.6,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10.5,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 6),
-
-          // Botão discreto X para fechar / dispensar
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                ref.read(dismissedUpdateVersionProvider.notifier).state =
-                    updateInfo.latestVersion;
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 18,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-              ),
+          const SizedBox(width: 2),
+          IconButton(
+            icon: Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
             ),
+            onPressed: () => ref.read(isBannerDismissedProvider.notifier).state = true,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            splashRadius: 18,
           ),
         ],
       ),
+    );
+  }
+
+  void _showIOSInstructions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.apple_rounded, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Instalar no iPhone',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Para usar o KeryxApp em tela cheia e offline no seu iPhone:',
+              style: GoogleFonts.inter(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            _buildStep('1', 'Toque no botão Compartilhar (ícone com quadrado e seta para cima no Safari).'),
+            const SizedBox(height: 10),
+            _buildStep('2', 'Role para baixo e selecione "Adicionar à Tela de Início".'),
+            const SizedBox(height: 10),
+            _buildStep('3', 'Toque em "Adicionar" no canto superior direito.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ENTENDI'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep(String number, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: const BoxDecoration(
+            color: Colors.blue,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.inter(fontSize: 12.5),
+          ),
+        ),
+      ],
     );
   }
 }
