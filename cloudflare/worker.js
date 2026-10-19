@@ -14,7 +14,7 @@ const APP_VERSION_CONFIG = {
   latest_version: 2, // Número de build incremental (ex: 1, 2, 3...)
   version_name: "1.0.1", // Versão semântica visível ao usuário
   release_date: "2026-10-19",
-  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/latest/download/app-release.apk",
+  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/latest/download/keryxApp.apk",
   ios_url: "https://bibliapeniel-nilngn.firebaseapp.com",
   release_notes: "Atualização com suporte completo a PWA para iPhone e melhorias de desempenho.",
   force_update: false,

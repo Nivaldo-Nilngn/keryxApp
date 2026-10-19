@@ -38,6 +38,16 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    applicationVariants.all {
+        val variant = this
+        if (variant.buildType.name == "release") {
+            variant.outputs.all {
+                val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+                output?.outputFileName = "keryxApp.apk"
+            }
+        }
+    }
 }
 
 flutter {
