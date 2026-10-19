@@ -412,6 +412,221 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     }
   }
 
+  void _confirmCancelUpdate(UserAccessInfo user) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(accessControlServiceProvider).cancelUserUpdateRequest(
+            targetUid: user.uid,
+            targetEmail: user.email,
+          );
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Exigência de atualização cancelada para ${user.email}.'),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Erro: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showNotifyUpdateDialog(UserAccessInfo user, AppUpdateInfo? latestInfo) {
+    final targetVersion = latestInfo?.versionName ?? '1.0.1';
+    final targetBuild = latestInfo?.latestVersion ?? 2;
+    final messageController = TextEditingController(
+      text:
+          'Olá ${user.displayName ?? 'irmão(ã)'}, o Administrador solicitou que você atualize o KeryxApp para a versão v$targetVersion. Novas melhorias e correções foram publicadas. Por favor, atualize seu aplicativo para manter o acesso liberado ao sistema.',
+    );
+    bool isSending = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isSending,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final theme = Theme.of(context);
+          return AlertDialog(
+            backgroundColor: theme.colorScheme.surfaceContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+              ),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.system_security_update_warning_rounded,
+                    color: Color(0xFFF59E0B),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Exigir Atualização',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'O usuário receberá um aviso obrigatório ao abrir o KeryxApp exigindo a atualização para v$targetVersion (Build $targetBuild) para continuar utilizando o aplicativo.',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Versão em uso:',
+                          style: GoogleFonts.manrope(fontSize: 12, color: Colors.white60),
+                        ),
+                        Text(
+                          user.versionDisplay,
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: user.isOutdated(targetBuild)
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'MENSAGEM DE AVISO AO USUÁRIO',
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: messageController,
+                    maxLines: 4,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: theme.scaffoldBackgroundColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSending ? null : () => Navigator.pop(ctx),
+                child: Text('Cancelar', style: GoogleFonts.manrope(color: Colors.white60)),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: const Color(0xFF111223),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                onPressed: isSending
+                    ? null
+                    : () async {
+                        setDialogState(() => isSending = true);
+                        final messenger = ScaffoldMessenger.of(context);
+                        final nav = Navigator.of(ctx);
+
+                        try {
+                          await ref.read(accessControlServiceProvider).requestUserUpdate(
+                                targetUid: user.uid,
+                                targetEmail: user.email,
+                                targetVersion: targetVersion,
+                                targetBuild: targetBuild,
+                                customMessage: messageController.text.trim(),
+                              );
+
+                          nav.pop();
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Exigência de atualização para v$targetVersion enviada para ${user.email}!',
+                              ),
+                              backgroundColor: const Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } catch (e) {
+                          setDialogState(() => isSending = false);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Erro: $e'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      },
+                icon: isSending
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF111223)),
+                      )
+                    : const Icon(Icons.send_rounded, size: 16),
+                label: Text(
+                  isSending ? 'Enviando...' : 'Exigir Atualização',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -443,6 +658,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final authorizedCount = allUsers.where((u) => u.isAuthorized).length;
     final pendingCount = allUsers.where((u) => u.isPending).length;
     final blockedCount = allUsers.where((u) => u.isBlocked).length;
+    final latestUpdateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
+    final latestBuild = latestUpdateInfo?.latestVersion ?? 1;
+    final outdatedCount = allUsers.where((u) => u.isOutdated(latestBuild)).length;
+    final onlyOutdated = ref.watch(userOutdatedOnlyFilterProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -559,9 +778,22 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       context,
                       label: 'Todos',
                       count: allUsers.length,
-                      isSelected: currentFilter == null,
-                      onTap: () =>
-                          ref.read(userStatusFilterProvider.notifier).state = null,
+                      isSelected: currentFilter == null && !onlyOutdated,
+                      onTap: () {
+                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
+                        ref.read(userStatusFilterProvider.notifier).state = null;
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                      context,
+                      label: 'Desatualizados',
+                      count: outdatedCount,
+                      color: const Color(0xFFF59E0B),
+                      isSelected: onlyOutdated,
+                      onTap: () {
+                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = !onlyOutdated;
+                      },
                     ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
@@ -569,10 +801,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       label: 'Pendentes',
                       count: pendingCount,
                       color: const Color(0xFFF59E0B),
-                      isSelected: currentFilter == AccessStatus.pending,
-                      onTap: () => ref
-                          .read(userStatusFilterProvider.notifier)
-                          .state = AccessStatus.pending,
+                      isSelected: currentFilter == AccessStatus.pending && !onlyOutdated,
+                      onTap: () {
+                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
+                        ref.read(userStatusFilterProvider.notifier).state = AccessStatus.pending;
+                      },
                     ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
@@ -580,10 +813,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       label: 'Autorizados',
                       count: authorizedCount,
                       color: const Color(0xFF10B981),
-                      isSelected: currentFilter == AccessStatus.authorized,
-                      onTap: () => ref
-                          .read(userStatusFilterProvider.notifier)
-                          .state = AccessStatus.authorized,
+                      isSelected: currentFilter == AccessStatus.authorized && !onlyOutdated,
+                      onTap: () {
+                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
+                        ref.read(userStatusFilterProvider.notifier).state = AccessStatus.authorized;
+                      },
                     ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
@@ -591,10 +825,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       label: 'Bloqueados',
                       count: blockedCount,
                       color: const Color(0xFFFF5252),
-                      isSelected: currentFilter == AccessStatus.blocked,
-                      onTap: () => ref
-                          .read(userStatusFilterProvider.notifier)
-                          .state = AccessStatus.blocked,
+                      isSelected: currentFilter == AccessStatus.blocked && !onlyOutdated,
+                      onTap: () {
+                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
+                        ref.read(userStatusFilterProvider.notifier).state = AccessStatus.blocked;
+                      },
                     ),
                   ],
                 ),
@@ -1598,6 +1833,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   Widget _buildUserCard(BuildContext context, UserAccessInfo user) {
     final theme = Theme.of(context);
     final isPrimary = AccessControlService.isPrimaryAdmin(user.email);
+    final latestUpdateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
+    final latestBuild = latestUpdateInfo?.latestVersion ?? 1;
 
     Color statusColor;
     IconData statusIcon;
@@ -1731,6 +1968,130 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 6),
+                    // Badges de Versão, Plataforma e Status de Atualização
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        // Badge de Versão Instalada
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: user.isOutdated(latestBuild)
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                : (user.buildNumber != null
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                    : Colors.white.withValues(alpha: 0.05)),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: user.isOutdated(latestBuild)
+                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                                  : (user.buildNumber != null
+                                      ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                                      : Colors.white.withValues(alpha: 0.1)),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                user.isOutdated(latestBuild)
+                                    ? Icons.warning_amber_rounded
+                                    : (user.buildNumber != null
+                                        ? Icons.verified_rounded
+                                        : Icons.help_outline_rounded),
+                                size: 12,
+                                color: user.isOutdated(latestBuild)
+                                    ? const Color(0xFFF59E0B)
+                                    : (user.buildNumber != null
+                                        ? const Color(0xFF10B981)
+                                        : Colors.white60),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                user.buildNumber != null
+                                    ? (user.isOutdated(latestBuild)
+                                        ? '${user.versionDisplay} (Desatualizado)'
+                                        : '${user.versionDisplay} (Atualizado)')
+                                    : 'Versão: ${user.versionDisplay}',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: user.isOutdated(latestBuild)
+                                      ? const Color(0xFFF59E0B)
+                                      : (user.buildNumber != null
+                                          ? const Color(0xFF10B981)
+                                          : Colors.white70),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Badge de Plataforma (Android / iOS / Web)
+                        if (user.platform != null && user.platform!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  user.platform!.toLowerCase().contains('ios') ||
+                                          user.platform!.toLowerCase().contains('apple')
+                                      ? Icons.apple_rounded
+                                      : (user.platform!.toLowerCase().contains('web')
+                                          ? Icons.language_rounded
+                                          : Icons.android_rounded),
+                                  size: 11,
+                                  color: Colors.white70,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  user.platformDisplay,
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        // Badge de Exigência Ativa
+                        if (user.updateRequired)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.error_outline_rounded,
+                                    size: 11, color: Color(0xFFEF4444)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'ATUALIZAÇÃO EXIGIDA',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: const Color(0xFFEF4444),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -1790,6 +2151,62 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     ),
                   )
                 else ...[
+                  // Botão de Exigência / Notificação de Atualização
+                  if (user.updateRequired)
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFF59E0B),
+                        side: BorderSide(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      onPressed: () => _confirmCancelUpdate(user),
+                      icon: const Icon(Icons.close_rounded, size: 15),
+                      label: Text(
+                        'Cancelar Exigência',
+                        style: GoogleFonts.manrope(fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: user.isOutdated(latestBuild)
+                            ? const Color(0xFFF59E0B)
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        side: BorderSide(
+                          color: user.isOutdated(latestBuild)
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                              : theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      onPressed: () => _showNotifyUpdateDialog(user, latestUpdateInfo),
+                      icon: Icon(
+                        Icons.system_security_update_warning_rounded,
+                        size: 15,
+                        color: user.isOutdated(latestBuild)
+                            ? const Color(0xFFF59E0B)
+                            : AppTheme.kPrimaryGold,
+                      ),
+                      label: Text(
+                        user.isOutdated(latestBuild) ? 'Exigir Atualização' : 'Notificar Versão',
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: user.isOutdated(latestBuild)
+                              ? const Color(0xFFF59E0B)
+                              : theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+
                   if (user.isPending) ...[
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(

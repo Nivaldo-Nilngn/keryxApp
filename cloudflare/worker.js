@@ -98,12 +98,16 @@ export default {
         } catch (_) {}
       }
 
-      const apkSourceUrl = activeConfig.download_url || DEFAULT_CONFIG.download_url;
+      let apkSourceUrl = activeConfig.download_url || DEFAULT_CONFIG.download_url;
+      // Proteção contra auto-referência (se a URL de download for o próprio worker)
+      if (!apkSourceUrl || apkSourceUrl.includes("workers.dev") || !apkSourceUrl.startsWith("http")) {
+        apkSourceUrl = "https://github.com/Nivaldo-Nilngn/keryxApp/releases/latest/download/keryxApp.apk";
+      }
 
       try {
         const ghRes = await fetch(apkSourceUrl, {
           headers: {
-            "User-Agent": "Mozilla/5.0 (Linux; Android 10) KeryxApp/1.0",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "*/*"
           },
           redirect: "follow"

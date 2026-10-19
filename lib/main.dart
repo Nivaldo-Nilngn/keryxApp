@@ -25,10 +25,12 @@ import 'core/services/database_service.dart';
 import 'core/services/telegram/telegram_bootstrap.dart';
 
 import 'core/services/custom_font_loader.dart';
+import 'core/services/app_update_service.dart';
 import 'features/access_control/model/user_access_model.dart';
 import 'features/access_control/service/access_control_service.dart';
 import 'features/access_control/state/access_control_providers.dart';
 import 'features/access_control/view/pending_approval_screen.dart';
+import 'features/access_control/view/update_required_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -244,6 +246,15 @@ class AuthWrapper extends ConsumerWidget {
                 accessInfo: accessInfo,
                 isBlocked: false,
               );
+            }
+
+            // Se o Administrador exigiu a atualização e o usuário ainda está na versão antiga:
+            final currentVersion = ref.watch(currentAppVersionProvider).valueOrNull;
+            final installedBuild = currentVersion?.buildNumber ?? 1;
+            final targetBuild = accessInfo.targetBuildNumber ?? 1;
+
+            if (accessInfo.updateRequired && installedBuild < targetBuild) {
+              return UpdateRequiredScreen(accessInfo: accessInfo);
             }
 
             // Usuário devidamente autorizado

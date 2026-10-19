@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/app_update_service.dart';
 import '../model/user_access_model.dart';
 import '../service/access_control_service.dart';
 
@@ -14,10 +16,11 @@ final isPrimaryAdminProvider = Provider<bool>((ref) {
 });
 
 /// Stream do perfil de acesso do usuário atualmente conectado.
-/// Quando o usuário loga, automaticamente verifica e sincroniza o documento no Firestore.
+/// Quando o usuário loga, automaticamente verifica e sincroniza o documento no Firestore com a versão instalada.
 final currentUserAccessProvider = StreamProvider<UserAccessInfo?>((ref) {
   final authState = ref.watch(authStateProvider);
   final accessService = ref.watch(accessControlServiceProvider);
+  final currentVersion = ref.watch(currentAppVersionProvider).valueOrNull;
 
   return authState.when(
     data: (user) {
@@ -25,8 +28,21 @@ final currentUserAccessProvider = StreamProvider<UserAccessInfo?>((ref) {
         return Stream.value(null);
       }
 
-      // Sincroniza o acesso no Firestore em background se necessário
-      accessService.checkAndRegisterAccess(user).catchError((e) {
+      String platformStr = 'Web / PWA';
+      if (!kIsWeb) {
+        if (defaultTargetPlatform == TargetPlatform.android) platformStr = 'Android';
+        if (defaultTargetPlatform == TargetPlatform.iOS) platformStr = 'iOS';
+      }
+
+      // Sincroniza o acesso e a versão no Firestore em background se necessário
+      accessService
+          .checkAndRegisterAccess(
+        user,
+        appVersion: currentVersion?.versionName,
+        buildNumber: currentVersion?.buildNumber,
+        platform: platformStr,
+      )
+          .catchError((e) {
         print('Erro ao sincronizar acesso do usuário: $e');
         return UserAccessInfo(
           uid: user.uid,
@@ -38,6 +54,9 @@ final currentUserAccessProvider = StreamProvider<UserAccessInfo?>((ref) {
           role: AccessControlService.isPrimaryAdmin(user.email)
               ? UserRole.admin
               : UserRole.user,
+          appVersion: currentVersion?.versionName,
+          buildNumber: currentVersion?.buildNumber,
+          platform: platformStr,
         );
       });
 
@@ -74,11 +93,18 @@ final userSearchQueryProvider = StateProvider<String>((ref) => '');
 /// Filtro de status selecionado (null = Todos)
 final userStatusFilterProvider = StateProvider<AccessStatus?>((ref) => null);
 
+/// Filtro para mostrar apenas usuários desatualizados
+final userOutdatedOnlyFilterProvider = StateProvider<bool>((ref) => false);
+
 /// Lista de usuários filtrada para a interface
 final filteredUsersProvider = Provider<List<UserAccessInfo>>((ref) {
   final usersAsync = ref.watch(allUsersProvider);
   final query = ref.watch(userSearchQueryProvider).trim().toLowerCase();
   final statusFilter = ref.watch(userStatusFilterProvider);
+  final onlyOutdated = ref.watch(userOutdatedOnlyFilterProvider);
+  final latestUpdateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
+  final latestBuild = latestUpdateInfo?.latestVersion ?? 1;
+
   final authUser = ref.watch(authStateProvider).value;
   final isAdm = AccessControlService.isPrimaryAdmin(authUser?.email);
 
@@ -102,6 +128,11 @@ final filteredUsersProvider = Provider<List<UserAccessInfo>>((ref) {
       : adminFallback;
 
   return users.where((u) {
+    // Filtro por desatualizados
+    if (onlyOutdated && !u.isOutdated(latestBuild)) {
+      return false;
+    }
+
     // Filtro por status
     if (statusFilter != null && u.status != statusFilter) {
       return false;
@@ -111,7 +142,8 @@ final filteredUsersProvider = Provider<List<UserAccessInfo>>((ref) {
     if (query.isNotEmpty) {
       final emailMatch = u.email.toLowerCase().contains(query);
       final nameMatch = (u.displayName ?? '').toLowerCase().contains(query);
-      return emailMatch || nameMatch;
+      final versionMatch = (u.appVersion ?? '').toLowerCase().contains(query);
+      return emailMatch || nameMatch || versionMatch;
     }
 
     return true;

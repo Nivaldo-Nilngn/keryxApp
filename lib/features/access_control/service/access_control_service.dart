@@ -175,7 +175,12 @@ service cloud.firestore {
 
   /// Verifica e sincroniza o acesso de um usuário autenticado.
   /// Chamado automaticamente na inicialização da sessão.
-  Future<UserAccessInfo> checkAndRegisterAccess(User authUser) async {
+  Future<UserAccessInfo> checkAndRegisterAccess(
+    User authUser, {
+    String? appVersion,
+    int? buildNumber,
+    String? platform,
+  }) async {
     final email = normalizeEmail(authUser.email ?? '');
     final uid = authUser.uid;
     final docRef = _firestore.collection('users').doc(uid);
@@ -195,6 +200,9 @@ service cloud.firestore {
         'status': AccessStatus.authorized.toDbString(),
         'lastLogin': FieldValue.serverTimestamp(),
         'lastActivity': FieldValue.serverTimestamp(),
+        if (appVersion != null) 'appVersion': appVersion,
+        if (buildNumber != null) 'buildNumber': buildNumber,
+        if (platform != null) 'platform': platform,
         if (!doc.exists) 'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -217,13 +225,21 @@ service cloud.firestore {
 
       // Se já possui status definido no documento
       if (currentStatusStr != null && currentStatusStr.isNotEmpty) {
-        // Atualiza última atividade
+        final targetBuild = (data['targetBuildNumber'] as num?)?.toInt() ?? 1;
+        final bool shouldClearUpdate =
+            (buildNumber != null && buildNumber >= targetBuild && data['updateRequired'] == true);
+
+        // Atualiza última atividade e versão
         await docRef.set({
           'lastLogin': FieldValue.serverTimestamp(),
           'lastActivity': FieldValue.serverTimestamp(),
           if (authUser.displayName != null && authUser.displayName!.isNotEmpty)
             'displayName': authUser.displayName,
           if (authUser.photoURL != null) 'photoUrl': authUser.photoURL,
+          if (appVersion != null) 'appVersion': appVersion,
+          if (buildNumber != null) 'buildNumber': buildNumber,
+          if (platform != null) 'platform': platform,
+          if (shouldClearUpdate) 'updateRequired': false,
         }, SetOptions(merge: true));
 
         return UserAccessInfo.fromFirestore(doc);
@@ -259,6 +275,9 @@ service cloud.firestore {
       'requestedAt': FieldValue.serverTimestamp(),
       'lastLogin': FieldValue.serverTimestamp(),
       'lastActivity': FieldValue.serverTimestamp(),
+      if (appVersion != null) 'appVersion': appVersion,
+      if (buildNumber != null) 'buildNumber': buildNumber,
+      if (platform != null) 'platform': platform,
       if (preAuthorized) 'approvedAt': FieldValue.serverTimestamp(),
       if (preAuthorized) 'approvedBy': 'system:pre_authorized',
     };
@@ -498,6 +517,96 @@ service cloud.firestore {
       action: 'remove_pre_authorization',
       targetEmail: email,
       details: 'E-mail removido da lista de pré-autorizados pelo administrador.',
+    );
+  }
+
+  /// Sincroniza a versão instalada pelo usuário com o Firestore
+  Future<void> syncUserAppVersion({
+    required String uid,
+    required String appVersion,
+    required int buildNumber,
+    required String platform,
+  }) async {
+    final docRef = _firestore.collection('users').doc(uid);
+    final doc = await docRef.get();
+    final data = doc.data() ?? {};
+    final targetBuild = (data['targetBuildNumber'] as num?)?.toInt() ?? 1;
+
+    final updates = <String, dynamic>{
+      'appVersion': appVersion,
+      'buildNumber': buildNumber,
+      'platform': platform,
+      'lastActiveAt': FieldValue.serverTimestamp(),
+    };
+
+    if (buildNumber >= targetBuild && data['updateRequired'] == true) {
+      updates['updateRequired'] = false;
+      updates['updateNoticeMessage'] = FieldValue.delete();
+    }
+
+    await docRef.set(updates, SetOptions(merge: true));
+  }
+
+  /// O Administrador solicita ou exige a atualização do aplicativo de um usuário
+  Future<void> requestUserUpdate({
+    required String targetUid,
+    required String targetEmail,
+    required String targetVersion,
+    required int targetBuild,
+    String? customMessage,
+  }) async {
+    _ensureIsAdmin();
+    final currentAdmin = _auth.currentUser;
+    final message = (customMessage != null && customMessage.trim().isNotEmpty)
+        ? customMessage.trim()
+        : 'O Administrador solicitou a atualização do KeryxApp para a versão v$targetVersion. Por favor, atualize o aplicativo para continuar com seu acesso liberado.';
+
+    final docRef = _firestore.collection('users').doc(targetUid);
+    await docRef.set({
+      'updateRequired': true,
+      'targetVersionName': targetVersion,
+      'targetBuildNumber': targetBuild,
+      'updateNoticeMessage': message,
+      'updateNoticeSentAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    // Notificação na subcoleção do usuário
+    try {
+      await docRef.collection('notifications').add({
+        'title': 'Atualização Solicitada (v$targetVersion)',
+        'body': message,
+        'type': 'app_update',
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'fromAdmin': currentAdmin?.email ?? kPrimaryAdminEmail,
+      });
+    } catch (_) {}
+
+    await _logAudit(
+      action: 'request_user_update',
+      targetEmail: targetEmail,
+      targetUid: targetUid,
+      details: 'Exigência de atualização para v$targetVersion enviada pelo administrador.',
+    );
+  }
+
+  /// O Administrador cancela a exigência de atualização de um usuário
+  Future<void> cancelUserUpdateRequest({
+    required String targetUid,
+    required String targetEmail,
+  }) async {
+    _ensureIsAdmin();
+    final docRef = _firestore.collection('users').doc(targetUid);
+    await docRef.set({
+      'updateRequired': false,
+      'updateNoticeMessage': FieldValue.delete(),
+    }, SetOptions(merge: true));
+
+    await _logAudit(
+      action: 'cancel_user_update_request',
+      targetEmail: targetEmail,
+      targetUid: targetUid,
+      details: 'Exigência de atualização cancelada pelo administrador.',
     );
   }
 

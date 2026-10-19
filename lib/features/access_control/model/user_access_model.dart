@@ -77,6 +77,14 @@ class UserAccessInfo {
   final DateTime? approvedAt;
   final String? approvedBy;
   final bool isPreAuthorized;
+  final String? appVersion;
+  final int? buildNumber;
+  final String? platform;
+  final bool updateRequired;
+  final String? updateNoticeMessage;
+  final DateTime? updateNoticeSentAt;
+  final int? targetBuildNumber;
+  final String? targetVersionName;
 
   const UserAccessInfo({
     required this.uid,
@@ -91,12 +99,46 @@ class UserAccessInfo {
     this.approvedAt,
     this.approvedBy,
     this.isPreAuthorized = false,
+    this.appVersion,
+    this.buildNumber,
+    this.platform,
+    this.updateRequired = false,
+    this.updateNoticeMessage,
+    this.updateNoticeSentAt,
+    this.targetBuildNumber,
+    this.targetVersionName,
   });
 
   bool get isAuthorized => status == AccessStatus.authorized;
   bool get isPending => status == AccessStatus.pending;
   bool get isBlocked => status == AccessStatus.blocked;
   bool get isAdmin => role == UserRole.admin;
+
+  bool isOutdated(int latestBuild) {
+    if (latestBuild <= 0) return false;
+    if (buildNumber == null) return true;
+    return buildNumber! < latestBuild;
+  }
+
+  String get versionDisplay {
+    if (appVersion == null && buildNumber == null) return 'Não informada';
+    if (appVersion != null && buildNumber != null) {
+      return 'v$appVersion (Build $buildNumber)';
+    }
+    return appVersion != null ? 'v$appVersion' : 'Build $buildNumber';
+  }
+
+  String get platformDisplay {
+    if (platform == null || platform!.isEmpty) return 'Desconhecido';
+    final p = platform!.toLowerCase();
+    if (p.contains('android')) return 'Android';
+    if (p.contains('ios')) return 'iOS';
+    if (p.contains('web')) return 'Web / PWA';
+    if (p.contains('windows')) return 'Windows';
+    if (p.contains('macos')) return 'macOS';
+    if (p.contains('linux')) return 'Linux';
+    return platform!;
+  }
 
   factory UserAccessInfo.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -107,6 +149,12 @@ class UserAccessInfo {
     DateTime? parseDate(dynamic value) {
       if (value is Timestamp) return value.toDate();
       if (value is String) return DateTime.tryParse(value);
+      return null;
+    }
+
+    int? parseBuildNumber(dynamic value) {
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value);
       return null;
     }
 
@@ -134,6 +182,14 @@ class UserAccessInfo {
       approvedAt: parseDate(data['approvedAt']),
       approvedBy: data['approvedBy'] as String?,
       isPreAuthorized: data['isPreAuthorized'] as bool? ?? false,
+      appVersion: data['appVersion'] as String?,
+      buildNumber: parseBuildNumber(data['buildNumber']),
+      platform: data['platform'] as String?,
+      updateRequired: data['updateRequired'] as bool? ?? false,
+      updateNoticeMessage: data['updateNoticeMessage'] as String?,
+      updateNoticeSentAt: parseDate(data['updateNoticeSentAt']),
+      targetBuildNumber: parseBuildNumber(data['targetBuildNumber']),
+      targetVersionName: data['targetVersionName'] as String?,
     );
   }
 
@@ -151,6 +207,14 @@ class UserAccessInfo {
       if (approvedAt != null) 'approvedAt': Timestamp.fromDate(approvedAt!),
       if (approvedBy != null) 'approvedBy': approvedBy,
       'isPreAuthorized': isPreAuthorized,
+      if (appVersion != null) 'appVersion': appVersion,
+      if (buildNumber != null) 'buildNumber': buildNumber,
+      if (platform != null) 'platform': platform,
+      'updateRequired': updateRequired,
+      if (updateNoticeMessage != null) 'updateNoticeMessage': updateNoticeMessage,
+      if (updateNoticeSentAt != null) 'updateNoticeSentAt': Timestamp.fromDate(updateNoticeSentAt!),
+      if (targetBuildNumber != null) 'targetBuildNumber': targetBuildNumber,
+      if (targetVersionName != null) 'targetVersionName': targetVersionName,
     };
   }
 
@@ -167,6 +231,14 @@ class UserAccessInfo {
     DateTime? approvedAt,
     String? approvedBy,
     bool? isPreAuthorized,
+    String? appVersion,
+    int? buildNumber,
+    String? platform,
+    bool? updateRequired,
+    String? updateNoticeMessage,
+    DateTime? updateNoticeSentAt,
+    int? targetBuildNumber,
+    String? targetVersionName,
   }) {
     return UserAccessInfo(
       uid: uid ?? this.uid,
@@ -181,6 +253,14 @@ class UserAccessInfo {
       approvedAt: approvedAt ?? this.approvedAt,
       approvedBy: approvedBy ?? this.approvedBy,
       isPreAuthorized: isPreAuthorized ?? this.isPreAuthorized,
+      appVersion: appVersion ?? this.appVersion,
+      buildNumber: buildNumber ?? this.buildNumber,
+      platform: platform ?? this.platform,
+      updateRequired: updateRequired ?? this.updateRequired,
+      updateNoticeMessage: updateNoticeMessage ?? this.updateNoticeMessage,
+      updateNoticeSentAt: updateNoticeSentAt ?? this.updateNoticeSentAt,
+      targetBuildNumber: targetBuildNumber ?? this.targetBuildNumber,
+      targetVersionName: targetVersionName ?? this.targetVersionName,
     );
   }
 }

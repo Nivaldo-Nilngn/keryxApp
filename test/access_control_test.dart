@@ -118,5 +118,62 @@ void main() {
       expect(map['addedBy'], equals('nivaldo.nilngn@gmail.com'));
       expect(map['note'], equals('Líder de Jovens'));
     });
+
+    test('UserAccessInfo rastreia versão do app, buildNumber, plataforma e detecta desatualização', () {
+      final userWithVersionData = {
+        'email': 'usuario.mobile@gmail.com',
+        'displayName': 'Carlos',
+        'role': 'user',
+        'status': 'authorized',
+        'appVersion': '1.0.1',
+        'buildNumber': 2,
+        'platform': 'android',
+        'updateRequired': true,
+        'updateNoticeMessage': 'Por favor atualize para a versão 1.0.2 com novos hinos.',
+        'targetBuildNumber': 3,
+        'targetVersionName': '1.0.2',
+      };
+
+      final info = UserAccessInfo.fromMap('uid_carlos', userWithVersionData);
+
+      expect(info.appVersion, equals('1.0.1'));
+      expect(info.buildNumber, equals(2));
+      expect(info.platform, equals('android'));
+      expect(info.platformDisplay, equals('Android'));
+      expect(info.versionDisplay, equals('v1.0.1 (Build 2)'));
+      expect(info.updateRequired, isTrue);
+      expect(info.updateNoticeMessage, contains('novos hinos'));
+      expect(info.targetBuildNumber, equals(3));
+      expect(info.targetVersionName, equals('1.0.2'));
+
+      // Se a última versão disponível é build 3, este usuário (build 2) está desatualizado
+      expect(info.isOutdated(3), isTrue);
+
+      // Se a última versão é build 2, ele está em dia
+      expect(info.isOutdated(2), isFalse);
+
+      // Se a última versão for 1, ele não está desatualizado
+      expect(info.isOutdated(1), isFalse);
+    });
+
+    test('UserAccessInfo gera valores padrão legíveis quando campos de versão estão vazios', () {
+      final userWithoutVersion = {
+        'email': 'antigo@gmail.com',
+        'role': 'user',
+        'status': 'authorized',
+      };
+
+      final info = UserAccessInfo.fromMap('uid_antigo', userWithoutVersion);
+
+      expect(info.appVersion, isNull);
+      expect(info.buildNumber, isNull);
+      expect(info.platform, isNull);
+      expect(info.platformDisplay, equals('Desconhecido'));
+      expect(info.versionDisplay, equals('Não informada'));
+      expect(info.updateRequired, isFalse);
+      // Sem buildNumber informado, consideramos desatualizado se latestBuild > 0
+      expect(info.isOutdated(1), isTrue);
+    });
   });
 }
+
