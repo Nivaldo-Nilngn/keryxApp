@@ -87,6 +87,60 @@ export default {
       }
     }
 
+    // ── GET: Rota de download direto do APK (sem redirecionar para tela do GitHub) ──
+    const reqUrl = new URL(request.url);
+    if (reqUrl.pathname === "/download" || reqUrl.pathname.endsWith("/keryxApp.apk") || reqUrl.pathname === "/apk") {
+      let activeConfig = DEFAULT_CONFIG;
+      if (env.VERSION_KV) {
+        try {
+          const stored = await env.VERSION_KV.get("version_config", "json");
+          if (stored) activeConfig = stored;
+        } catch (_) {}
+      }
+
+      const apkSourceUrl = activeConfig.download_url || DEFAULT_CONFIG.download_url;
+
+      try {
+        const ghRes = await fetch(apkSourceUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10) KeryxApp/1.0",
+            "Accept": "*/*"
+          },
+          redirect: "follow"
+        });
+
+        if (!ghRes.ok) {
+          return new Response(`Erro ao carregar APK (${ghRes.status}): ${ghRes.statusText}`, {
+            status: ghRes.status,
+            headers: corsHeaders
+          });
+        }
+
+        const downloadHeaders = new Headers();
+        downloadHeaders.set("Content-Type", "application/vnd.android.package-archive");
+        downloadHeaders.set("Content-Disposition", 'attachment; filename="keryxApp.apk"');
+        downloadHeaders.set("Access-Control-Allow-Origin", "*");
+        downloadHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+        downloadHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Disposition");
+        downloadHeaders.set("Cache-Control", "public, max-age=3600");
+
+        const contentLength = ghRes.headers.get("Content-Length");
+        if (contentLength) {
+          downloadHeaders.set("Content-Length", contentLength);
+        }
+
+        return new Response(ghRes.body, {
+          status: 200,
+          headers: downloadHeaders
+        });
+      } catch (err) {
+        return new Response(`Erro de conexão ao baixar APK: ${err.message}`, {
+          status: 502,
+          headers: corsHeaders
+        });
+      }
+    }
+
     // ── GET: Consulta da versão atual para os clientes ──────────────────────
     let config = DEFAULT_CONFIG;
     if (env.VERSION_KV) {

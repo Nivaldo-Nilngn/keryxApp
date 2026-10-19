@@ -67,144 +67,280 @@ class UpdateBanner extends ConsumerWidget {
       accentColor = AppTheme.kPrimaryGold;
     }
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [
-                  accentColor.withValues(alpha: 0.16),
-                  const Color(0xFF15162B),
-                ]
-              : [
-                  accentColor.withValues(alpha: 0.12),
-                  Colors.white,
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: accentColor.withValues(alpha: 0.4),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withValues(alpha: 0.12),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 520;
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? [
+                      accentColor.withValues(alpha: 0.16),
+                      const Color(0xFF15162B),
+                    ]
+                  : [
+                      accentColor.withValues(alpha: 0.12),
+                      Colors.white,
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            child: Icon(icon, color: accentColor, size: 22),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: accentColor.withValues(alpha: 0.4),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withValues(alpha: 0.12),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 14 : 16,
+            vertical: isMobile ? 14 : 12,
+          ),
+          child: isMobile
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurface,
+                    Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: accentColor, size: 20),
                         ),
-                        overflow: TextOverflow.ellipsis,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  title,
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: accentColor.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'NOVO',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: accentColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            ref.read(dismissedUpdateVersionProvider.notifier).state =
+                                updateInfo.latestVersion;
+                          },
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                          tooltip: 'Dispensar',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                        height: 1.35,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: accentColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'NOVO',
-                        style: GoogleFonts.outfit(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          color: accentColor,
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accentColor,
+                          foregroundColor: const Color(0xFF111223),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          if (kIsWeb && isIOS) {
+                            showPwaInstallGuide(context);
+                          } else {
+                            final url = updateInfo.downloadUrl.isNotEmpty
+                                ? updateInfo.downloadUrl
+                                : (updateInfo.iosUrl.isNotEmpty ? updateInfo.iosUrl : '');
+                            if (url.isNotEmpty) {
+                              ref
+                                  .read(appUpdateServiceProvider)
+                                  .downloadAndInstallApk(context, url);
+                            } else if (kIsWeb) {
+                              showPwaInstallGuide(context);
+                            }
+                          }
+                        },
+                        icon: Icon(
+                          kIsWeb && isIOS
+                              ? Icons.apple_rounded
+                              : Icons.download_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          buttonText == 'Baixar APK' ? 'Baixar keryxApp.apk' : buttonText,
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
                   ],
+                )
+              : Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: accentColor, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  title,
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: accentColor.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'NOVO',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: accentColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        foregroundColor: const Color(0xFF111223),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        if (kIsWeb && isIOS) {
+                          showPwaInstallGuide(context);
+                        } else {
+                          final url = updateInfo.downloadUrl.isNotEmpty
+                              ? updateInfo.downloadUrl
+                              : (updateInfo.iosUrl.isNotEmpty ? updateInfo.iosUrl : '');
+                          if (url.isNotEmpty) {
+                            ref
+                                .read(appUpdateServiceProvider)
+                                .downloadAndInstallApk(context, url);
+                          } else if (kIsWeb) {
+                            showPwaInstallGuide(context);
+                          }
+                        }
+                      },
+                      icon: Icon(
+                        kIsWeb && isIOS
+                            ? Icons.apple_rounded
+                            : Icons.download_rounded,
+                        size: 16,
+                      ),
+                      label: Text(
+                        buttonText,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      onPressed: () {
+                        ref.read(dismissedUpdateVersionProvider.notifier).state =
+                            updateInfo.latestVersion;
+                      },
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                      tooltip: 'Dispensar',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accentColor,
-              foregroundColor: const Color(0xFF111223),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              elevation: 0,
-            ),
-            onPressed: () {
-              if (kIsWeb && isIOS) {
-                showPwaInstallGuide(context);
-              } else {
-                final url = updateInfo.downloadUrl.isNotEmpty
-                    ? updateInfo.downloadUrl
-                    : (updateInfo.iosUrl.isNotEmpty ? updateInfo.iosUrl : '');
-                if (url.isNotEmpty) {
-                  ref.read(appUpdateServiceProvider).downloadAndInstallApk(context, url);
-                } else if (kIsWeb) {
-                  showPwaInstallGuide(context);
-                }
-              }
-            },
-            child: Text(
-              buttonText,
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: () {
-              ref.read(dismissedUpdateVersionProvider.notifier).state = updateInfo.latestVersion;
-            },
-            icon: const Icon(Icons.close_rounded, size: 18),
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-            tooltip: 'Dispensar',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

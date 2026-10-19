@@ -449,12 +449,16 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          'Gerenciamento de Acessos',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: theme.colorScheme.onSurface,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Acessos e Versão',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
         actions: [
@@ -467,12 +471,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               onPressed: _showAddEmailDialog,
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
               label: Text(
-                'Novo E-mail',
+                'Novo',
                 style: GoogleFonts.outfit(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
@@ -503,7 +507,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     ref.read(userSearchQueryProvider.notifier).state = val,
                 style: GoogleFonts.manrope(color: theme.colorScheme.onSurface),
                 decoration: InputDecoration(
-                  hintText: 'Pesquisar usuário por e-mail ou nome...',
+                  hintText: 'Pesquisar por e-mail ou nome...',
                   hintStyle: GoogleFonts.manrope(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
@@ -806,7 +810,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Text(
                           'Minha Conta',
@@ -816,7 +823,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             color: theme.colorScheme.onSurface,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
@@ -844,6 +850,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -913,7 +921,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Text(
                           'Controle de Versão',
@@ -923,7 +934,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             color: theme.colorScheme.onSurface,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
@@ -976,17 +986,17 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       Expanded(
                         child: _buildVersionStatItem(
                           context,
-                          title: 'VERSÃO NO CLOUDFLARE',
+                          title: 'CLOUDFLARE (KV)',
                           value: 'v$latestName (Build $latestBuild)',
                           icon: Icons.cloud_done_rounded,
                           color: AppTheme.kPrimaryGold,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: _buildVersionStatItem(
                           context,
-                          title: 'MEU APP INSTALADO',
+                          title: 'MEU APP ATUAL',
                           value: currentVersionAsync.when(
                             data: (v) => 'v${v.versionName} (${v.buildNumber})',
                             loading: () => '...',
@@ -1024,29 +1034,36 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           style: GoogleFonts.manrope(
                             fontSize: 12,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                            height: 1.4,
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Row(
+                        const SizedBox(height: 8),
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 6,
+                          runSpacing: 4,
                           children: [
-                            const Icon(Icons.apple_rounded, size: 14, color: Colors.white70),
-                            const SizedBox(width: 4),
-                            Text(
-                              'PWA iOS: ',
-                              style: GoogleFonts.outfit(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                iosUrl,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 11,
-                                  color: AppTheme.kPrimaryGold,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.apple_rounded, size: 14, color: Colors.white70),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'PWA iOS: ',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white70,
+                                  ),
                                 ),
-                                overflow: TextOverflow.ellipsis,
+                              ],
+                            ),
+                            Text(
+                              iosUrl,
+                              style: GoogleFonts.manrope(
+                                fontSize: 11,
+                                color: AppTheme.kPrimaryGold,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -1116,39 +1133,49 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   }) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Icon(icon, color: color, size: 15),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
                   title,
                   style: GoogleFonts.outfit(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    letterSpacing: 0.4,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  value,
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
+              maxLines: 1,
             ),
           ),
         ],
@@ -1167,7 +1194,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final apkUrlController = TextEditingController(
       text: currentInfo?.downloadUrl.isNotEmpty == true
           ? currentInfo!.downloadUrl
-          : 'https://github.com/Nivaldo-Nilngn/keryxApp/releases/latest/download/keryxApp.apk',
+          : 'https://keryx-version.nivaldo-nilngn.workers.dev/download',
     );
     final iosUrlController = TextEditingController(
       text: currentInfo?.iosUrl.isNotEmpty == true
@@ -1614,8 +1641,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             children: [
               // Avatar
               Container(
-                width: 44,
-                height: 44,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: statusColor.withValues(alpha: 0.15),
@@ -1625,73 +1652,84 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   child: Text(
                     initial,
                     style: GoogleFonts.outfit(
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                       color: statusColor,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
 
-              // Informações do Usuário
+              // Informações do Usuário + Status Badge alinhado no topo
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Flexible(
-                          child: Text(
-                            user.displayName ?? 'Usuário',
-                            style: GoogleFonts.outfit(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Expanded(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  user.displayName ?? 'Usuário',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isPrimary) ...[
+                                const SizedBox(width: 4),
+                                const Icon(Icons.verified, size: 15, color: AppTheme.kPrimaryGold),
+                              ],
+                            ],
                           ),
                         ),
-                        if (isPrimary) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.verified, size: 16, color: AppTheme.kPrimaryGold),
-                        ],
+                        const SizedBox(width: 8),
+                        // Status Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(statusIcon, size: 12, color: statusColor),
+                              const SizedBox(width: 4),
+                              Text(
+                                user.status.labelPt.toUpperCase(),
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
+                    // E-mail em largura total, sem quebrar com '.c om'!
                     Text(
                       user.email,
                       style: GoogleFonts.manrope(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Status Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(statusIcon, size: 14, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      user.status.labelPt.toUpperCase(),
-                      style: GoogleFonts.outfit(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                        letterSpacing: 0.5,
-                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -1732,92 +1770,99 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           const SizedBox(height: 14),
 
           // Botões de Ação
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (isPrimary)
-                Text(
-                  'Administrador Principal Protegido',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.kPrimaryGold,
-                  ),
-                )
-              else ...[
-                if (user.isPending) ...[
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFFF5252),
-                      side: BorderSide(
-                        color: const Color(0xFFFF5252).withValues(alpha: 0.4),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (isPrimary)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      'Administrador Principal Protegido',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.kPrimaryGold,
                       ),
                     ),
-                    onPressed: () => _confirmRevokeAccess(user),
-                    icon: const Icon(Icons.close_rounded, size: 16),
-                    label: Text(
-                      'Rejeitar',
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  )
+                else ...[
+                  if (user.isPending) ...[
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF5252),
+                        side: BorderSide(
+                          color: const Color(0xFFFF5252).withValues(alpha: 0.4),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () => _confirmRevokeAccess(user),
+                      icon: const Icon(Icons.close_rounded, size: 16),
+                      label: Text(
+                        'Rejeitar',
+                        style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
                       ),
                     ),
-                    onPressed: () => _approveUser(user),
-                    icon: const Icon(Icons.check_rounded, size: 16),
-                    label: Text(
-                      'Aprovar Acesso',
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ] else if (user.isAuthorized) ...[
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFFF5252),
-                      side: BorderSide(
-                        color: const Color(0xFFFF5252).withValues(alpha: 0.3),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                      onPressed: () => _approveUser(user),
+                      icon: const Icon(Icons.check_rounded, size: 16),
+                      label: Text(
+                        'Aprovar Acesso',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
                       ),
                     ),
-                    onPressed: () => _confirmRevokeAccess(user),
-                    icon: const Icon(Icons.block_rounded, size: 16),
-                    label: Text(
-                      'Revogar Acesso',
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ] else if (user.isBlocked) ...[
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.kPrimaryGold,
-                      foregroundColor: const Color(0xFF111223),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  ] else if (user.isAuthorized) ...[
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF5252),
+                        side: BorderSide(
+                          color: const Color(0xFFFF5252).withValues(alpha: 0.3),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () => _confirmRevokeAccess(user),
+                      icon: const Icon(Icons.block_rounded, size: 16),
+                      label: Text(
+                        'Revogar Acesso',
+                        style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
                       ),
                     ),
-                    onPressed: () => _unblockUser(user),
-                    icon: const Icon(Icons.restore_rounded, size: 16),
-                    label: Text(
-                      'Reativar Usuário',
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                  ] else if (user.isBlocked) ...[
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.kPrimaryGold,
+                        foregroundColor: const Color(0xFF111223),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () => _unblockUser(user),
+                      icon: const Icon(Icons.restore_rounded, size: 16),
+                      label: Text(
+                        'Reativar Usuário',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ],
-            ],
+            ),
           ),
         ],
       ),
