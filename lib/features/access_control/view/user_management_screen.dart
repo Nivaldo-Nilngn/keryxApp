@@ -22,9 +22,25 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
+  // Controllers para a Janela / Aba Completa de Versão do Aplicativo
+  final TextEditingController _versionNameController = TextEditingController();
+  final TextEditingController _versionBuildController = TextEditingController();
+  final TextEditingController _versionNotesController = TextEditingController();
+  final TextEditingController _versionApkUrlController = TextEditingController();
+  final TextEditingController _versionIosUrlController = TextEditingController();
+  bool _versionForceUpdate = false;
+  bool _isSavingVersion = false;
+  bool _versionInitialized = false;
+  final GlobalKey<FormState> _versionFormKey = GlobalKey<FormState>();
+
   @override
   void dispose() {
     _searchController.dispose();
+    _versionNameController.dispose();
+    _versionBuildController.dispose();
+    _versionNotesController.dispose();
+    _versionApkUrlController.dispose();
+    _versionIosUrlController.dispose();
     super.dispose();
   }
 
@@ -627,6 +643,88 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
   }
 
+  void _initVersionControllers(AppUpdateInfo? currentInfo) {
+    if (_versionInitialized) return;
+    final nextBuild = (currentInfo?.latestVersion ?? 1) + 1;
+    _versionBuildController.text = nextBuild.toString();
+    _versionNameController.text = currentInfo?.versionName ?? '1.0.1';
+    _versionNotesController.text = currentInfo?.releaseNotes ?? '';
+    _versionApkUrlController.text = currentInfo?.downloadUrl.isNotEmpty == true
+        ? currentInfo!.downloadUrl
+        : 'https://keryx-version.nivaldo-nilngn.workers.dev/download';
+    _versionIosUrlController.text = currentInfo?.iosUrl.isNotEmpty == true
+        ? currentInfo!.iosUrl
+        : 'https://keryxapp.pages.dev';
+    _versionForceUpdate = currentInfo?.forceUpdate ?? false;
+    _versionInitialized = true;
+  }
+
+  Future<void> _publishVersionFromTab(AppUpdateInfo? currentInfo) async {
+    if (!_versionFormKey.currentState!.validate()) return;
+    setState(() => _isSavingVersion = true);
+
+    try {
+      final buildNum = int.tryParse(_versionBuildController.text.trim()) ??
+          ((currentInfo?.latestVersion ?? 1) + 1);
+
+      final newInfo = AppUpdateInfo(
+        latestVersion: buildNum,
+        versionName: _versionNameController.text.trim(),
+        downloadUrl: _versionApkUrlController.text.trim(),
+        iosUrl: _versionIosUrlController.text.trim(),
+        releaseNotes: _versionNotesController.text.trim(),
+        forceUpdate: _versionForceUpdate,
+        minVersion: _versionForceUpdate
+            ? buildNum
+            : (currentInfo?.minVersion ?? 1),
+        releaseDate: DateTime.now().toIso8601String().split('T')[0],
+      );
+
+      final success = await ref
+          .read(appUpdateServiceProvider)
+          .publishNewVersion(newInfo);
+
+      ref.invalidate(latestUpdateInfoProvider);
+      ref.invalidate(isUpdateAvailableProvider);
+
+      if (mounted) {
+        setState(() => _isSavingVersion = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.black, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    success
+                        ? 'Versão v${newInfo.versionName} (Build ${newInfo.latestVersion}) publicada com sucesso!'
+                        : 'Versão gravada no Firestore (verifique a conexão com o Cloudflare).',
+                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: success ? const Color(0xFF10B981) : Colors.orangeAccent,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSavingVersion = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao publicar versão: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -651,7 +749,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           )
         : null;
 
-    // Contadores para as tabs de filtros
     final allUsers = (usersAsync.value != null && usersAsync.value!.isNotEmpty)
         ? usersAsync.value!
         : (adminFallbackUser != null ? [adminFallbackUser] : <UserAccessInfo>[]);
@@ -662,700 +759,1032 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final latestBuild = latestUpdateInfo?.latestVersion ?? 1;
     final outdatedCount = allUsers.where((u) => u.isOutdated(latestBuild)).length;
     final onlyOutdated = ref.watch(userOutdatedOnlyFilterProvider);
+    final currentVersionAsync = ref.watch(currentAppVersionProvider);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'Acessos e Versão',
+    final unredeemedPreAuth = preAuthorizedEmailsAsync.valueOrNull?.where((pe) {
+      return !allUsers.any((u) =>
+          AccessControlService.normalizeEmail(u.email) ==
+          AccessControlService.normalizeEmail(pe.email));
+    }).toList() ?? <PreAuthorizedEmail>[];
+
+    // Inicializa os controllers da aba de versão na primeira carga
+    if (latestUpdateInfo != null && !_versionInitialized) {
+      _initVersionControllers(latestUpdateInfo);
+    }
+
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          elevation: 0,
+          title: Text(
+            'Central de Acessos & Versão',
             style: GoogleFonts.outfit(
               fontWeight: FontWeight.bold,
-              fontSize: 20,
+              fontSize: 18,
               color: theme.colorScheme.onSurface,
             ),
           ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.kPrimaryGold,
-                foregroundColor: const Color(0xFF111223),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              onPressed: _showAddEmailDialog,
-              icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-              label: Text(
-                'Novo',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
+          bottom: TabBar(
+            indicatorColor: AppTheme.kPrimaryGold,
+            indicatorWeight: 3,
+            labelColor: AppTheme.kPrimaryGold,
+            unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+            labelStyle: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
             ),
-          ),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
-            children: [
-              // ── 1. Meu Usuário Administrador (Card em destaque) ──────────────────
-              _buildAdminProfileCard(context),
-              const SizedBox(height: 16),
-
-              // ── 1.1 Gerenciador de Versão do App (Cloudflare KV & PWA) ─────────────
-              _buildVersionControlCard(context),
-              const SizedBox(height: 20),
-
-              // ── 2. Barra de Pesquisa ──────────────────────────────────────────────
-              TextField(
-                controller: _searchController,
-                onChanged: (val) =>
-                    ref.read(userSearchQueryProvider.notifier).state = val,
-                style: GoogleFonts.manrope(color: theme.colorScheme.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'Pesquisar por e-mail ou nome...',
-                  hintStyle: GoogleFonts.manrope(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded),
-                          onPressed: () {
-                            _searchController.clear();
-                            ref.read(userSearchQueryProvider.notifier).state = '';
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainer,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(
-                      color: AppTheme.kPrimaryGold,
-                      width: 1.5,
-                    ),
-                  ),
-                ),
+            unselectedLabelStyle: GoogleFonts.outfit(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+            tabs: [
+              Tab(
+                icon: const Icon(Icons.people_alt_rounded, size: 19),
+                text: 'Usuários (${allUsers.length})',
               ),
-              const SizedBox(height: 16),
-
-              // ── 3. Chips de Filtro por Status ────────────────────────────────────
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip(
-                      context,
-                      label: 'Todos',
-                      count: allUsers.length,
-                      isSelected: currentFilter == null && !onlyOutdated,
-                      onTap: () {
-                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
-                        ref.read(userStatusFilterProvider.notifier).state = null;
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      context,
-                      label: 'Desatualizados',
-                      count: outdatedCount,
-                      color: const Color(0xFFF59E0B),
-                      isSelected: onlyOutdated,
-                      onTap: () {
-                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = !onlyOutdated;
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      context,
-                      label: 'Pendentes',
-                      count: pendingCount,
-                      color: const Color(0xFFF59E0B),
-                      isSelected: currentFilter == AccessStatus.pending && !onlyOutdated,
-                      onTap: () {
-                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
-                        ref.read(userStatusFilterProvider.notifier).state = AccessStatus.pending;
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      context,
-                      label: 'Autorizados',
-                      count: authorizedCount,
-                      color: const Color(0xFF10B981),
-                      isSelected: currentFilter == AccessStatus.authorized && !onlyOutdated,
-                      onTap: () {
-                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
-                        ref.read(userStatusFilterProvider.notifier).state = AccessStatus.authorized;
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      context,
-                      label: 'Bloqueados',
-                      count: blockedCount,
-                      color: const Color(0xFFFF5252),
-                      isSelected: currentFilter == AccessStatus.blocked && !onlyOutdated,
-                      onTap: () {
-                        ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
-                        ref.read(userStatusFilterProvider.notifier).state = AccessStatus.blocked;
-                      },
-                    ),
-                  ],
-                ),
+              const Tab(
+                icon: Icon(Icons.rocket_launch_rounded, size: 19),
+                text: 'Versão do App',
               ),
-              const SizedBox(height: 20),
-
-              // ── 4. E-mails Pré-Autorizados Aguardando Primeiro Login ──────────────
-              preAuthorizedEmailsAsync.when(
-                data: (preEmails) {
-                  // Filtra apenas aqueles que ainda não têm conta criada
-                  final unredeemed = preEmails.where((pe) {
-                    return !allUsers.any((u) =>
-                        AccessControlService.normalizeEmail(u.email) ==
-                        AccessControlService.normalizeEmail(pe.email));
-                  }).toList();
-
-                  if (unredeemed.isEmpty) return const SizedBox.shrink();
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppTheme.kPrimaryGold.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.forward_to_inbox_rounded,
-                                  color: AppTheme.kPrimaryGold, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                'E-mails pré-autorizados (${unredeemed.length})',
-                                style: GoogleFonts.outfit(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Usuários autorizados manualmente que ainda não fizeram o primeiro login.',
-                            style: GoogleFonts.manrope(
-                              fontSize: 12,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ...unredeemed.map((pe) => _buildPreAuthorizedTile(context, pe)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-
-              // ── 5. Lista de Usuários ─────────────────────────────────────────────
-              usersAsync.when(
-                data: (users) {
-                  if (filteredUsers.isEmpty) {
-                    return _buildEmptyState(context);
-                  }
-
-                  return Column(
-                    children: filteredUsers
-                        .map((u) => _buildUserCard(context, u))
-                        .toList(),
-                  );
-                },
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppTheme.kPrimaryGold),
-                  ),
-                ),
-                error: (e, st) {
-                  final isPermissionDenied = e.toString().contains('permission-denied') ||
-                      e.toString().contains('insufficient permissions');
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (isPermissionDenied)
-                        _buildFirestoreRulesPendingCard(context)
-                      else
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.redAccent.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(Icons.error_outline_rounded,
-                                  color: Colors.redAccent, size: 36),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Erro ao carregar lista de usuários:\n$e',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.manrope(
-                                  color: Colors.redAccent,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.redAccent,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  ref.invalidate(allUsersProvider);
-                                  ref.invalidate(preAuthorizedEmailsProvider);
-                                },
-                                icon: const Icon(Icons.refresh_rounded, size: 16),
-                                label: const Text('Tentar Novamente'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      // Lista de usuários (com fallback do administrador)
-                      if (filteredUsers.isNotEmpty) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12, left: 4),
-                          child: Text(
-                            'USUÁRIOS (${filteredUsers.length})',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.1,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                        ...filteredUsers.map((u) => _buildUserCard(context, u)),
-                      ] else
-                        _buildEmptyState(context),
-                    ],
-                  );
-                },
+              Tab(
+                icon: const Icon(Icons.mark_email_read_rounded, size: 19),
+                text: 'Pré-Autorizados (${unredeemedPreAuth.length})',
               ),
             ],
+          ),
+        ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: TabBarView(
+              children: [
+                // ── ABA 1: USUÁRIOS ──────────────────────────────────────────
+                _buildUsersTab(
+                  context,
+                  allUsers: allUsers,
+                  filteredUsers: filteredUsers,
+                  currentFilter: currentFilter,
+                  onlyOutdated: onlyOutdated,
+                  outdatedCount: outdatedCount,
+                  pendingCount: pendingCount,
+                  authorizedCount: authorizedCount,
+                  blockedCount: blockedCount,
+                  usersAsync: usersAsync,
+                ),
+
+                // ── ABA 2: VERSÃO DO APP (JANELA COMPLETA E FÁCIL) ────────────
+                _buildVersionTab(
+                  context,
+                  latestInfo: latestUpdateInfo,
+                  currentVersionAsync: currentVersionAsync,
+                ),
+
+                // ── ABA 3: PRÉ-AUTORIZADOS ───────────────────────────────────
+                _buildPreAuthorizedTab(
+                  context,
+                  unredeemed: unredeemedPreAuth,
+                  preAuthorizedEmailsAsync: preAuthorizedEmailsAsync,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildAdminProfileCard(BuildContext context) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // ABA 1: USUÁRIOS (Pesquisa, Filtros e Lista Completa)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildUsersTab(
+    BuildContext context, {
+    required List<UserAccessInfo> allUsers,
+    required List<UserAccessInfo> filteredUsers,
+    required AccessStatus? currentFilter,
+    required bool onlyOutdated,
+    required int outdatedCount,
+    required int pendingCount,
+    required int authorizedCount,
+    required int blockedCount,
+    required AsyncValue<List<UserAccessInfo>> usersAsync,
+  }) {
     final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-            theme.colorScheme.surfaceContainer,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppTheme.kPrimaryGold,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.shield_rounded,
-                  color: Color(0xFF111223),
-                  size: 26,
-                ),
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+      children: [
+        // Barra de Pesquisa
+        TextField(
+          controller: _searchController,
+          onChanged: (val) =>
+              ref.read(userSearchQueryProvider.notifier).state = val,
+          style: GoogleFonts.manrope(color: theme.colorScheme.onSurface),
+          decoration: InputDecoration(
+            hintText: 'Pesquisar por e-mail ou nome...',
+            hintStyle: GoogleFonts.manrope(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear_rounded),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref.read(userSearchQueryProvider.notifier).state = '';
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: theme.colorScheme.surfaceContainer,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 4,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: AppTheme.kPrimaryGold,
+                width: 1.5,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Chips de Filtro por Status
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildFilterChip(
+                context,
+                label: 'Todos',
+                count: allUsers.length,
+                isSelected: currentFilter == null && !onlyOutdated,
+                onTap: () {
+                  ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
+                  ref.read(userStatusFilterProvider.notifier).state = null;
+                },
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                context,
+                label: 'Desatualizados',
+                count: outdatedCount,
+                color: const Color(0xFFF59E0B),
+                isSelected: onlyOutdated,
+                onTap: () {
+                  ref.read(userOutdatedOnlyFilterProvider.notifier).state = !onlyOutdated;
+                },
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                context,
+                label: 'Pendentes',
+                count: pendingCount,
+                color: const Color(0xFFF59E0B),
+                isSelected: currentFilter == AccessStatus.pending && !onlyOutdated,
+                onTap: () {
+                  ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
+                  ref.read(userStatusFilterProvider.notifier).state = AccessStatus.pending;
+                },
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                context,
+                label: 'Autorizados',
+                count: authorizedCount,
+                color: const Color(0xFF10B981),
+                isSelected: currentFilter == AccessStatus.authorized && !onlyOutdated,
+                onTap: () {
+                  ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
+                  ref.read(userStatusFilterProvider.notifier).state = AccessStatus.authorized;
+                },
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                context,
+                label: 'Bloqueados',
+                count: blockedCount,
+                color: const Color(0xFFFF5252),
+                isSelected: currentFilter == AccessStatus.blocked && !onlyOutdated,
+                onTap: () {
+                  ref.read(userOutdatedOnlyFilterProvider.notifier).state = false;
+                  ref.read(userStatusFilterProvider.notifier).state = AccessStatus.blocked;
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Lista de Usuários
+        usersAsync.when(
+          data: (users) {
+            if (filteredUsers.isEmpty) {
+              return _buildEmptyState(context);
+            }
+
+            return Column(
+              children: filteredUsers
+                  .map((u) => _buildUserCard(context, u))
+                  .toList(),
+            );
+          },
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: CircularProgressIndicator(color: AppTheme.kPrimaryGold),
+            ),
+          ),
+          error: (e, st) {
+            final isPermissionDenied = e.toString().contains('permission-denied') ||
+                e.toString().contains('insufficient permissions');
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (isPermissionDenied)
+                  _buildFirestoreRulesPendingCard(context)
+                else
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.redAccent.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Column(
                       children: [
+                        const Icon(Icons.error_outline_rounded,
+                            color: Colors.redAccent, size: 36),
+                        const SizedBox(height: 8),
                         Text(
-                          'Minha Conta',
-                          style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: theme.colorScheme.onSurface,
+                          'Erro ao carregar lista de usuários:\n$e',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.manrope(
+                            color: Colors.redAccent,
+                            fontSize: 13,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.kPrimaryGold,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'ADMIN PRINCIPAL',
-                            style: GoogleFonts.outfit(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: const Color(0xFF111223),
-                              letterSpacing: 0.5,
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
+                          onPressed: () {
+                            ref.invalidate(allUsersProvider);
+                            ref.invalidate(preAuthorizedEmailsProvider);
+                          },
+                          icon: const Icon(Icons.refresh_rounded, size: 16),
+                          label: const Text('Tentar Novamente'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      AccessControlService.kPrimaryAdminEmail,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                  ),
+                if (filteredUsers.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12, left: 4),
+                    child: Text(
+                      'USUÁRIOS (${filteredUsers.length})',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
+                  ),
+                  ...filteredUsers.map((u) => _buildUserCard(context, u)),
+                ] else
+                  _buildEmptyState(context),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ABA 2: VERSÃO DO APP (Janela Completa, Rápida e Fácil para Leigos)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildVersionTab(
+    BuildContext context, {
+    required AppUpdateInfo? latestInfo,
+    required AsyncValue<AppCurrentVersion?> currentVersionAsync,
+  }) {
+    final theme = Theme.of(context);
+    final latestBuild = latestInfo?.latestVersion ?? 1;
+    final latestName = latestInfo?.versionName ?? '1.0.0';
+    final notes = latestInfo?.releaseNotes.isNotEmpty == true
+        ? latestInfo!.releaseNotes
+        : 'Nenhuma nota informada.';
+    final iosUrl = latestInfo?.iosUrl.isNotEmpty == true
+        ? latestInfo!.iosUrl
+        : 'https://keryxapp.pages.dev';
+
+    return Form(
+      key: _versionFormKey,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+        children: [
+          // Banner de Apresentação
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                  theme.colorScheme.surfaceContainer,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppTheme.kPrimaryGold,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.rocket_launch_rounded,
+                    color: Color(0xFF111223),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Publicar Versão do Aplicativo',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Mude a versão aqui para que os celulares dos membros recebam o aviso de atualização imediatamente.',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Cards de Status em tempo real
+          Row(
+            children: [
+              Expanded(
+                child: _buildVersionStatItem(
+                  context,
+                  title: 'CLOUDFLARE (NO AR)',
+                  value: 'v$latestName (Build $latestBuild)',
+                  icon: Icons.cloud_done_rounded,
+                  color: AppTheme.kPrimaryGold,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildVersionStatItem(
+                  context,
+                  title: 'SEU APP ATUAL',
+                  value: currentVersionAsync.when(
+                    data: (v) => v != null ? 'v${v.versionName} (${v.buildNumber})' : '1.0.0',
+                    loading: () => '...',
+                    error: (_, __) => '1.0.0',
+                  ),
+                  icon: Icons.phone_android_rounded,
+                  color: const Color(0xFF38BDF8),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0x22F2CA50)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.verified_user_rounded,
-                  size: 16, color: Color(0xFF10B981)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Acesso total e permanente ao sistema de gerenciamento. Autorização automática.',
+
+          // Card com as Notas Atuais
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'NOTAS DA VERSÃO ATIVA NO AR:',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      tooltip: 'Atualizar dados do Cloudflare',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        ref.invalidate(latestUpdateInfoProvider);
+                        ref.invalidate(currentAppVersionProvider);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  notes,
                   style: GoogleFonts.manrope(
                     fontSize: 12,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                    height: 1.4,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVersionControlCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final latestUpdateAsync = ref.watch(latestUpdateInfoProvider);
-    final currentVersionAsync = ref.watch(currentAppVersionProvider);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
-          width: 1.2,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.system_update_rounded,
-                  color: AppTheme.kPrimaryGold,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 8),
+                Row(
                   children: [
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        Text(
-                          'Controle de Versão',
-                          style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'CLOUDFLARE KV',
-                            style: GoogleFonts.outfit(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              color: const Color(0xFF10B981),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
+                    const Icon(Icons.apple_rounded, size: 14, color: Colors.white70),
+                    const SizedBox(width: 4),
                     Text(
-                      'Gerencie a versão distribuída para Android e iPhone',
+                      'PWA iOS: ',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        iosUrl,
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          color: AppTheme.kPrimaryGold,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── FORMULÁRIO SIMPLES PARA LEIGOS ───────────────────────
+          Text(
+            'NOVA ATUALIZAÇÃO',
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: AppTheme.kPrimaryGold,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Campo 1: Número da Versão
+                Text(
+                  'Número da Versão',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Coloque o número que os membros verão na tela (ex: 1.0.2).',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _versionNameController,
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Ex: 1.0.2',
+                    prefixIcon: const Icon(Icons.tag_rounded, size: 20),
+                    filled: true,
+                    fillColor: theme.scaffoldBackgroundColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: AppTheme.kPrimaryGold,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Informe o número da versão'
+                      : null,
+                ),
+                const SizedBox(height: 18),
+
+                // Campo 2: O que há de novo? (Notas da Versão)
+                Text(
+                  'O que há de novo nesta versão?',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Explique de forma simples o que mudou ou melhorou.',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _versionNotesController,
+                  maxLines: 3,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Ex: Correção de áudio da Bíblia, melhorias de velocidade e novas funções de estudo.',
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(bottom: 36),
+                      child: Icon(Icons.edit_note_rounded, size: 22),
+                    ),
+                    filled: true,
+                    fillColor: theme.scaffoldBackgroundColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: AppTheme.kPrimaryGold,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Campo 3: Switch de Atualização Obrigatória
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: theme.scaffoldBackgroundColor,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Obrigar membros a atualizar?',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Se ativado, impede o uso do app em versões antigas até o membro atualizar.',
                       style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(height: 1, color: Colors.white10),
-          const SizedBox(height: 14),
-          latestUpdateAsync.when(
-            data: (info) {
-              final latestBuild = info?.latestVersion ?? 1;
-              final latestName = info?.versionName ?? '1.0.0';
-              final notes = info?.releaseNotes.isNotEmpty == true
-                  ? info!.releaseNotes
-                  : 'Nenhuma nota informada.';
-              final iosUrl = info?.iosUrl.isNotEmpty == true
-                  ? info!.iosUrl
-                  : 'https://keryxapp.pages.dev';
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildVersionStatItem(
-                          context,
-                          title: 'CLOUDFLARE (KV)',
-                          value: 'v$latestName (Build $latestBuild)',
-                          icon: Icons.cloud_done_rounded,
-                          color: AppTheme.kPrimaryGold,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildVersionStatItem(
-                          context,
-                          title: 'MEU APP ATUAL',
-                          value: currentVersionAsync.when(
-                            data: (v) => 'v${v.versionName} (${v.buildNumber})',
-                            loading: () => '...',
-                            error: (_, __) => '1.0.0',
-                          ),
-                          icon: Icons.phone_android_rounded,
-                          color: const Color(0xFF38BDF8),
-                        ),
-                      ),
-                    ],
+                    activeThumbColor: AppTheme.kPrimaryGold,
+                    value: _versionForceUpdate,
+                    onChanged: (val) => setState(() => _versionForceUpdate = val),
                   ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: theme.scaffoldBackgroundColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                const SizedBox(height: 14),
+
+                // ── SEÇÃO AVANÇADA (EXPANSÍVEL, OCULTA PARA LEIGOS) ──────
+                Theme(
+                  data: theme.copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    iconColor: AppTheme.kPrimaryGold,
+                    collapsedIconColor: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    title: Row(
                       children: [
+                        Icon(
+                          Icons.tune_rounded,
+                          size: 16,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(width: 8),
                         Text(
-                          'NOTAS DA VERSÃO:',
+                          'Configurações Técnicas de Servidor (Opcional)',
                           style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          notes,
-                          style: GoogleFonts.manrope(
                             fontSize: 12,
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                            height: 1.4,
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.apple_rounded, size: 14, color: Colors.white70),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'PWA iOS: ',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              iosUrl,
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
-                                color: AppTheme.kPrimaryGold,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.kPrimaryGold,
-                        foregroundColor: const Color(0xFF111223),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    children: [
+                      const SizedBox(height: 8),
+                      // Build Incremental
+                      Text(
+                        'Nº DE BUILD INCREMENTAL',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
-                      onPressed: () => _showEditVersionDialog(context, info),
-                      icon: const Icon(Icons.edit_note_rounded, size: 20),
-                      label: Text(
-                        'Alterar Versão do Aplicativo',
-                        style: GoogleFonts.outfit(
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _versionBuildController,
+                        keyboardType: TextInputType.number,
+                        style: GoogleFonts.manrope(
+                          color: theme.colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
                         ),
+                        decoration: InputDecoration(
+                          hintText: 'Ex: 3',
+                          filled: true,
+                          fillColor: theme.scaffoldBackgroundColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Informe o build';
+                          if (int.tryParse(v.trim()) == null) return 'Apenas números inteiros';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Link APK Android
+                      Text(
+                        'URL DE DOWNLOAD DO APK (ANDROID)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _versionApkUrlController,
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'https://keryx-version.nivaldo-nilngn.workers.dev/download',
+                          filled: true,
+                          fillColor: theme.scaffoldBackgroundColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Link PWA Web / iPhone
+                      Text(
+                        'URL DO PWA (IPHONE / WEB)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _versionIosUrlController,
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'https://keryxapp.pages.dev',
+                          filled: true,
+                          fillColor: theme.scaffoldBackgroundColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── BOTÃO PRINCIPAL DE LANÇAMENTO ────────────────────────
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.kPrimaryGold,
+                      foregroundColor: const Color(0xFF111223),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 3,
+                    ),
+                    onPressed: _isSavingVersion
+                        ? null
+                        : () => _publishVersionFromTab(latestInfo),
+                    icon: _isSavingVersion
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Color(0xFF111223),
+                            ),
+                          )
+                        : const Icon(Icons.rocket_launch_rounded, size: 22),
+                    label: Text(
+                      _isSavingVersion
+                          ? 'Publicando no Cloudflare...'
+                          : 'Salvar e Publicar Nova Versão 🚀',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ],
-              );
-            },
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(color: AppTheme.kPrimaryGold),
-              ),
-            ),
-            error: (e, _) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Não foi possível consultar a versão no Cloudflare ($e).',
-                  style: GoogleFonts.manrope(color: Colors.redAccent, fontSize: 12),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton.icon(
-                  onPressed: () => ref.invalidate(latestUpdateInfoProvider),
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Recarregar'),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ABA 3: PRÉ-AUTORIZADOS (Convites antecipados e gerenciamento)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildPreAuthorizedTab(
+    BuildContext context, {
+    required List<PreAuthorizedEmail> unredeemed,
+    required AsyncValue<List<PreAuthorizedEmail>> preAuthorizedEmailsAsync,
+  }) {
+    final theme = Theme.of(context);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+      children: [
+        // Card de Apresentação e Botão Novo
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: AppTheme.kPrimaryGold.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.mark_email_read_rounded,
+                      color: AppTheme.kPrimaryGold,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'E-mails Pré-Autorizados',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Libere acessos antes mesmo do membro baixar o app.',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Cadastre o e-mail previamente. Quando a pessoa realizar o login pela primeira vez com o Google, o acesso será liberado automaticamente sem precisar de autorização manual.',
+                style: GoogleFonts.manrope(
+                  fontSize: 12.5,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.kPrimaryGold,
+                    foregroundColor: const Color(0xFF111223),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: _showAddEmailDialog,
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                  label: Text(
+                    'Autorizar Novo E-mail',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        Text(
+          'AGUARDANDO PRIMEIRO LOGIN (${unredeemed.length})',
+          style: GoogleFonts.outfit(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        if (unredeemed.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.mark_email_read_outlined,
+                    size: 48,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Nenhum e-mail pré-autorizado pendente',
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Todos os membros autorizados já fizeram o primeiro login.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Column(
+              children: unredeemed
+                  .map((pe) => _buildPreAuthorizedTile(context, pe))
+                  .toList(),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1417,353 +1846,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       ),
     );
   }
-
-  void _showEditVersionDialog(BuildContext context, AppUpdateInfo? currentInfo) {
-    final formKey = GlobalKey<FormState>();
-    final buildController = TextEditingController(
-      text: ((currentInfo?.latestVersion ?? 1) + 1).toString(),
-    );
-    final versionNameController = TextEditingController(
-      text: currentInfo?.versionName ?? '1.0.1',
-    );
-    final apkUrlController = TextEditingController(
-      text: currentInfo?.downloadUrl.isNotEmpty == true
-          ? currentInfo!.downloadUrl
-          : 'https://keryx-version.nivaldo-nilngn.workers.dev/download',
-    );
-    final iosUrlController = TextEditingController(
-      text: currentInfo?.iosUrl.isNotEmpty == true
-          ? currentInfo!.iosUrl
-          : 'https://keryxapp.pages.dev',
-    );
-    final notesController = TextEditingController(
-      text: currentInfo?.releaseNotes ?? '',
-    );
-    bool forceUpdate = currentInfo?.forceUpdate ?? false;
-    bool isSaving = false;
-
-    showDialog(
-      context: context,
-      barrierDismissible: !isSaving,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final theme = Theme.of(ctx);
-          return AlertDialog(
-            backgroundColor: theme.colorScheme.surfaceContainer,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-              side: BorderSide(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-              ),
-            ),
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.edit_note_rounded,
-                    color: AppTheme.kPrimaryGold,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Lançar Nova Versão',
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            content: SizedBox(
-              width: 500,
-              child: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Altere o número de versão para que os celulares dos membros recebam o alerta de atualização imediatamente.',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Nº DE BUILD (INCREMENTAL)',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.8,
-                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                TextFormField(
-                                  controller: buildController,
-                                  keyboardType: TextInputType.number,
-                                  style: GoogleFonts.manrope(
-                                    color: theme.colorScheme.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: 'Ex: 2',
-                                    filled: true,
-                                    fillColor: theme.scaffoldBackgroundColor,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                  ),
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) return 'Informe o build';
-                                    if (int.tryParse(v.trim()) == null) return 'Apenas números';
-                                    return null;
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'NOME DA VERSÃO',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.8,
-                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                TextFormField(
-                                  controller: versionNameController,
-                                  style: GoogleFonts.manrope(
-                                    color: theme.colorScheme.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: 'Ex: 1.0.1',
-                                    filled: true,
-                                    fillColor: theme.scaffoldBackgroundColor,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                  ),
-                                  validator: (v) => v == null || v.trim().isEmpty
-                                      ? 'Informe o nome'
-                                      : null,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'URL DE DOWNLOAD DO APK (ANDROID)',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: apkUrlController,
-                        style: GoogleFonts.manrope(fontSize: 12, color: theme.colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: 'https://github.com/.../keryxApp.apk',
-                          filled: true,
-                          fillColor: theme.scaffoldBackgroundColor,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'URL DO PWA (IPHONE / WEB)',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: iosUrlController,
-                        style: GoogleFonts.manrope(fontSize: 12, color: theme.colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: 'https://keryxapp.pages.dev',
-                          filled: true,
-                          fillColor: theme.scaffoldBackgroundColor,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'NOTAS DA VERSÃO / O QUE MUDOU',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: notesController,
-                        maxLines: 3,
-                        style: GoogleFonts.manrope(fontSize: 13, color: theme.colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: 'Descreva as novidades desta versão...',
-                          filled: true,
-                          fillColor: theme.scaffoldBackgroundColor,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Forçar Atualização?',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Exige que os usuários atualizem para continuar usando o app.',
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
-                        activeColor: AppTheme.kPrimaryGold,
-                        value: forceUpdate,
-                        onChanged: (val) => setDialogState(() => forceUpdate = val),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
-                child: Text(
-                  'Cancelar',
-                  style: GoogleFonts.manrope(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.kPrimaryGold,
-                  foregroundColor: const Color(0xFF111223),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
-                onPressed: isSaving
-                    ? null
-                    : () async {
-                        if (!formKey.currentState!.validate()) return;
-                        setDialogState(() => isSaving = true);
-
-                        final newInfo = AppUpdateInfo(
-                          latestVersion: int.parse(buildController.text.trim()),
-                          versionName: versionNameController.text.trim(),
-                          downloadUrl: apkUrlController.text.trim(),
-                          iosUrl: iosUrlController.text.trim(),
-                          releaseNotes: notesController.text.trim(),
-                          forceUpdate: forceUpdate,
-                          minVersion: forceUpdate
-                              ? int.parse(buildController.text.trim())
-                              : (currentInfo?.minVersion ?? 1),
-                          releaseDate: DateTime.now().toIso8601String().split('T')[0],
-                        );
-
-                        final success = await ref
-                            .read(appUpdateServiceProvider)
-                            .publishNewVersion(newInfo);
-
-                        ref.invalidate(latestUpdateInfoProvider);
-                        ref.invalidate(isUpdateAvailableProvider);
-
-                        if (context.mounted) {
-                          Navigator.pop(dialogCtx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                success
-                                    ? 'Versão v${newInfo.versionName} divulgada com sucesso no Cloudflare!'
-                                    : 'A versão foi salva no Firestore (verifique a conexão com o Cloudflare).',
-                              ),
-                              backgroundColor: success
-                                  ? const Color(0xFF10B981)
-                                  : Colors.orangeAccent,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      },
-                child: isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFF111223),
-                        ),
-                      )
-                    : Text(
-                        'Salvar e Divulgar',
-                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-                      ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
 
   Widget _buildFilterChip(
     BuildContext context, {
