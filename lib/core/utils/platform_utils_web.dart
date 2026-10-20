@@ -26,15 +26,14 @@ void downloadFile(String url) {
       ? 'https://keryx-version.nivaldo-nilngn.workers.dev/download'
       : url;
 
-  final iframe = html.IFrameElement()
-    ..src = directUrl
+  final anchor = html.AnchorElement(href: directUrl)
+    ..setAttribute("download", "keryxApp.apk")
+    ..target = "_self"
     ..style.display = "none";
 
-  html.document.body?.append(iframe);
-
-  Future.delayed(const Duration(seconds: 30), () {
-    iframe.remove();
-  });
+  html.document.body?.append(anchor);
+  anchor.click();
+  anchor.remove();
 }
 
 void downloadBytes(Uint8List bytes, String fileName, String mimeType) {
