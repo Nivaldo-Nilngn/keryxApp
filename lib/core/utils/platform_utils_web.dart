@@ -22,13 +22,19 @@ bool isAndroidClient() {
 }
 
 void downloadFile(String url) {
-  final anchor = html.AnchorElement(href: url)
-    ..setAttribute("download", "keryxApp.apk")
+  final directUrl = url.contains('github.com')
+      ? 'https://keryx-version.nivaldo-nilngn.workers.dev/download'
+      : url;
+
+  final iframe = html.IFrameElement()
+    ..src = directUrl
     ..style.display = "none";
 
-  html.document.body!.append(anchor);
-  anchor.click();
-  anchor.remove();
+  html.document.body?.append(iframe);
+
+  Future.delayed(const Duration(seconds: 30), () {
+    iframe.remove();
+  });
 }
 
 void downloadBytes(Uint8List bytes, String fileName, String mimeType) {
