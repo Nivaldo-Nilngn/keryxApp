@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/app_update_service.dart';
+import '../../../core/services/internal_download_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../model/user_access_model.dart';
@@ -222,8 +223,8 @@ class UpdateRequiredScreen extends ConsumerWidget {
                       ),
                       onPressed: () {
                         ref
-                            .read(appUpdateServiceProvider)
-                            .downloadAndInstallApk(context, downloadUrl);
+                            .read(downloadServiceProvider)
+                            .downloadAndInstall(context, downloadUrl);
                       },
                       icon: const Icon(Icons.download_rounded, size: 22),
                       label: Text(

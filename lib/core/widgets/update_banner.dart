@@ -140,31 +140,8 @@ class UpdateBanner extends ConsumerWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () {
-                if (kIsWeb) {
-                  if (isIOS) {
-                    _showIOSInstructions(context);
-                  } else {
-                    downloadFile(url);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Row(
-                          children: [
-                            Icon(Icons.downloading_rounded, color: Colors.white),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Download do keryxApp.apk iniciado! Acompanhe nas notificações do aparelho.',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                        backgroundColor: Color(0xFF10B981),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 4),
-                      ),
-                    );
-                  }
+                if (kIsWeb && isIOS) {
+                  _showIOSInstructions(context);
                 } else {
                   ref.read(downloadServiceProvider).downloadAndInstall(context, url);
                 }

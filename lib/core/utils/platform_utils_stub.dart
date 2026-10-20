@@ -17,3 +17,12 @@ void downloadFile(String url) {
 void downloadBytes(Uint8List bytes, String fileName, String mimeType) {
   // Em plataformas não-web (Android/iOS), este arquivo não faz nada.
 }
+
+void downloadFileWithProgress(
+  String url, {
+  required void Function(int received, int total) onProgress,
+  required void Function() onDone,
+  required void Function(String error) onError,
+}) {
+  // Em plataformas não-web, o download nativo é tratado via Dio
+}
