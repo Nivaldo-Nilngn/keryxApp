@@ -502,7 +502,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMainTools() {
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(downloadedStorePackagesProvider);
         final localVersions = BibleService.availableVersions.where((v) {
           return storeState.isDownloaded('$v.sqlite') || 
                  storeState.isDownloaded('$v.mybible') || 

@@ -92,7 +92,7 @@ final dictionaryTotalTermCountProvider = FutureProvider.family<int, String>((
 });
 
 final availableDictionariesListProvider = Provider<Map<String, String>>((ref) {
-  final storeState = ref.watch(storeProvider);
+  final storeState = ref.watch(downloadedStorePackagesProvider);
 
   final downloadedDicts = storeState.availablePackages.where((item) {
     return item.category == StoreCategory.dictionaries &&
@@ -267,7 +267,7 @@ final availableCommentariesProvider =
     >((ref, params) {
 
       // Busca itens baixados da loja que são comentários (várias subcategorias)
-      final storeState = ref.watch(storeProvider);
+      final storeState = ref.watch(downloadedStorePackagesProvider);
       final downloadedItems = storeState.availablePackages.where((item) {
         final isStudyItem =
             item.category == StoreCategory.commentaries ||
@@ -341,7 +341,7 @@ final relevantCommentariesForVersesProvider =
       params,
     ) async {
       final bibleService = ref.read(bibleServiceProvider);
-      final storeState = ref.watch(storeProvider);
+      final storeState = ref.watch(downloadedStorePackagesProvider);
 
       final allMetas = ref.watch(
         availableCommentariesProvider((
@@ -387,7 +387,7 @@ final bookCoveringCommentariesProvider =
       ({String abbrev, int bookId, String bookName})
     >((ref, params) async {
       final bibleService = ref.watch(bibleServiceProvider);
-      final storeState = ref.watch(storeProvider);
+      final storeState = ref.watch(downloadedStorePackagesProvider);
 
       final allMetas = ref.watch(availableCommentariesProvider(params));
 

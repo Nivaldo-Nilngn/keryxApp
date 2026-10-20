@@ -112,14 +112,22 @@ class StoreNotifier extends StateNotifier<StoreState> {
       downloadProgress: {...state.downloadProgress, filename: 0.0},
     );
     
+    int lastProgressUpdateMs = 0;
+    double lastProgressValue = 0.0;
+
     try {
       await _repository.downloadPackage(
         item,
         onProgress: (progress) {
           if (_cancelledFilenames.contains(filename)) return;
-          state = state.copyWith(
-            downloadProgress: {...state.downloadProgress, filename: progress},
-          );
+          final now = DateTime.now().millisecondsSinceEpoch;
+          if (progress >= 0.99 || (now - lastProgressUpdateMs >= 150 && (progress - lastProgressValue).abs() >= 0.01)) {
+            lastProgressUpdateMs = now;
+            lastProgressValue = progress;
+            state = state.copyWith(
+              downloadProgress: {...state.downloadProgress, filename: progress},
+            );
+          }
         },
       );
       
@@ -231,3 +239,12 @@ final storeProvider = StateNotifierProvider<StoreNotifier, StoreState>((ref) {
   final notificationService = ref.watch(notificationServiceProvider);
   return StoreNotifier(repository, notificationService);
 });
+
+/// Provider otimizado para telas que apenas precisam saber se pacotes foram baixados ou estão disponíveis,
+/// evitando rebuilds desnecessários durante o progresso contínuo de downloads (downloadProgress).
+final downloadedStorePackagesProvider = Provider<StoreState>((ref) {
+  ref.watch(storeProvider.select((s) => s.downloadedFilenames));
+  ref.watch(storeProvider.select((s) => s.availablePackages));
+  return ref.read(storeProvider);
+});
+

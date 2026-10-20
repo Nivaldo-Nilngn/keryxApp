@@ -275,10 +275,15 @@ class StoreRepository {
 
         // No Web, baixamos tudo para a memória com BytesBuilder (mais eficiente)
         final builder = BytesBuilder(copy: false);
+        int lastProgressMs = 0;
         await for (final chunk in response.stream) {
           builder.add(chunk);
           if (contentLength != null && contentLength > 0 && onProgress != null) {
-            onProgress(builder.length / contentLength);
+            final now = DateTime.now().millisecondsSinceEpoch;
+            if (now - lastProgressMs >= 150 || builder.length == contentLength) {
+              lastProgressMs = now;
+              onProgress(builder.length / contentLength);
+            }
           }
         }
         final bytes = builder.takeBytes();
@@ -298,6 +303,7 @@ class StoreRepository {
         
         final sink = tmp.openWrite();
         int bytesReceived = 0;
+        int lastProgressMs = 0;
         
         try {
           await for (final chunk in response.stream) {
@@ -305,7 +311,11 @@ class StoreRepository {
             bytesReceived += chunk.length;
             
             if (contentLength != null && contentLength > 0 && onProgress != null) {
-              onProgress(bytesReceived / contentLength);
+              final now = DateTime.now().millisecondsSinceEpoch;
+              if (now - lastProgressMs >= 150 || bytesReceived == contentLength) {
+                lastProgressMs = now;
+                onProgress(bytesReceived / contentLength);
+              }
             }
           }
           await sink.close();
@@ -358,12 +368,17 @@ class StoreRepository {
         
         final sink = zipFile.openWrite();
         int bytesReceived = 0;
+        int lastProgressMs = 0;
         
         await for (final chunk in response.stream) {
           sink.add(chunk);
           bytesReceived += chunk.length;
           if (contentLength != null && contentLength > 0 && onProgress != null) {
-            onProgress((bytesReceived / contentLength) * 0.9); // 90% para o download
+            final now = DateTime.now().millisecondsSinceEpoch;
+            if (now - lastProgressMs >= 150 || bytesReceived == contentLength) {
+              lastProgressMs = now;
+              onProgress((bytesReceived / contentLength) * 0.9); // 90% para o download
+            }
           }
         }
         await sink.close();

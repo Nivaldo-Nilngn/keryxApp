@@ -122,7 +122,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
   ];
 
   int get _totalDownloadedEbooks {
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(downloadedStorePackagesProvider);
     return storeState.availablePackages
         .where((p) => p.category == StoreCategory.books && storeState.isDownloaded(p.filename))
         .where((p) => !p.filename.contains('Harpa.bok.mybible'))
@@ -990,7 +990,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     final normQuery = SearchHelper.normalize(_searchQuery);
 
     // Watch Store state
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(downloadedStorePackagesProvider);
     final storeBooks = storeState.availablePackages
         .where((p) => p.category == StoreCategory.books && storeState.isDownloaded(p.filename))
         .where((p) => !p.filename.contains('Harpa.bok.mybible'))

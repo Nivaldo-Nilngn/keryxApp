@@ -203,7 +203,7 @@ class CommentarySelectionScreen extends ConsumerWidget {
 
     // No mobile, só mostra se a obra ainda estiver baixada
     if (!kIsWeb) {
-      final storeState = ref.watch(storeProvider);
+      final storeState = ref.watch(downloadedStorePackagesProvider);
       if (!storeState.isDownloaded(lastRead.metadata.filename)) {
         return const SizedBox.shrink();
       }

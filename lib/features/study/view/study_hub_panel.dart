@@ -73,7 +73,7 @@ class StudyHubPanel extends ConsumerWidget {
       )),
     );
 
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(downloadedStorePackagesProvider);
     final downloadedMetas = allMetas.where((meta) {
       return storeState.isDownloaded(meta.filename);
     }).toList();

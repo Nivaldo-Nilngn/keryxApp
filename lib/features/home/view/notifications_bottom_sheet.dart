@@ -15,7 +15,7 @@ class NotificationsBottomSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(downloadedStorePackagesProvider);
     final harpaBook = storeState.availablePackages.where((p) => p.name.toLowerCase().contains('harpa') && storeState.isDownloaded(p.filename)).firstOrNull;
 
     final now = DateTime.now();

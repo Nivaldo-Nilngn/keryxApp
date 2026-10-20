@@ -670,7 +670,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             Expanded(
               child: Consumer(
                 builder: (context, ref, _) {
-                  final storeState = ref.watch(storeProvider);
+                  final storeState = ref.watch(downloadedStorePackagesProvider);
                   final localVersions = BibleService.availableVersions.where((
                     v,
                   ) {
@@ -1385,7 +1385,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
   Widget _buildTopSection(dynamic chapter) {
     final version = ref.watch(selectedVersionProvider);
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(downloadedStorePackagesProvider);
 
     String fullName =
         BibleMetadata.versionNames[version] ?? version.toUpperCase();

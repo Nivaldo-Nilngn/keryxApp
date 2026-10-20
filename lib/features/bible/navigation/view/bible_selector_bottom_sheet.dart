@@ -285,7 +285,7 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
       return const Center(child: CircularProgressIndicator());
     }
 
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(downloadedStorePackagesProvider);
     final localVersions = versionNames.keys.where((v) {
       return storeState.isDownloaded('$v.sqlite') || 
              storeState.isDownloaded('$v.mybible') || 

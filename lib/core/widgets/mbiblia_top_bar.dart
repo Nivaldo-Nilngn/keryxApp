@@ -199,7 +199,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                     size: 24,
                   ),
-                  if (ref.watch(storeProvider).downloadProgress.isNotEmpty)
+                  if (ref.watch(storeProvider.select((s) => s.downloadProgress.isNotEmpty)))
                     Positioned(
                       top: -2,
                       right: -2,

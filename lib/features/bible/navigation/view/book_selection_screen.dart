@@ -113,7 +113,7 @@ class _BookSelectionScreenState extends ConsumerState<BookSelectionScreen> {
     final progressAsync = ref.watch(allReadingProgressProvider);
     final recentBooks = ref.watch(recentBooksProvider);
 
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(downloadedStorePackagesProvider);
 
     // Convert to a mutable map to allow dynamic additions
     final Map<String, String> versionNames = Map.from(
