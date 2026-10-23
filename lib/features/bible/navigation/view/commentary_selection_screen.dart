@@ -8,8 +8,8 @@ import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/features/bible/reading/view/commentary_reader_screen.dart';
 import 'package:keryx_app/features/store/view/store_screen.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
-import 'package:flutter/foundation.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
+import 'package:keryx_app/features/store/model/store_item.dart';
 
 class CommentarySelectionScreen extends ConsumerWidget {
   const CommentarySelectionScreen({super.key});
@@ -201,33 +201,13 @@ class CommentarySelectionScreen extends ConsumerWidget {
     final lastRead = ref.watch(lastCommentaryReadProvider);
     if (lastRead == null) return const SizedBox.shrink();
 
-    // No mobile, só mostra se a obra ainda estiver baixada
-    if (!kIsWeb) {
-      final storeState = ref.watch(downloadedStorePackagesProvider);
-      if (!storeState.isDownloaded(lastRead.metadata.filename)) {
-        return const SizedBox.shrink();
-      }
-    }
+    final storeState = ref.watch(downloadedStorePackagesProvider);
+    final isDownloaded = storeState.isDownloaded(lastRead.metadata.filename);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 32),
-      child: GestureDetector(
-        onTap: () {
-          ref.read(selectedCommentaryVersionProvider.notifier).state =
-              lastRead.metadata;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CommentaryReaderScreen(
-                initialMetadata: lastRead.metadata,
-                book: lastRead.book,
-                chapter: lastRead.chapter,
-              ),
-            ),
-          );
-        },
+    if (isDownloaded) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 32),
         child: Container(
-          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(20),
@@ -239,66 +219,263 @@ class CommentarySelectionScreen extends ConsumerWidget {
               ),
             ],
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  Icons.bookmark_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                ref.read(selectedCommentaryVersionProvider.notifier).state =
+                    lastRead.metadata;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CommentaryReaderScreen(
+                      initialMetadata: lastRead.metadata,
+                      book: lastRead.book,
+                      chapter: lastRead.chapter,
+                    ),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
                   children: [
-                    Text(
-                      'Continuar de onde parou',
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${lastRead.book.name} ${lastRead.chapter == 0 ? "(Introdução)" : lastRead.chapter}',
-                      style: GoogleFonts.outfit(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      lastRead.metadata.name,
-                      style: GoogleFonts.outfit(
-                        fontSize: 13,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ).colorScheme.primary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: Icon(
+                        Icons.bookmark_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'CONTINUAR DE ONDE PAROU',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${lastRead.book.name} ${lastRead.chapter == 0 ? "(Introdução)" : lastRead.chapter}',
+                            style: GoogleFonts.outfit(
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            lastRead.metadata.name,
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+                        size: 18,
+                      ),
+                      tooltip: 'Remover histórico',
+                      onPressed: () {
+                        ref.read(lastCommentaryReadProvider.notifier).clear();
+                      },
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 16,
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: Theme.of(context).colorScheme.primary,
-                size: 16,
-              ),
-            ],
+            ),
           ),
+        ),
+      );
+    }
+
+    // Não baixado localmente neste aparelho:
+    // Procura se a obra correspondente existe no catálogo para download
+    StoreItem? matchingItem;
+    for (final item in storeState.availablePackages) {
+      if (item.filename == lastRead.metadata.filename ||
+          item.filename.endsWith('/${lastRead.metadata.filename}') ||
+          lastRead.metadata.filename.endsWith('/${item.filename}') ||
+          item.name.toLowerCase() == lastRead.metadata.name.toLowerCase()) {
+        matchingItem = item;
+        break;
+      }
+    }
+
+    if (matchingItem == null) {
+      // Se não está baixado e não existe no catálogo, não exibe residual
+      return const SizedBox.shrink();
+    }
+
+    final downloadProgress = storeState.downloadProgress[matchingItem.filename];
+    final isDownloading = downloadProgress != null;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 32),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                Icons.cloud_sync_rounded,
+                color: Theme.of(context).colorScheme.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'CONTINUAR DA NUVEM',
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${lastRead.book.name} ${lastRead.chapter == 0 ? "(Introdução)" : lastRead.chapter}',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${lastRead.metadata.name} • Baixe para ler',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (isDownloading)
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  value: downloadProgress > 0 ? downloadProgress : null,
+                  strokeWidth: 2.5,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              )
+            else
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                onPressed: () async {
+                  try {
+                    await ref.read(storeProvider.notifier).downloadPackage(matchingItem!);
+                    if (context.mounted) {
+                      ref.read(selectedCommentaryVersionProvider.notifier).state = lastRead.metadata;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CommentaryReaderScreen(
+                            initialMetadata: lastRead.metadata,
+                            book: lastRead.book,
+                            chapter: lastRead.chapter,
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erro ao baixar obra: $e')),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.download_rounded, size: 14),
+                label: Text('Baixar', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            IconButton(
+              icon: Icon(
+                Icons.close_rounded,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+                size: 18,
+              ),
+              tooltip: 'Dispensar',
+              onPressed: () {
+                ref.read(lastCommentaryReadProvider.notifier).clear();
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -369,6 +546,12 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
     }
 
     if (available.isEmpty) {
+      final storeState = ref.watch(downloadedStorePackagesProvider);
+      final missingCommentaries = storeState.missingCloudPackages.where(
+        (p) => p.category == StoreCategory.commentaries || p.category == StoreCategory.expository,
+      ).toList();
+      final hasCloud = missingCommentaries.isNotEmpty;
+
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -389,7 +572,7 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                Icons.cloud_download_rounded,
+                hasCloud ? Icons.cloud_sync_rounded : Icons.cloud_download_rounded,
                 color: Theme.of(context).colorScheme.primary,
                 size: 24,
               ),
@@ -400,7 +583,7 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Nenhuma obra baixada',
+                    hasCloud ? '${missingCommentaries.length} obra(s) na sua nuvem' : 'Nenhuma obra baixada',
                     style: GoogleFonts.outfit(
                       color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
@@ -409,7 +592,9 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Vá até a Loja para baixar comentários.',
+                    hasCloud
+                        ? 'Sincronize da sua conta para ler neste dispositivo.'
+                        : 'Vá até a Loja para baixar comentários.',
                     style: GoogleFonts.outfit(
                       color: Theme.of(
                         context,
@@ -420,32 +605,57 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
                 ],
               ),
             ),
-            TextButton(
-              style: TextButton.styleFrom(
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            if (hasCloud)
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                onPressed: () async {
+                  for (final item in missingCommentaries) {
+                    await ref.read(storeProvider.notifier).downloadPackage(item);
+                  }
+                },
+                icon: const Icon(Icons.download_rounded, size: 14),
+                label: Text(
+                  'Baixar Todas',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              )
+            else
+              TextButton(
+                style: TextButton.styleFrom(
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () {
+                  ref.read(isLibraryModeProvider.notifier).state = false;
+                  ref.read(selectedCategoryProvider.notifier).state = null;
+                  ref.read(searchQueryProvider.notifier).state = '';
+                  ref
+                      .read(navigationProvider.notifier)
+                      .setIndex(5); // Vai pra Loja
+                },
+                child: Text(
+                  'Ir para Loja',
+                  style: GoogleFonts.outfit(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-              onPressed: () {
-                ref.read(isLibraryModeProvider.notifier).state = false;
-                ref.read(selectedCategoryProvider.notifier).state = null;
-                ref.read(searchQueryProvider.notifier).state = '';
-                ref
-                    .read(navigationProvider.notifier)
-                    .setIndex(5); // Vai pra Loja
-              },
-              child: Text(
-                'Ir para Loja',
-                style: GoogleFonts.outfit(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
           ],
         ),
       );

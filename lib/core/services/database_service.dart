@@ -6,9 +6,10 @@ import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 import 'dart:io' as io;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Formato da tabela de versículos de cada módulo bíblico (descoberto uma vez por banco).
-enum _VerseSchema { araS, mySword, standard }
+enum _VerseSchema { araS, mySword, standard, myBibleVerses }
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -157,7 +158,7 @@ class DatabaseService {
       // No web, verificamos se o banco existe no sistema de arquivos virtual do sqflite_ffi_web
       try {
         final factory = databaseFactoryFfiWeb;
-        final possibleWebNames = [
+        final possibleWebNames = <String>{
           '$key.sqlite',
           '$key.bbl.mybible',
           '$key.db',
@@ -167,15 +168,48 @@ class DatabaseService {
           '$version.bbl.mybible',
           '$version.sqlite',
           '$version.db',
-        ];
+          version,
+          '$version.mybible',
+          '$key.mybible',
+        };
+
+        // Lê a lista de pacotes baixados em SharedPreferences para obter os nomes reais de arquivos (com case original)
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final downloadedItems = prefs.getStringList('downloaded_store_items') ?? [];
+          for (final raw in downloadedItems) {
+            final clean = raw.contains('/') ? raw.split('/').last : raw;
+            final baseWithoutExt = _stripExt(clean).toUpperCase();
+            if (baseWithoutExt == key ||
+                key.contains(baseWithoutExt) ||
+                baseWithoutExt.contains(key)) {
+              possibleWebNames.add(clean);
+              possibleWebNames.add(raw);
+              possibleWebNames.add(clean.toLowerCase());
+              possibleWebNames.add(clean.toUpperCase());
+            }
+          }
+        } catch (_) {}
 
         for (final name in possibleWebNames) {
-          final testPath = join(dbPath, name);
-          if (await factory.databaseExists(testPath)) {
-            path = testPath;
-            exists = true;
-            break;
+          final candidates = [
+            join(dbPath, name),
+            name,
+            name.startsWith('/') ? name : '/$name',
+            name.startsWith('/') ? name.substring(1) : name,
+            join(dbPath, name.startsWith('/') ? name.substring(1) : name),
+          ];
+
+          for (final testPath in candidates) {
+            try {
+              if (await factory.databaseExists(testPath)) {
+                path = testPath;
+                exists = true;
+                break;
+              }
+            } catch (_) {}
           }
+          if (exists) break;
         }
       } catch (e) {
         exists = false;
@@ -183,7 +217,12 @@ class DatabaseService {
     }
 
     if (!exists) {
-      // Se não existir, copia dos assets
+      final isBuiltIn = key == 'NVI' || key == 'ACF' || key == 'ARA_S';
+      if (!isBuiltIn) {
+        throw Exception("Banco de dados da versão $version não encontrado localmente.");
+      }
+
+      // Se não existir e for versão nativa, copia dos assets
       try {
         if (!kIsWeb) {
           await io.Directory(dirname(path)).create(recursive: true);
@@ -265,6 +304,8 @@ class DatabaseService {
           schema = _VerseSchema.araS;
         } else if (tables.contains('bible') && !tables.contains('verse')) {
           schema = _VerseSchema.mySword;
+        } else if (tables.contains('verses') && !tables.contains('verse')) {
+          schema = _VerseSchema.myBibleVerses;
         } else {
           schema = _VerseSchema.standard;
         }
@@ -289,6 +330,20 @@ class DatabaseService {
           'Bible',
           columns: ['Scripture as text'],
           where: 'Book = ? AND Chapter = ? AND Verse = ?',
+          whereArgs: [bookId, chapter, verse],
+          limit: 1,
+        );
+        if (maps.isNotEmpty) {
+          return maps.first['text'] as String?;
+        }
+      } else if (schema == _VerseSchema.myBibleVerses) {
+        final columns = await db.rawQuery("PRAGMA table_info(verses)");
+        final colNames = columns.map((c) => (c['name'] as String).toLowerCase()).toSet();
+        final bookCol = colNames.contains('book_number') ? 'book_number' : (colNames.contains('book_id') ? 'book_id' : 'book');
+        maps = await db.query(
+          'verses',
+          columns: ['text'],
+          where: '$bookCol = ? AND chapter = ? AND verse = ?',
           whereArgs: [bookId, chapter, verse],
           limit: 1,
         );
@@ -1082,30 +1137,60 @@ class DatabaseService {
     String path = filename;
     bool exists = false;
 
+    final base = filename.contains('/') ? filename.split('/').last : filename;
+
     if (kIsWeb) {
       // Na Web, o módulo só existe se foi baixado pela loja (IndexedDB)
       final dbPath = await databaseFactoryFfiWeb.getDatabasesPath();
-      path = join(dbPath, filename);
-      try {
-        exists = await databaseFactoryFfiWeb.databaseExists(path);
-      } catch (_) {
-        exists = false;
+      final candidates = [
+        join(dbPath, base),
+        join(dbPath, filename),
+        join(dbPath, 'books', base),
+        base,
+        filename,
+      ];
+      for (final cand in candidates) {
+        try {
+          if (await databaseFactoryFfiWeb.databaseExists(cand)) {
+            path = cand;
+            exists = true;
+            break;
+          }
+        } catch (_) {}
       }
       if (!exists) return null; // Livros também dependem apenas do IndexedDB na web
     } else {
-      // 1. Tenta buscar no diretório do 'store' (para hinos/Harpa baixados)
+      // 1. Tenta buscar no diretório do 'store'
       final appDocDir = await getApplicationDocumentsDirectory();
-      final storePath = join(appDocDir.path, 'store', filename);
-      path = storePath;
-      exists = await io.File(storePath).exists();
-      if (exists) debugPrint('📂 Banco encontrado no store: $storePath');
+      final storeCandidates = [
+        join(appDocDir.path, 'store', 'books', base),
+        join(appDocDir.path, 'store', filename),
+        join(appDocDir.path, 'store', base),
+      ];
+      for (final sp in storeCandidates) {
+        if (await io.File(sp).exists()) {
+          path = sp;
+          exists = true;
+          debugPrint('📂 Banco encontrado no store: $sp');
+          break;
+        }
+      }
 
       // 2. Fallback para diretório padrão de banco de dados
       if (!exists) {
         final dbPath = await getDatabasesPath();
-        path = join(dbPath, filename);
-        exists = await io.File(path).exists();
-        if (exists) debugPrint('📂 Banco encontrado no databases: $path');
+        final dbCandidates = [
+          join(dbPath, base),
+          join(dbPath, filename),
+        ];
+        for (final dp in dbCandidates) {
+          if (await io.File(dp).exists()) {
+            path = dp;
+            exists = true;
+            debugPrint('📂 Banco encontrado no databases: $dp');
+            break;
+          }
+        }
       }
     }
 

@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'telegram/telegram_http_download_service.dart';
 
 typedef AccessRefresher = Future<Map<String, String>> Function();
@@ -301,6 +303,56 @@ class PdfService {
         await tmpFile.delete();
       }
     } catch (_) {}
+  }
+
+  Future<void> syncPdfToCloud(String fileName, {String? bookId, int? size}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'cloudPdfs': FieldValue.arrayUnion([
+          {
+            'name': fileName,
+            'bookId': bookId ?? '',
+            'size': size ?? 0,
+          }
+        ]),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('⚠️ Erro ao salvar PDF na nuvem: $e');
+    }
+  }
+
+  Future<void> removePdfFromCloud(String fileName) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && doc.data()?['cloudPdfs'] != null) {
+        final list = List<dynamic>.from(doc.data()!['cloudPdfs']);
+        list.removeWhere((item) => item is Map && (item['name'] == fileName || item['name'] == '$fileName.pdf'));
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'cloudPdfs': list,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('⚠️ Erro ao remover PDF da nuvem: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCloudPdfs() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return [];
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && doc.data()?['cloudPdfs'] != null) {
+        final list = List<dynamic>.from(doc.data()!['cloudPdfs']);
+        return list.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Erro ao buscar PDFs da nuvem: $e');
+    }
+    return [];
   }
 }
 

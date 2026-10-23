@@ -69,7 +69,11 @@ class BibleService {
   ];
 
   // Versões que possuem Strong's (Exibirá o ícone de olho)
-  static const List<String> versionsWithStrongs = ['ARA_S'];
+  static const List<String> versionsWithStrongs = [
+    'ARA_S',
+    'BHS',
+    'BIBLIA HEBRAICA STUTTGARTENSIA (BHS)',
+  ];
 
   // Versões sugeridas para comparação (Mostra as principais para estudo)
   static const List<String> topComparisonVersions = [
@@ -302,39 +306,42 @@ class BibleService {
     final result = <BibleBook>[];
 
     Map<int, int>? realMaxChapters;
-    if (!kIsWeb) {
-      final db = await _getDb(version);
-      if (db != null) {
-        try {
-          final tablesResult = await db.rawQuery(
-            "SELECT name FROM sqlite_master WHERE type='table'",
-          );
-          final tables = tablesResult
-              .map((t) => (t['name'] as String).toLowerCase())
-              .toList();
+    final db = await _getDb(version);
+    if (db != null) {
+      try {
+        final tablesResult = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table'",
+        );
+        final tables = tablesResult
+            .map((t) => (t['name'] as String).toLowerCase())
+            .toList();
 
-          // Suporte a ARA_S (VERSICULOS), MySword (Bible) e padrão (verse)
-          final String query;
-          if (tables.contains('versiculos')) {
-            query = 'SELECT VER_LIV_ID as book_id, MAX(VER_CAPITULO) as max_c FROM VERSICULOS GROUP BY VER_LIV_ID';
-          } else if (tables.contains('bible') && !tables.contains('verse')) {
-            query = 'SELECT Book as book_id, MAX(Chapter) as max_c FROM Bible GROUP BY Book';
-          } else {
-            query = 'SELECT book_id, MAX(chapter) as max_c FROM verse GROUP BY book_id';
-          }
-
-          final res = await db.rawQuery(query);
-          if (res.isNotEmpty) {
-            realMaxChapters = {};
-            for (final row in res) {
-              final bId = row['book_id'] as int;
-              final mCap = row['max_c'] as int;
-              realMaxChapters[bId] = mCap;
-            }
-          }
-        } catch (e) {
-          print("Erro ao tentar buscar MAX(chapter): $e");
+        // Suporte a ARA_S (VERSICULOS), MySword (Bible), MyBible (verses) e padrão (verse)
+        final String query;
+        if (tables.contains('versiculos')) {
+          query = 'SELECT VER_LIV_ID as book_id, MAX(VER_CAPITULO) as max_c FROM VERSICULOS GROUP BY VER_LIV_ID';
+        } else if (tables.contains('bible') && !tables.contains('verse')) {
+          query = 'SELECT Book as book_id, MAX(Chapter) as max_c FROM Bible GROUP BY Book';
+        } else if (tables.contains('verses') && !tables.contains('verse')) {
+          final columnsResult = await db.rawQuery("PRAGMA table_info(verses)");
+          final colNames = columnsResult.map((c) => (c['name'] as String).toLowerCase()).toSet();
+          final bookCol = colNames.contains('book_number') ? 'book_number' : (colNames.contains('book_id') ? 'book_id' : 'book');
+          query = 'SELECT $bookCol as book_id, MAX(chapter) as max_c FROM verses GROUP BY $bookCol';
+        } else {
+          query = 'SELECT book_id, MAX(chapter) as max_c FROM verse GROUP BY book_id';
         }
+
+        final res = await db.rawQuery(query);
+        if (res.isNotEmpty) {
+          realMaxChapters = {};
+          for (final row in res) {
+            final bId = row['book_id'] as int;
+            final mCap = row['max_c'] as int;
+            realMaxChapters[bId] = mCap;
+          }
+        }
+      } catch (e) {
+        print("Erro ao tentar buscar MAX(chapter): $e");
       }
     }
 
@@ -433,7 +440,8 @@ class BibleService {
 
         final List<Map<String, dynamic>> maps;
         final bool isAraS = tables.contains('versiculos');
-        final bool isMySword = tables.contains('bible');
+        final bool isMySword = tables.contains('bible') && !tables.contains('verse');
+        final bool isMyBible = tables.contains('verses') && !tables.contains('verse');
 
         if (isAraS) {
           maps = await db.query(
@@ -443,13 +451,24 @@ class BibleService {
             whereArgs: [bookIdInt, chapter],
             orderBy: 'CAST(VER_VERSICULO AS INTEGER) ASC',
           );
-        } else if (isMySword && !tables.contains('verse')) {
+        } else if (isMySword) {
           maps = await db.query(
             'Bible',
             columns: ['Verse as verse', 'Scripture as text'],
             where: 'Book = ? AND Chapter = ?',
             whereArgs: [bookIdInt, chapter],
             orderBy: 'CAST(Verse AS INTEGER) ASC',
+          );
+        } else if (isMyBible) {
+          final columnsResult = await db.rawQuery("PRAGMA table_info(verses)");
+          final colNames = columnsResult.map((c) => (c['name'] as String).toLowerCase()).toSet();
+          final bookCol = colNames.contains('book_number') ? 'book_number' : (colNames.contains('book_id') ? 'book_id' : 'book');
+          maps = await db.query(
+            'verses',
+            columns: ['verse', 'text'],
+            where: '$bookCol = ? AND chapter = ?',
+            whereArgs: [bookIdInt, chapter],
+            orderBy: 'CAST(verse AS INTEGER) ASC',
           );
         } else {
           maps = await db.query(

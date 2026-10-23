@@ -106,7 +106,61 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
     }
   }
 
-  void _selectVersion(String version) {
+  Future<void> _selectVersion(String version) async {
+    final storeState = ref.read(storeProvider);
+    // Verifica se é uma versão da nuvem da conta que ainda não está baixada
+    StoreItem? cloudBible;
+    for (var bible in storeState.availablePackages) {
+      if (bible.category == StoreCategory.bibles &&
+          storeState.isInCloudLibrary(bible.filename) &&
+          !storeState.isDownloaded(bible.filename)) {
+        String key = bible.filename.split('/').last;
+        if (key.toLowerCase().endsWith('.sqlite')) {
+          key = key.substring(0, key.length - 7);
+        } else if (key.toLowerCase().endsWith('.bbl.mybible')) {
+          key = key.substring(0, key.length - 12);
+        } else if (key.toLowerCase().endsWith('.mybible')) {
+          key = key.substring(0, key.length - 8);
+        } else if (key.toLowerCase().endsWith('.db')) {
+          key = key.substring(0, key.length - 3);
+        }
+        if (key.toUpperCase() == version.toUpperCase()) {
+          cloudBible = bible;
+          break;
+        }
+      }
+    }
+
+    if (cloudBible != null) {
+      try {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Baixando ${cloudBible.name} da sua conta...')),
+                ],
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        await ref.read(storeProvider.notifier).downloadPackage(cloudBible);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao baixar versão: $e')));
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
     setState(() {
       _selectedVersion = version;
       ref.read(selectedVersionProvider.notifier).setVersion(version);
@@ -286,19 +340,27 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
     }
 
     final storeState = ref.watch(downloadedStorePackagesProvider);
-    final localVersions = versionNames.keys.where((v) {
-      return storeState.isDownloaded('$v.sqlite') || 
-             storeState.isDownloaded('$v.mybible') || 
-             storeState.isDownloaded('$v.bbl.mybible') || 
-             storeState.isDownloaded('$v.db') ||
-             v == 'NVI' || v == 'ACF' || v == 'ARA_S';
-    }).toList();
+    final isVersionDownloadedLocally = (String v) {
+      if (v == 'NVI' || v == 'ACF' || v == 'ARA_S') return true;
+      if (storeState.isDownloaded('$v.sqlite') || 
+          storeState.isDownloaded('$v.mybible') || 
+          storeState.isDownloaded('$v.bbl.mybible') || 
+          storeState.isDownloaded('$v.db')) {
+        return true;
+      }
+      return storeState.availablePackages.any((p) =>
+          p.category == StoreCategory.bibles &&
+          storeState.isDownloaded(p.filename) &&
+          (p.filename.toUpperCase().contains(v.toUpperCase())));
+    };
 
-    // Adicionar bíblias baixadas dinamicamente
-    final downloadedBibles = storeState.availablePackages
-        .where((p) => p.category == StoreCategory.bibles && storeState.isDownloaded(p.filename));
+    final availableVersions = versionNames.keys.where(isVersionDownloadedLocally).toList();
+
+    // Adicionar bíblias baixadas dinamicamente ou salvas na nuvem da conta
+    final userBibles = storeState.availablePackages
+        .where((p) => p.category == StoreCategory.bibles && (storeState.isDownloaded(p.filename) || storeState.isInCloudLibrary(p.filename)));
     
-    for (var bible in downloadedBibles) {
+    for (var bible in userBibles) {
       String key = bible.filename.split('/').last;
       if (key.contains('ARA+STRONG - ATUALIZADA + STRONG')) continue; // Skip to avoid duplicate with ARA_S
 
@@ -311,9 +373,8 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
       } else if (key.toLowerCase().endsWith('.db')) {
         key = key.substring(0, key.length - 3);
       }
-      // Se não for uma das chaves padrões, garantimos que será usada exatamente a chave correta
       
-      // Se a chave já existir mas com capitalização diferente (ex: kja vs KJA), nós reaproveitamos a key do mapa se existir
+      // Se a chave já existir mas com capitalização diferente (ex: kja vs KJA), reaproveitamos a key do mapa
       final existingKey = versionNames.keys.cast<String?>().firstWhere(
         (k) => k?.toUpperCase() == key.toUpperCase(), 
         orElse: () => null
@@ -326,16 +387,14 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
         versionNames[key] = bible.name;
       }
 
-      if (!localVersions.contains(key)) {
-        localVersions.add(key);
+      if (!availableVersions.contains(key)) {
+        availableVersions.add(key);
       }
     }
 
-    final availableVersions = localVersions;
-
     if (!_isOnline) {
       // Se estiver offline e a versão atual não for local, volta para NVI
-      if (!localVersions.contains(_selectedVersion)) {
+      if (!availableVersions.where(isVersionDownloadedLocally).contains(_selectedVersion)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _selectVersion('NVI');
         });
@@ -348,9 +407,9 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
       itemCount: availableVersions.length,
       itemBuilder: (context, index) {
         final version = availableVersions[index];
-        final name = versionNames[version]!;
+        final name = versionNames[version] ?? version;
         final isSelected = _selectedVersion == version;
-        final isLocal = localVersions.contains(version);
+        final isLocal = isVersionDownloadedLocally(version);
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
@@ -379,7 +438,7 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
                     ),
                     alignment: Alignment.center,
                     child: Icon(
-                      Icons.menu_book_rounded,
+                      isLocal ? Icons.menu_book_rounded : Icons.cloud_download_rounded,
                       size: 24,
                       color: isSelected ? Colors.white : Theme.of(context).colorScheme.primary,
                     ),
@@ -411,6 +470,25 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
                                   color: isSelected 
                                       ? Theme.of(context).colorScheme.primary 
                                       : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.cloud_outlined,
+                                size: 14,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Na Conta • Toque para baixar',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ],

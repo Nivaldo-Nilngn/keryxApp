@@ -73,6 +73,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
   List<OneDriveBook> _allDriveBooks = [];
   List<OneDriveBook> _driveBooks = [];
   List<Map<String, String>> _localBooks = [];
+  List<Map<String, dynamic>> _cloudPdfs = [];
   bool _isLoadingDrive = false;
   bool _isFetchingAll = false;
   String _searchQuery = '';
@@ -124,16 +125,21 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
   int get _totalDownloadedEbooks {
     final storeState = ref.watch(downloadedStorePackagesProvider);
     return storeState.availablePackages
-        .where((p) => p.category == StoreCategory.books && storeState.isDownloaded(p.filename))
+        .where((p) => p.category == StoreCategory.books && (storeState.isDownloaded(p.filename) || storeState.isInCloudLibrary(p.filename)))
         .where((p) => !p.filename.contains('Harpa.bok.mybible'))
         .length;
   }
 
   int get _totalDownloadedPdfs {
+    final localNames = _localBooks.map((b) => b['name'] ?? '').toSet();
+    final cloudCount = _cloudPdfs.where((cp) {
+      final name = cp['name']?.toString() ?? '';
+      return name.isNotEmpty && !localNames.contains(name) && !localNames.contains('$name.pdf');
+    }).length;
     return _localBooks.where((b) {
       final isAsset = b['path']?.startsWith('assets/') == true;
       return !isAsset && !(b['path']?.startsWith('store_book:') ?? false);
-    }).length;
+    }).length + cloudCount;
   }
 
   // Fila de Downloads (apenas em memória para este exemplo)
@@ -284,8 +290,23 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
 
   Future<void> _loadLocalBooks() async {
     final downloaded = await _pdfService.listDownloadedBooks();
+    List<Map<String, dynamic>> cloudPdfs = [];
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      cloudPdfs = await _pdfService.getCloudPdfs();
+      // Auto-sincroniza PDFs locais que ainda não estejam na nuvem do Firestore
+      for (final local in downloaded) {
+        final name = local['name'];
+        if (name != null && !cloudPdfs.any((cp) => cp['name'] == name)) {
+          await _pdfService.syncPdfToCloud(name);
+        }
+      }
+    }
     if (mounted) {
-      setState(() => _localBooks = downloaded);
+      setState(() {
+        _localBooks = downloaded;
+        _cloudPdfs = cloudPdfs;
+      });
     }
   }
 
@@ -992,7 +1013,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     // Watch Store state
     final storeState = ref.watch(downloadedStorePackagesProvider);
     final storeBooks = storeState.availablePackages
-        .where((p) => p.category == StoreCategory.books && storeState.isDownloaded(p.filename))
+        .where((p) => p.category == StoreCategory.books && (storeState.isDownloaded(p.filename) || storeState.isInCloudLibrary(p.filename)))
         .where((p) => !p.filename.contains('Harpa.bok.mybible'))
         .toList();
 
@@ -1005,6 +1026,19 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
         'path': 'store_book:${sb.filename}',
         'store_id': sb.id,
       });
+    }
+
+    // Adiciona os PDFs da nuvem da conta que ainda não foram baixados localmente
+    final localPdfNames = _localBooks.map((b) => b['name'] ?? '').toSet();
+    for (final cp in _cloudPdfs) {
+      final name = cp['name']?.toString() ?? '';
+      if (name.isNotEmpty && !localPdfNames.contains(name) && !localPdfNames.contains('$name.pdf')) {
+        downloadedBooks.add({
+          'name': name,
+          'path': 'cloud_pdf:${cp['bookId'] ?? ''}',
+          'cloud_id': cp['bookId']?.toString() ?? '',
+        });
+      }
     }
 
     // Filtrar livros baixados pela busca e categoria selecionada
@@ -1030,6 +1064,15 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
         ? (screenWidth - 960) / 2 + 20
         : 20.0;
 
+    final missingCloudCount = filteredDownloaded.where((b) {
+      final p = b['path'] ?? '';
+      if (p.startsWith('cloud_pdf:')) return true;
+      if (p.startsWith('store_book:')) {
+        return !storeState.isDownloaded(p.replaceFirst('store_book:', ''));
+      }
+      return false;
+    }).length;
+
     return CustomScrollView(
       slivers: [
         SliverPadding(
@@ -1038,6 +1081,34 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (missingCloudCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.cloud_sync_rounded, size: 20, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Você possui $missingCloudCount item(ns) na sua nuvem salvos em outros aparelhos.',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 if (filteredDownloaded.isNotEmpty) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1051,7 +1122,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            _libraryAreaIndex == 0 ? 'Seus E-books Baixados' : 'Seus Documentos PDF',
+                            _libraryAreaIndex == 0 ? 'Seus E-books' : 'Seus Documentos PDF',
                             style: GoogleFonts.outfit(
                               color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 16,
@@ -1101,17 +1172,26 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                   final book = filteredDownloaded[index];
                   final bookName = book['name']!;
                   final bookPath = book['path']!;
+                  final isCloudPdf = bookPath.startsWith('cloud_pdf:');
+                  final isStoreBook = bookPath.startsWith('store_book:');
+                  final storeBookFilename = isStoreBook ? bookPath.replaceFirst('store_book:', '') : '';
+                  final isStoreBookDownloaded = isStoreBook && storeState.isDownloaded(storeBookFilename);
+                  final isDownloaded = !isCloudPdf && (!isStoreBook || isStoreBookDownloaded);
+
                   return _BookCard(
                     key: ValueKey(bookName),
                     name: bookName,
                     path: bookPath,
-                    isLocal: true,
+                    isLocal: isDownloaded,
+                    alreadyDownloaded: isDownloaded,
                     onTap: (metadata) {
-                      if (bookPath.startsWith('store_book:')) {
-                        final filename = bookPath.replaceFirst('store_book:', '');
-                        final storeState = ref.read(storeProvider);
+                      if (isStoreBook) {
                         try {
-                          final storeItem = storeState.availablePackages.firstWhere((p) => p.filename == filename);
+                          final storeItem = storeState.availablePackages.firstWhere((p) => p.filename == storeBookFilename);
+                          if (!isStoreBookDownloaded) {
+                            ref.read(storeProvider.notifier).downloadPackage(storeItem);
+                            return;
+                          }
                           if (storeItem.filename.contains('Harpa')) {
                             Navigator.push(context, MaterialPageRoute(builder: (context) => BookReaderScreen(book: storeItem)));
                           } else {
@@ -1120,6 +1200,22 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                         } catch(e) {
                           debugPrint('StoreItem não encontrado');
                         }
+                      } else if (isCloudPdf) {
+                        final bookId = bookPath.replaceFirst('cloud_pdf:', '');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PdfDetailsScreen(
+                              name: bookName,
+                              cleanName: cleanPdfName(bookName),
+                              bookId: bookId.isNotEmpty ? bookId : null,
+                              isLocal: false,
+                              alreadyDownloaded: false,
+                              metadata: metadata,
+                              onDownloadCompleted: () => _loadLocalBooks(),
+                            ),
+                          ),
+                        );
                       } else {
                         Navigator.push(
                           context,
@@ -1137,15 +1233,14 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                       }
                     },
                     onDelete: () async {
-                      if (bookPath.startsWith('store_book:')) {
-                        final filename = bookPath.replaceFirst('store_book:', '');
-                        final storeState = ref.read(storeProvider);
+                      if (isStoreBook) {
                         try {
-                          final storeItem = storeState.availablePackages.firstWhere((p) => p.filename == filename);
+                          final storeItem = storeState.availablePackages.firstWhere((p) => p.filename == storeBookFilename);
                           await ref.read(storeProvider.notifier).deletePackage(storeItem);
                         } catch(e) {}
                       } else {
                         await _pdfService.deleteBook(bookName);
+                        await _pdfService.removePdfFromCloud(bookName);
                         await _deleteReadingProgress(bookName);
                         _loadLocalBooks();
                       }

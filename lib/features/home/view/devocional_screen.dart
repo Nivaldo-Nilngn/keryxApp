@@ -9,6 +9,7 @@ import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
 import 'package:keryx_app/core/widgets/smart_hide_nav.dart' as keryx_nav;
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
+import 'package:keryx_app/core/theme/app_theme.dart';
 
 // Constantes de cores do design
 
@@ -27,6 +28,11 @@ class DevocionalScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    // 72 (altura da navbar) + 24 (margem inferior da navbar) + safe area do celular + 48 (espaço de respiro visual)
+    final bottomPadding = 72.0 + 24.0 + bottomInset + 48.0;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const MBibliaTopBar(
@@ -54,93 +60,123 @@ class DevocionalScreen extends ConsumerWidget {
           bottom: false,
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+            padding: EdgeInsets.fromLTRB(20, 24, 20, bottomPadding),
             child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cabeçalho
+              // Card Principal no estilo do Card da Home (Sem degradê)
               Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.wb_sunny_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'REFLEXÃO DO DIA',
-                        style: GoogleFonts.outfit(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'REFLEXÃO ESPIRITUAL',
+                                style: TextStyle(
+                                  color: Color(0xFFF59E0B),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                devocional.title,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.wb_sunny_rounded,
+                              color: Color(0xFFF59E0B),
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    // Versículo Base dentro do card (estilo home screen, sem degradê)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
+                            : Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border(
+                          left: BorderSide(
+                            color: isDark ? AppTheme.kPrimaryGold : const Color(0xFF4F46E5),
+                            width: 4,
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    devocional.title,
-                    style: GoogleFonts.outfit(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            // Versículo Base
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Theme.of(context).colorScheme.primary.withValues(alpha: 0.15), Colors.transparent],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border(left: BorderSide(color: Theme.of(context).colorScheme.primary, width: 4)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.format_quote_rounded, color: Theme.of(context).colorScheme.primary, size: 32),
-                  const SizedBox(height: 8),
-                  Text(
-                    devocional.verse.replaceAll('“', '').replaceAll('”', '').replaceAll('...', ''),
-                    style: GoogleFonts.outfit(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 18,
-                      fontStyle: FontStyle.italic,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      '— ${devocional.verseReference}',
-                      style: GoogleFonts.outfit(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              devocional.verse,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: 16,
+                                fontStyle: FontStyle.italic,
+                                height: 1.6,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            '— ${devocional.verseReference}',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             const SizedBox(height: 32),
 
             // Texto do Devocional com Referências Clicáveis
@@ -193,31 +229,31 @@ class DevocionalScreen extends ConsumerWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF3B37C2), Color(0xFF1E1E7F)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: isDark ? AppTheme.kPrimaryGold : const Color(0xFF4F46E5),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF1E1E7F).withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+                      color: (isDark ? AppTheme.kPrimaryGold : const Color(0xFF4F46E5)).withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.auto_stories, color: Colors.white, size: 24),
+                    Icon(
+                      Icons.auto_stories,
+                      color: isDark ? const Color(0xFF111223) : Colors.white,
+                      size: 24,
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       'Ler Capítulo Completo',
                       style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF111223) : Colors.white,
                       ),
                     ),
                   ],
@@ -233,6 +269,10 @@ class DevocionalScreen extends ConsumerWidget {
   }
 
   Widget _buildContentWithLinks(BuildContext context, WidgetRef ref, String content) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final contentTextColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.88);
+    final linkColor = isDark ? AppTheme.kPrimaryGold : const Color(0xFF4F46E5);
+
     // Regex para encontrar algo como "Atos 1:8", "Mateus 5:13-16", "1 João 3:1"
     final refRegex = RegExp(r'([1-3]?\s?[A-ZÇÃ][a-záãçéíóú]+\s+\d+:\d+(?:-\d+)?)');
     final matches = refRegex.allMatches(content);
@@ -241,7 +281,7 @@ class DevocionalScreen extends ConsumerWidget {
       return Text(
         content,
         style: GoogleFonts.outfit(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+          color: contentTextColor,
           fontSize: 17,
           height: 1.7,
         ),
@@ -260,8 +300,9 @@ class DevocionalScreen extends ConsumerWidget {
       spans.add(TextSpan(
         text: verseRef,
         style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurface, 
+          color: linkColor, 
           decoration: TextDecoration.underline,
+          decorationColor: linkColor.withValues(alpha: 0.6),
           fontWeight: FontWeight.bold,
         ),
         recognizer: TapGestureRecognizer()..onTap = () {
@@ -278,7 +319,7 @@ class DevocionalScreen extends ConsumerWidget {
     return RichText(
       text: TextSpan(
         style: GoogleFonts.outfit(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+          color: contentTextColor,
           fontSize: 17,
           height: 1.7,
         ),

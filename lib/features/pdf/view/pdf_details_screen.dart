@@ -244,6 +244,7 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
             _isDownloaded = true;
             _currentLocalPath = path;
           });
+          _pdfService.syncPdfToCloud(widget.name, bookId: widget.bookId, size: widget.bookSize);
           if (!kIsWeb) {
             _loadRealPdfMetadata(path);
           }

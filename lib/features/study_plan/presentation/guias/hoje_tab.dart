@@ -124,29 +124,43 @@ class HojeTab extends ConsumerWidget {
     required bool isCompleted,
     required bool isTablet,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = Theme.of(context).colorScheme.surfaceContainer;
+    final cardBorder = isCompleted
+        ? const Color(0xFF10B981)
+        : (isDark
+            ? AppTheme.kPrimaryGold.withValues(alpha: 0.35)
+            : const Color(0xFFD97706).withValues(alpha: 0.3));
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final subtitleColor = textColor.withValues(alpha: 0.65);
+    final badgeBg = isDark
+        ? AppTheme.kPrimaryGold.withValues(alpha: 0.15)
+        : const Color(0xFFFEF3C7);
+    final badgeBorder = isDark
+        ? AppTheme.kPrimaryGold.withValues(alpha: 0.4)
+        : const Color(0xFFFDE68A);
+    final badgeText = isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309);
+    final passageCardBg = isDark
+        ? Colors.white.withValues(alpha: 0.05)
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6);
+    final passageCardBorder = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
+
     return Container(
       padding: EdgeInsets.all(isTablet ? 26.0 : 20.0),
       decoration: BoxDecoration(
+        color: cardBg,
         borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF1E1E38),
-            Theme.of(context).colorScheme.surfaceContainer,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
         border: Border.all(
-          color: isCompleted
-              ? const Color(0xFF10B981).withValues(alpha: 0.5)
-              : AppTheme.kPrimaryGold.withValues(alpha: 0.35),
+          color: cardBorder,
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
             blurRadius: 18,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -161,16 +175,16 @@ class HojeTab extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                  color: badgeBg,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
+                    color: badgeBorder,
                   ),
                 ),
                 child: Text(
                   'SEMANA ${todayInfo.week} • DIA ${todayInfo.dayOfWeek}',
                   style: GoogleFonts.plusJakartaSans(
-                    color: AppTheme.kPrimaryGold,
+                    color: badgeText,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.6,
@@ -203,7 +217,7 @@ class HojeTab extends ConsumerWidget {
           Text(
             'Leitura de Hoje',
             style: GoogleFonts.plusJakartaSans(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: subtitleColor,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -212,7 +226,7 @@ class HojeTab extends ConsumerWidget {
           Text(
             planDay.formattedSummary,
             style: GoogleFonts.plusJakartaSans(
-              color: Colors.white,
+              color: textColor,
               fontSize: isTablet ? 26 : 22,
               fontWeight: FontWeight.bold,
               height: 1.2,
@@ -223,7 +237,7 @@ class HojeTab extends ConsumerWidget {
           Text(
             'Dia ${todayInfo.day} de ${planIndex.totalDays} • Bíblia Cronológica',
             style: GoogleFonts.manrope(
-              color: Colors.white.withValues(alpha: 0.6),
+              color: subtitleColor,
               fontSize: 13,
             ),
           ),
@@ -251,17 +265,17 @@ class HojeTab extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: passageCardBg,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: passageCardBorder,
                     ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.menu_book_rounded,
-                        color: AppTheme.kPrimaryGold,
+                        color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
                         size: 20,
                       ),
                       const SizedBox(width: 14),
@@ -269,7 +283,7 @@ class HojeTab extends ConsumerWidget {
                         child: Text(
                           passage.formattedReference,
                           style: GoogleFonts.manrope(
-                            color: Colors.white,
+                            color: textColor,
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
@@ -278,15 +292,15 @@ class HojeTab extends ConsumerWidget {
                       Text(
                         'Ler',
                         style: GoogleFonts.plusJakartaSans(
-                          color: AppTheme.kPrimaryGold,
+                          color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(
+                      Icon(
                         Icons.arrow_forward_ios_rounded,
-                        color: AppTheme.kPrimaryGold,
+                        color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
                         size: 13,
                       ),
                       if (isCompleted) ...[
@@ -328,10 +342,10 @@ class HojeTab extends ConsumerWidget {
               ),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.kPrimaryGold,
-              foregroundColor: Colors.black,
+              backgroundColor: isDark ? AppTheme.kPrimaryGold : const Color(0xFFF59E0B),
+              foregroundColor: const Color(0xFF111223),
               minimumSize: Size.fromHeight(isTablet ? 54 : 50),
-              elevation: 4,
+              elevation: 2,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -355,7 +369,7 @@ class HojeTab extends ConsumerWidget {
                   size: 20,
                   color: isCompleted
                       ? const Color(0xFF10B981)
-                      : Colors.white70,
+                      : (isDark ? Colors.white70 : textColor.withValues(alpha: 0.6)),
                 ),
                 label: Text(
                   isCompleted ? 'Concluído Hoje ✓' : 'Marcar como Concluído',
@@ -364,14 +378,16 @@ class HojeTab extends ConsumerWidget {
                     fontSize: 14,
                     color: isCompleted
                         ? const Color(0xFF10B981)
-                        : Colors.white,
+                        : (isDark ? Colors.white : textColor),
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
                     color: isCompleted
                         ? const Color(0xFF10B981)
-                        : Colors.white.withValues(alpha: 0.25),
+                        : (isDark
+                            ? Colors.white.withValues(alpha: 0.25)
+                            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2)),
                   ),
                   minimumSize: Size.fromHeight(isTablet ? 48 : 46),
                   shape: RoundedRectangleBorder(

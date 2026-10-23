@@ -94,15 +94,17 @@ final dictionaryTotalTermCountProvider = FutureProvider.family<int, String>((
 final availableDictionariesListProvider = Provider<Map<String, String>>((ref) {
   final storeState = ref.watch(downloadedStorePackagesProvider);
 
-  final downloadedDicts = storeState.availablePackages.where((item) {
+  final userDicts = storeState.availablePackages.where((item) {
     return item.category == StoreCategory.dictionaries &&
-        storeState.isDownloaded(item.filename);
+        (storeState.isDownloaded(item.filename) || storeState.isInCloudLibrary(item.filename));
   }).toList();
 
   final map = <String, String>{};
 
   for (var entry in BibleService.availableDictionaries.entries) {
-    if (storeState.isDownloaded(entry.value) || entry.key == 'STRONG (BR)') {
+    if (storeState.isDownloaded(entry.value) || 
+        storeState.isInCloudLibrary(entry.value) || 
+        entry.key == 'STRONG (BR)') {
       map[entry.key] = entry.value;
     }
   }
@@ -112,7 +114,7 @@ final availableDictionariesListProvider = Provider<Map<String, String>>((ref) {
   final existingFilenames = map.values.map((v) => v.toLowerCase()).toSet();
   final existingNames = map.keys.map((k) => normalize(k)).toSet();
 
-  for (var d in downloadedDicts) {
+  for (var d in userDicts) {
     final normFile = d.filename.toLowerCase();
     final normName = normalize(d.name);
 
@@ -1088,6 +1090,21 @@ class LastCommentaryReadNotifier
         }, SetOptions(merge: true));
       } catch (e) {
         debugPrint('Erro ao salvar last commentary read no Firebase: $e');
+      }
+    }
+  }
+
+  Future<void> clear() async {
+    state = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('lastCommentaryRead');
+    if (userId != null) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'lastCommentaryRead': FieldValue.delete(),
+        });
+      } catch (e) {
+        debugPrint('Erro ao remover last commentary read no Firebase: $e');
       }
     }
   }

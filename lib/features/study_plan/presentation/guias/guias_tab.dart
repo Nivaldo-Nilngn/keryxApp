@@ -12,6 +12,7 @@ class GuiasTab extends ConsumerWidget {
     final progress = ref.watch(studyPlanProgressProvider);
     final percent = (progress.getPercentage(364) * 100).toInt();
     final isTablet = MediaQuery.of(context).size.width >= 768;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
       padding: EdgeInsets.only(
@@ -47,22 +48,18 @@ class GuiasTab extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF1E1E38),
-                  Theme.of(context).colorScheme.surfaceContainer,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: Theme.of(context).colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: AppTheme.kPrimaryGold.withValues(alpha: 0.5),
+                color: isDark
+                    ? AppTheme.kPrimaryGold.withValues(alpha: 0.5)
+                    : const Color(0xFFD97706).withValues(alpha: 0.35),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.1),
+                  color: (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706))
+                      .withValues(alpha: isDark ? 0.1 : 0.06),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -78,10 +75,10 @@ class GuiasTab extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: const Color(0xFF10B981),
+                          color: const Color(0xFF10B981).withValues(alpha: 0.5),
                         ),
                       ),
                       child: Row(
@@ -106,7 +103,7 @@ class GuiasTab extends ConsumerWidget {
                     Text(
                       '$percent% Concluído',
                       style: GoogleFonts.plusJakartaSans(
-                        color: AppTheme.kPrimaryGold,
+                        color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -117,7 +114,7 @@ class GuiasTab extends ConsumerWidget {
                 Text(
                   'Bíblia em Ordem Cronológica',
                   style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 19,
                     fontWeight: FontWeight.bold,
                   ),
@@ -126,7 +123,7 @@ class GuiasTab extends ConsumerWidget {
                 Text(
                   'Leia toda a Escritura Sagrada em 1 ano, acompanhando a ordem dos acontecimentos históricos e proféticos do Gênesis ao Apocalipse.',
                   style: GoogleFonts.manrope(
-                    color: Colors.white.withValues(alpha: 0.75),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
                     fontSize: 13,
                     height: 1.45,
                   ),
@@ -136,9 +133,9 @@ class GuiasTab extends ConsumerWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _buildTag('52 Semanas'),
-                    _buildTag('364 Dias'),
-                    _buildTag('1.189 Capítulos'),
+                    _buildTag(context, '52 Semanas'),
+                    _buildTag(context, '364 Dias'),
+                    _buildTag(context, '1.189 Capítulos'),
                   ],
                 ),
               ],
@@ -210,17 +207,20 @@ class GuiasTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildTag(String text) {
+  Widget _buildTag(BuildContext context, String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         text,
         style: GoogleFonts.manrope(
-          color: Colors.white.withValues(alpha: 0.85),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),

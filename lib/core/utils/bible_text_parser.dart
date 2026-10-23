@@ -15,6 +15,23 @@ class VerseFootnote {
   });
 }
 
+/// Palavra individual de módulo bíblico interlinear (ex: BHS, LXX, MyBible/MySword)
+class InterlinearWord {
+  final String word;
+  final String? strongCode;
+  final String? translit;
+  final String? gloss;
+  final bool needsSpace;
+
+  const InterlinearWord({
+    required this.word,
+    this.strongCode,
+    this.translit,
+    this.gloss,
+    required this.needsSpace,
+  });
+}
+
 /// Resultado do parseamento completo de um versículo
 class ParsedVerse {
   final String cleanText;
@@ -56,6 +73,174 @@ class BibleTextParser {
     r'<W?[HG]\d+>?',
     caseSensitive: false,
   );
+
+  /// Verifica se o texto é de um módulo interlinear (ex: BHS, LXX, MyBible/MySword)
+  static bool isInterlinearText(String text) {
+    if (text.isEmpty) return false;
+    return text.contains('「') ||
+        text.contains('『') ||
+        text.contains('<w>') ||
+        text.contains('SHE') ||
+        text.contains('SGE');
+  }
+
+  /// Verifica se o texto é escrito da direita para a esquerda (Hebraico)
+  static bool isRtlText(String text) {
+    if (text.isEmpty) return false;
+    return RegExp(r'[\u0590-\u05FF]').hasMatch(text);
+  }
+
+  /// Converte tokens de módulos interlineares em uma lista de palavras estruturadas
+  static List<InterlinearWord> parseInterlinearTokens(String raw) {
+    final result = <InterlinearWord>[];
+    final tokenPattern = RegExp(r'「(.*?)」', dotAll: true);
+    final matches = tokenPattern.allMatches(raw).toList();
+
+    if (matches.isEmpty) {
+      final blockPattern = RegExp(r'『(.*?)』(?:\s*《(.*?)》)?', dotAll: true);
+      for (final m in blockPattern.allMatches(raw)) {
+        final body = m.group(1) ?? '';
+        final morph = m.group(2) ?? '';
+        _parseTokenFallback(body, morph, result);
+      }
+    } else {
+      for (final m in matches) {
+        final content = m.group(1) ?? '';
+        _parseRawToken(content, result);
+      }
+    }
+
+    // Ajusta espaçamento respeitando gramática hebraica (prefixos inseparáveis e maqaf)
+    for (int i = 0; i < result.length; i++) {
+      final item = result[i];
+      final w = item.word;
+      bool needsSpace = true;
+
+      if (w.endsWith('־')) {
+        needsSpace = false;
+      } else {
+        final isHebrew = RegExp(r'[\u0590-\u05FF]').hasMatch(w);
+        if (isHebrew) {
+          final consonants = w.replaceAll(RegExp(r'[^\u05D0-\u05EA]'), '');
+          if (consonants.length <= 1 && i < result.length - 1) {
+            needsSpace = false;
+          }
+        }
+      }
+
+      if (i == result.length - 1) {
+        needsSpace = false;
+      }
+
+      result[i] = InterlinearWord(
+        word: item.word,
+        strongCode: item.strongCode,
+        translit: item.translit,
+        gloss: item.gloss,
+        needsSpace: needsSpace,
+      );
+    }
+
+    return result;
+  }
+
+  static void _parseRawToken(String content, List<InterlinearWord> result) {
+    // 1. Extração do código Strong: prioriza <S1H(\d+)> ou <S1G(\d+)>, fallback para SHE(\d+) ou SGE(\d+)
+    String? strongCode;
+    final s1Match = RegExp(r'<S1([HG])(\d+)>', caseSensitive: false).firstMatch(content);
+    if (s1Match != null) {
+      strongCode = '${s1Match.group(1)!.toUpperCase()}${s1Match.group(2)}';
+    } else {
+      final sheMatch = RegExp(r'(?:<w>|\b)S([HEG])E?(\d+)[a-zA-Z]?(?:<w>|\b)', caseSensitive: false).firstMatch(content);
+      if (sheMatch != null) {
+        final prefix = sheMatch.group(1)!.toUpperCase() == 'H' ? 'H' : 'G';
+        strongCode = '$prefix${sheMatch.group(2)}';
+      }
+    }
+
+    // 2. Extrai partes <w> entre 『...』 e 《...》
+    final wPartMatch = RegExp(r'』(.*?)《', dotAll: true).firstMatch(content);
+    if (wPartMatch != null) {
+      final wTokens = wPartMatch.group(1)!.split('<w>');
+      final parts = wTokens.where((x) => x.isNotEmpty).toList();
+      if (parts.length >= 5) {
+        final translit = parts.length > 1 ? parts[1].trim() : '';
+        final gloss = parts.length > 2 ? parts[2].trim() : '';
+        final lemma = parts[4].trim();
+        final textWord = (parts.length > 5 && parts[5].trim().isNotEmpty) ? parts[5].trim() : lemma;
+
+        // Pontuação e cantilação ao final (parts[6], parts[7]...)
+        var trailer = '';
+        for (int i = 6; i < parts.length; i++) {
+          final p = parts[i].trim();
+          if (p == '׃' || p == '־' || p == '׀' || p == 'פ' || p == 'ס' || RegExp(r'[׃־׀]').hasMatch(p)) {
+            trailer += p;
+          }
+        }
+
+        final cleanWord = (textWord + trailer).trim();
+        if (cleanWord.isNotEmpty) {
+          result.add(InterlinearWord(
+            word: cleanWord,
+            strongCode: strongCode,
+            translit: translit,
+            gloss: gloss,
+            needsSpace: true,
+          ));
+          return;
+        }
+      }
+    }
+
+    // Fallback se não bater nos slots estruturados de <w>
+    var body = content;
+    final bodyMatch = RegExp(r'『(.*?)』', dotAll: true).firstMatch(content);
+    if (bodyMatch != null) {
+      body = bodyMatch.group(1)!;
+    }
+    _parseTokenFallback(body, '', result);
+  }
+
+  static void _parseTokenFallback(String body, String morph, List<InterlinearWord> result) {
+    final itemRegex = RegExp(
+      r'^(?:(\d+)\s*)?(.*?)(?:(S[HEG]E?\d+[a-zA-Z]?|W?[HG]\d+[a-zA-Z]?)\s*)?([\u0590-\u05FF\uFB1D-\uFB4F\u0370-\u03FF\u1F00-\u1FFF־׃׀]+)\s*$',
+      dotAll: true,
+    );
+    final cleanBody = body.replaceAll(RegExp(r'<[^>]+>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final m = itemRegex.firstMatch(cleanBody);
+    if (m != null) {
+      var rawStrong = m.group(3);
+      String? strongCode;
+      if (rawStrong != null) {
+        rawStrong = rawStrong.toUpperCase();
+        if (rawStrong.startsWith('SHE') || rawStrong.startsWith('SH') || rawStrong.startsWith('WH')) {
+          strongCode = 'H${rawStrong.replaceAll(RegExp(r'[^0-9]'), '')}';
+        } else if (rawStrong.startsWith('SGE') || rawStrong.startsWith('SG') || rawStrong.startsWith('WG')) {
+          strongCode = 'G${rawStrong.replaceAll(RegExp(r'[^0-9]'), '')}';
+        } else if (rawStrong.startsWith('H') || rawStrong.startsWith('G')) {
+          strongCode = '${rawStrong[0]}${rawStrong.substring(1).replaceAll(RegExp(r'[^0-9]'), '')}';
+        }
+      }
+      final word = m.group(4)!.trim();
+      final translit = m.group(2)?.trim();
+      result.add(InterlinearWord(
+        word: word,
+        strongCode: strongCode,
+        translit: translit,
+        needsSpace: true,
+      ));
+    }
+  }
+
+  /// Monta o texto legível limpo a partir da lista de palavras interlineares
+  static String assembleInterlinearText(List<InterlinearWord> words) {
+    final sb = StringBuffer();
+    for (final w in words) {
+      sb.write(w.word);
+      if (w.needsSpace) sb.write(' ');
+    }
+    return sb.toString();
+  }
 
   /// Extrai o título e normaliza o texto bruto vindo do banco de dados
   static ({String text, String? title}) extractTitleAndText(String rawText) {
@@ -116,6 +301,14 @@ class BibleTextParser {
       });
     }
 
+    // Detecta módulos interlineares (BHS, LXX, MyBible/MySword) e reconstrói o texto no idioma original
+    if (isInterlinearText(clean)) {
+      final interlinearWords = parseInterlinearTokens(clean);
+      if (interlinearWords.isNotEmpty) {
+        return assembleInterlinearText(interlinearWords);
+      }
+    }
+
     // Remove blocos de notas inteiros
     clean = clean.replaceAll(RegExp(r'<RF>.*?<Rf>', dotAll: true, caseSensitive: false), '');
     clean = clean.replaceAll(RegExp(r'<CL>.*?<Cl>', dotAll: true, caseSensitive: false), '');
@@ -128,8 +321,9 @@ class BibleTextParser {
     // Converte quebras de linha básicas
     clean = clean.replaceAll(RegExp(r'<br\s*\/?>', caseSensitive: false), ' ');
 
-    // Remove tags HTML/XML residuais
+    // Remove tags HTML/XML residuais e delimitadores interlineares residuais
     clean = clean.replaceAll(RegExp(r'<[^>]+>'), '');
+    clean = clean.replaceAll(RegExp(r'[「」『』《》]'), '');
 
     // Desescapa entidades HTML
     clean = unescapeHtml(clean);
@@ -239,6 +433,22 @@ class BibleTextParser {
 
     // Garante que a cor do texto respeite contraste mínimo WCAG 2.1 (4.5:1)
     final effectiveTextColor = KeryxColorContrast.ensureReadableTextColor(textColor, context);
+
+    // Suporte prioritário a módulos interlineares (BHS Hebraico, LXX Grego, etc.) com Strong's integrados
+    if (isInterlinearText(text)) {
+      final interlinearSpans = _buildInterlinearSpans(
+        context: context,
+        text: text,
+        onStrongTap: onStrongTap,
+        textColor: effectiveTextColor,
+        strongHighlightColor: strongHighlightColor,
+        strongUnderline: strongUnderline,
+        strongBold: strongBold,
+      );
+      if (interlinearSpans.isNotEmpty) {
+        return interlinearSpans;
+      }
+    }
 
     // Se NÃO tem Strongs, fazemos o parsing de formatação rica (HTML, notas e itálico)
     if (!hasStrongsInText) {
@@ -447,12 +657,49 @@ class BibleTextParser {
     return spans;
   }
 
+  static List<InlineSpan> _buildInterlinearSpans({
+    required BuildContext context,
+    required String text,
+    required void Function(String strongCode, String word) onStrongTap,
+    Color? textColor,
+    int? strongHighlightColor,
+    bool strongUnderline = true,
+    bool strongBold = true,
+  }) {
+    final words = parseInterlinearTokens(text);
+    if (words.isEmpty) return [];
+
+    final spans = <InlineSpan>[];
+    for (final item in words) {
+      final textWithSpace = item.word + (item.needsSpace ? ' ' : '');
+      if (item.strongCode != null && item.strongCode!.isNotEmpty) {
+        spans.add(_buildStrongSpan(
+          context,
+          textWithSpace,
+          item.strongCode!,
+          onStrongTap,
+          textColor: textColor,
+          strongHighlightColor: strongHighlightColor,
+          underline: strongUnderline,
+          bold: strongBold,
+        ));
+      } else {
+        spans.add(TextSpan(
+          text: textWithSpace,
+          style: TextStyle(color: textColor),
+        ));
+      }
+    }
+    return spans;
+  }
+
   static String _sanitizeSlice(String slice) {
     if (slice.isEmpty) return '';
     var clean = slice;
     clean = clean.replaceAll(_strongTagRegex, '');
     clean = clean.replaceAll(_swordControlRegex, '');
     clean = clean.replaceAll(RegExp(r'<[^>]+>'), '');
+    clean = clean.replaceAll(RegExp(r'[「」『』《》]'), '');
     clean = unescapeHtml(clean);
     return clean;
   }

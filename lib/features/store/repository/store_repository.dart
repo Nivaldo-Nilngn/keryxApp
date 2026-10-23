@@ -290,9 +290,43 @@ class StoreRepository {
         
         final factory = databaseFactoryFfiWeb;
         final dbPath = await factory.getDatabasesPath();
-        final path = join(dbPath, item.filename);
-        await factory.writeDatabaseBytes(path, bytes);
-        debugPrint('✅ Banco salvo no IndexedDB (Web): $path');
+        final cleanFilename = item.filename.contains('/') ? item.filename.split('/').last : item.filename;
+        final path = join(dbPath, cleanFilename);
+
+        final aliases = <String>{
+          path,
+          cleanFilename,
+          cleanFilename.startsWith('/') ? cleanFilename.substring(1) : '/$cleanFilename',
+          item.filename,
+          join(dbPath, item.filename),
+        };
+
+        // Aliases específicos para bíblias, comentários e dicionários
+        String baseName = cleanFilename;
+        for (final ext in ['.bbl.mybible', '.cmt.mybible', '.dct.mybible', '.bok.mybible', '.mybible', '.sqlite', '.db']) {
+          if (baseName.toLowerCase().endsWith(ext)) {
+            baseName = baseName.substring(0, baseName.length - ext.length);
+            break;
+          }
+        }
+        final upperKey = baseName.toUpperCase();
+        aliases.addAll([
+          join(dbPath, '$upperKey.sqlite'),
+          join(dbPath, '$upperKey.bbl.mybible'),
+          join(dbPath, '$upperKey.db'),
+          '$upperKey.sqlite',
+          '$upperKey.bbl.mybible',
+          '$upperKey.db',
+          cleanFilename.toLowerCase(),
+          cleanFilename.toUpperCase(),
+        ]);
+
+        for (final alias in aliases) {
+          try {
+            await factory.writeDatabaseBytes(alias, bytes);
+          } catch (_) {}
+        }
+        debugPrint('✅ Banco salvo no IndexedDB (Web): $path (com ${aliases.length} aliases)');
       } else {
         // Lógica original para Mobile/Desktop com download parcial seguro
         final dir = await _localStorageDir;
@@ -582,9 +616,14 @@ class StoreRepository {
           try {
             final factory = databaseFactoryFfiWeb;
             final dbPath = await factory.getDatabasesPath();
-            await factory.deleteDatabase(join(dbPath, item.filename)).timeout(const Duration(seconds: 3));
+            await factory.deleteDatabase(join(dbPath, base)).timeout(const Duration(seconds: 3));
+            if (base != item.filename) {
+              try {
+                await factory.deleteDatabase(join(dbPath, item.filename)).timeout(const Duration(seconds: 3));
+              } catch (_) {}
+            }
           } catch (e) {
-            debugPrint('Erro/Timeout ao excluir IndexedDB: \$e');
+            debugPrint('Erro/Timeout ao excluir IndexedDB: $e');
           }
         }
       }

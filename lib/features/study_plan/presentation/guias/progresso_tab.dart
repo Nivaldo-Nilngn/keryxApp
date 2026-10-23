@@ -229,24 +229,22 @@ class ProgressoTab extends ConsumerWidget {
     required int completedCount,
     required int totalDays,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF1E1E38),
-            Theme.of(context).colorScheme.surfaceContainer,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
+          color: isDark
+              ? AppTheme.kPrimaryGold.withValues(alpha: 0.3)
+              : const Color(0xFFD97706).withValues(alpha: 0.25),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -260,7 +258,7 @@ class ProgressoTab extends ConsumerWidget {
               Text(
                 'Progresso Geral',
                 style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white,
+                  color: textColor,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -269,13 +267,15 @@ class ProgressoTab extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                  color: isDark
+                      ? AppTheme.kPrimaryGold.withValues(alpha: 0.15)
+                      : const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '$percentFormatted%',
                   style: GoogleFonts.plusJakartaSans(
-                    color: AppTheme.kPrimaryGold,
+                    color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309),
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
@@ -291,9 +291,11 @@ class ProgressoTab extends ConsumerWidget {
             child: LinearProgressIndicator(
               value: percentage,
               minHeight: 12,
-              backgroundColor: Colors.white.withValues(alpha: 0.1),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                AppTheme.kPrimaryGold,
+              backgroundColor: isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark ? AppTheme.kPrimaryGold : const Color(0xFFF59E0B),
               ),
             ),
           ),
@@ -305,14 +307,14 @@ class ProgressoTab extends ConsumerWidget {
               Text(
                 '$completedCount de $totalDays dias lidos',
                 style: GoogleFonts.manrope(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: textColor.withValues(alpha: 0.7),
                   fontSize: 13,
                 ),
               ),
               Text(
                 '${totalDays - completedCount} restantes',
                 style: GoogleFonts.manrope(
-                  color: Colors.white.withValues(alpha: 0.5),
+                  color: textColor.withValues(alpha: 0.5),
                   fontSize: 12,
                 ),
               ),

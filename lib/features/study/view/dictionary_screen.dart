@@ -9,6 +9,7 @@ import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart' show showStrongBottomSheet;
+import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/study/view/dictionary_detail_screen.dart';
 
 class DictionaryScreen extends ConsumerStatefulWidget {
@@ -160,7 +161,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
               const Icon(
                 Icons.translate_rounded,
                 size: 18,
-                color: const Color(0xFF4F46E5),
+                color: Color(0xFF4F46E5),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -274,10 +275,51 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                 itemBuilder: (context, index) {
                   final entry = all[index];
                   final isSelected = entry.value == currentFilename;
+                  final storeState = ref.watch(storeProvider);
+                  final isDownloaded = entry.value == 'strong.sqlite' ||
+                      entry.key == 'STRONG (BR)' ||
+                      storeState.isDownloaded(entry.value);
+                  final isCloud = !isDownloaded && storeState.isInCloudLibrary(entry.value);
+
                   return GestureDetector(
-                    onTap: () {
+                    onTap: () async {
+                      if (isCloud) {
+                        final item = storeState.availablePackages
+                            .where((p) => p.filename == entry.value || p.filename.endsWith(entry.value))
+                            .firstOrNull;
+                        if (item != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: Text('Baixando dicionário ${entry.key}...')),
+                                ],
+                              ),
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                          try {
+                            await ref.read(storeProvider.notifier).downloadPackage(item);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Erro ao baixar: $e')),
+                              );
+                            }
+                            return;
+                          }
+                        }
+                      }
                       ref.read(selectedDictionaryProvider.notifier).state = entry.value;
-                      Navigator.pop(context);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
                     },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -302,31 +344,78 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                              color: isCloud
+                                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+                                  : const Color(0xFF4F46E5).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
+                                color: isCloud
+                                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)
+                                    : const Color(0xFF4F46E5).withValues(alpha: 0.2),
                               ),
                             ),
-                            child: const Icon(
-                              Icons.menu_book_rounded,
-                              color: Color(0xFF4F46E5),
+                            child: Icon(
+                              isCloud ? Icons.cloud_download_rounded : Icons.menu_book_rounded,
+                              color: isCloud ? Theme.of(context).colorScheme.primary : const Color(0xFF4F46E5),
                               size: 20,
                             ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
-                            child: Text(
-                              entry.key,
-                              style: GoogleFonts.outfit(
-                                color: isSelected
-                                    ? const Color(0xFF4F46E5)
-                                    : Theme.of(context).colorScheme.onSurface,
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  entry.key,
+                                  style: GoogleFonts.outfit(
+                                    color: isSelected
+                                        ? const Color(0xFF4F46E5)
+                                        : Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                if (isCloud)
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.cloud_outlined,
+                                        size: 13,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Na Conta • Toque para baixar',
+                                        style: GoogleFonts.outfit(
+                                          color: Theme.of(context).colorScheme.primary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.offline_pin,
+                                        size: 13,
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Disponível Offline',
+                                        style: GoogleFonts.outfit(
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
                             ),
                           ),
                           if (isSelected)

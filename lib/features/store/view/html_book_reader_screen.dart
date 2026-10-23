@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -7,10 +9,13 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ==========================================
 // PALETAS DE DESIGN DO LEITOR DE EBOOKS
@@ -119,6 +124,9 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
   Database? _db;
   List<BookSectionItem> _items = [];
   int _currentVisibleIndex = 0;
+  final ValueNotifier<int> _currentVisibleIndexNotifier = ValueNotifier<int>(0);
+  Timer? _bookmarkDebounceTimer;
+  static final String? _loraFontFamily = GoogleFonts.lora().fontFamily;
 
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
@@ -159,10 +167,18 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
           .reduce((a, b) => a.itemLeadingEdge < b.itemLeadingEdge ? a : b);
 
       if (visible.index != _currentVisibleIndex && visible.index >= 0 && visible.index < _items.length) {
-        setState(() => _currentVisibleIndex = visible.index);
-        _saveBookmarkSilently(visible.index);
+        _currentVisibleIndex = visible.index;
+        _currentVisibleIndexNotifier.value = visible.index;
+        _debounceSaveBookmark(visible.index);
       }
     }
+  }
+
+  void _debounceSaveBookmark(int index) {
+    _bookmarkDebounceTimer?.cancel();
+    _bookmarkDebounceTimer = Timer(const Duration(milliseconds: 600), () {
+      _saveBookmarkSilently(index);
+    });
   }
 
   Future<void> _initTts() async {
@@ -228,11 +244,28 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('bkm_${widget.book.name}', jsonEncode({'index': index}));
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        final bookKey = widget.book.filename.replaceAll('/', '_').replaceAll('.', '_');
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'book_progress': {
+            bookKey: {
+              'bookName': widget.book.name,
+              'filename': widget.book.filename,
+              'index': index,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }
+          }
+        }, SetOptions(merge: true));
+      }
     } catch (_) {}
   }
 
   @override
   void dispose() {
+    _bookmarkDebounceTimer?.cancel();
+    _currentVisibleIndexNotifier.dispose();
     _itemPositionsListener.itemPositions.removeListener(_onScrollChanged);
     _db?.close();
     _flutterTts.stop();
@@ -245,15 +278,64 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
   // ==========================================
   Future<void> _loadBook() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
       final filename = widget.book.filename.split('/').last;
-      final path = p.join(dir.path, 'store', 'books', filename);
 
-      if (await File(path).exists()) {
-        _db = await openDatabase(path, readOnly: true);
+      if (kIsWeb) {
+        final factory = databaseFactoryFfiWeb;
+        final dbPath = await factory.getDatabasesPath();
+        final candidates = [
+          p.join(dbPath, filename),
+          p.join(dbPath, widget.book.filename),
+          p.join(dbPath, 'books', filename),
+          p.join(dbPath, 'books', widget.book.filename),
+          filename,
+          widget.book.filename,
+        ];
 
+        String? foundPath;
+        for (final cand in candidates) {
+          try {
+            if (await factory.databaseExists(cand)) {
+              foundPath = cand;
+              break;
+            }
+          } catch (_) {}
+        }
+
+        if (foundPath != null) {
+          _db = await factory.openDatabase(
+            foundPath,
+            options: OpenDatabaseOptions(readOnly: true),
+          );
+        } else {
+          debugPrint("❌ Livro não encontrado no IndexedDB: $filename (candidatos: $candidates)");
+        }
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final possiblePaths = [
+          p.join(dir.path, 'store', 'books', filename),
+          p.join(dir.path, 'store', widget.book.filename),
+          p.join(dir.path, 'store', filename),
+        ];
+
+        String? foundPath;
+        for (final cand in possiblePaths) {
+          if (await File(cand).exists()) {
+            foundPath = cand;
+            break;
+          }
+        }
+
+        if (foundPath != null) {
+          _db = await openDatabase(foundPath, readOnly: true);
+        } else {
+          debugPrint("❌ Livro não encontrado no sistema de arquivos: $filename");
+        }
+      }
+
+      if (_db != null) {
         final tablesRes = await _db!.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
-        final tables = tablesRes.map((e) => e['name'].toString()).toList();
+        final tables = tablesRes.map((e) => e['name'].toString().toLowerCase()).toList();
 
         List<Map<String, dynamic>> res = [];
         if (tables.contains('journal')) {
@@ -262,13 +344,25 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
           } catch (_) {
             res = await _db!.query('journal', columns: ['id', 'title', 'content']);
           }
+        } else if (tables.contains('stories')) {
+          try {
+            res = await _db!.rawQuery("SELECT id, title, text as content FROM stories ORDER BY ordering ASC, id ASC");
+          } catch (_) {
+            res = await _db!.rawQuery("SELECT id, title, text as content FROM stories ORDER BY id ASC");
+          }
+        } else if (tables.contains('book')) {
+          res = await _db!.rawQuery("SELECT id, title, text as content FROM book ORDER BY id ASC");
         } else if (tables.contains('commentary')) {
           res = await _db!.rawQuery("SELECT id, ('Capítulo ' || chapter || ' Versículo ' || fromverse) as title, data as content FROM commentary ORDER BY id ASC");
         } else if (tables.contains('dictionary')) {
           try {
             res = await _db!.rawQuery("SELECT rowid as id, word as title, data as content FROM dictionary ORDER BY rowid ASC");
           } catch (_) {
-            res = await _db!.rawQuery("SELECT relativeorder as id, word as title, data as content FROM dictionary ORDER BY relativeorder ASC");
+            try {
+              res = await _db!.rawQuery("SELECT relativeorder as id, word as title, data as content FROM dictionary ORDER BY relativeorder ASC");
+            } catch (_) {
+              res = await _db!.rawQuery("SELECT rowid as id, topic as title, definition as content FROM dictionary ORDER BY rowid ASC");
+            }
           }
         }
 
@@ -313,22 +407,41 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
     if (mounted) {
       setState(() => _isLoadingBook = false);
 
-      // Restaura marcador anterior
+      // Restaura marcador anterior (Local + Nuvem)
       if (_items.isNotEmpty) {
         try {
+          int savedIdx = -1;
           final prefs = await SharedPreferences.getInstance();
           final bkm = prefs.getString('bkm_${widget.book.name}');
           if (bkm != null) {
             final map = jsonDecode(bkm);
-            int savedIdx = map['index'] ?? 0;
-            if (savedIdx >= 0 && savedIdx < _items.length) {
-              _currentVisibleIndex = savedIdx;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  _itemScrollController.jumpTo(index: savedIdx);
+            savedIdx = map['index'] ?? -1;
+          }
+
+          // Se o usuário está logado, verifica progresso salvo na nuvem
+          final uid = FirebaseAuth.instance.currentUser?.uid;
+          if (uid != null) {
+            try {
+              final bookKey = widget.book.filename.replaceAll('/', '_').replaceAll('.', '_');
+              final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+              final cloudProgress = userDoc.data()?['book_progress']?[bookKey]?['index'];
+              if (cloudProgress is int && cloudProgress >= 0 && cloudProgress < _items.length) {
+                if (savedIdx == -1 || cloudProgress > savedIdx) {
+                  savedIdx = cloudProgress;
+                  await prefs.setString('bkm_${widget.book.name}', jsonEncode({'index': savedIdx}));
                 }
-              });
-            }
+              }
+            } catch (_) {}
+          }
+
+          if (savedIdx >= 0 && savedIdx < _items.length) {
+            _currentVisibleIndex = savedIdx;
+            _currentVisibleIndexNotifier.value = savedIdx;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _itemScrollController.jumpTo(index: savedIdx);
+              }
+            });
           }
         } catch (_) {}
       }
@@ -671,9 +784,10 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
   // ==========================================
   // HEADER DA TOPBAR
   // ==========================================
-  String _getCurrentHeaderTitle() {
+  String _getCurrentHeaderTitle([int? currentIndex]) {
     if (_items.isEmpty) return widget.book.name;
-    final item = _items[_currentVisibleIndex.clamp(0, _items.length - 1)];
+    final idx = (currentIndex ?? _currentVisibleIndex).clamp(0, _items.length - 1);
+    final item = _items[idx];
     if (item.isCover) return 'Capa';
     if (item.isTopic) return item.title;
     return item.title;
@@ -794,83 +908,88 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
 
               // Lista de Capítulos / Tópicos
               Expanded(
-                child: ListView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: _items.length,
-                  itemBuilder: (context, i) {
-                    final item = _items[i];
-                    final isSelected = (i == _currentVisibleIndex);
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _currentVisibleIndexNotifier,
+                  builder: (context, currentIdx, _) {
+                    return ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: _items.length,
+                      itemBuilder: (context, i) {
+                        final item = _items[i];
+                        final isSelected = (i == currentIdx);
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      child: Material(
-                        color: isSelected ? _theme.selectedTile : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: isSelected ? BorderSide(color: _theme.accent.withValues(alpha: 0.4), width: 1.2) : BorderSide.none,
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                          leading: Container(
-                            width: 38,
-                            height: 38,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: isSelected ? _theme.accent : _theme.badgeBg,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isSelected ? _theme.accent : _theme.border,
-                                width: 1,
-                              ),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          child: Material(
+                            color: isSelected ? _theme.selectedTile : Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: isSelected ? BorderSide(color: _theme.accent.withValues(alpha: 0.4), width: 1.2) : BorderSide.none,
                             ),
-                            child: Text(
-                              item.badge,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.outfit(
-                                color: isSelected ? (_themeIndex == 2 ? Colors.black : Colors.white) : _theme.text,
-                                fontSize: item.badge.length > 3 ? 10 : 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              color: isSelected ? _theme.accent : _theme.text,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                          subtitle: item.subtitle.isNotEmpty
-                              ? Text(
-                                  item.subtitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(
-                                    color: _theme.muted,
-                                    fontSize: 11,
+                            clipBehavior: Clip.antiAlias,
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                              leading: Container(
+                                width: 38,
+                                height: 38,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? _theme.accent : _theme.badgeBg,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected ? _theme.accent : _theme.border,
+                                    width: 1,
                                   ),
-                                )
-                              : null,
-                          trailing: isSelected
-                              ? Icon(Icons.circle, size: 8, color: _theme.accent)
-                              : null,
-                          onTap: () {
-                            Navigator.pop(context);
-                            _itemScrollController.scrollTo(
-                              index: i,
-                              duration: const Duration(milliseconds: 350),
-                              curve: Curves.easeOutCubic,
-                            );
-                            setState(() => _currentVisibleIndex = i);
-                          },
-                        ),
-                      ),
+                                ),
+                                child: Text(
+                                  item.badge,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.outfit(
+                                    color: isSelected ? (_themeIndex == 2 ? Colors.black : Colors.white) : _theme.text,
+                                    fontSize: item.badge.length > 3 ? 10 : 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  color: isSelected ? _theme.accent : _theme.text,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              subtitle: item.subtitle.isNotEmpty
+                                  ? Text(
+                                      item.subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(
+                                        color: _theme.muted,
+                                        fontSize: 11,
+                                      ),
+                                    )
+                                  : null,
+                              trailing: isSelected
+                                  ? Icon(Icons.circle, size: 8, color: _theme.accent)
+                                  : null,
+                              onTap: () {
+                                Navigator.pop(context);
+                                _currentVisibleIndex = i;
+                                _currentVisibleIndexNotifier.value = i;
+                                _itemScrollController.scrollTo(
+                                  index: i,
+                                  duration: const Duration(milliseconds: 350),
+                                  curve: Curves.easeOutCubic,
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -920,15 +1039,20 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          _getCurrentHeaderTitle(),
-                          style: GoogleFonts.lora(
-                            color: _theme.text,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        ValueListenableBuilder<int>(
+                          valueListenable: _currentVisibleIndexNotifier,
+                          builder: (context, currentIdx, _) {
+                            return Text(
+                              _getCurrentHeaderTitle(currentIdx),
+                              style: GoogleFonts.lora(
+                                color: _theme.text,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -986,7 +1110,9 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
                         itemCount: _items.length,
                         itemBuilder: (context, idx) {
                           final item = _items[idx];
-                          return _buildReaderItem(item, idx);
+                          return RepaintBoundary(
+                            child: _buildReaderItem(item, idx),
+                          );
                         },
                       ),
                     ),
@@ -1235,7 +1361,7 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
           padding: HtmlPaddings.zero,
           color: _theme.text,
           fontSize: FontSize(_baseFontSize),
-          fontFamily: GoogleFonts.lora().fontFamily,
+          fontFamily: _loraFontFamily,
           lineHeight: const LineHeight(1.72),
         ),
         "p": Style(
@@ -1243,7 +1369,7 @@ class _HtmlBookReaderScreenState extends State<HtmlBookReaderScreen> {
           lineHeight: const LineHeight(1.72),
           color: _theme.text,
           fontSize: FontSize(_baseFontSize),
-          fontFamily: GoogleFonts.lora().fontFamily,
+          fontFamily: _loraFontFamily,
         ),
         "h1": Style(
           color: _theme.text,

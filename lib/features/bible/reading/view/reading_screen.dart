@@ -874,7 +874,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final textForCopy = versesText
         .map((vNum) {
           final v = chapter.verses.firstWhere((v) => v.number == vNum);
-          return '${v.number} ${v.text.replaceAll(RegExp(r'<[^>]+>'), '')}';
+          return '${v.number} ${BibleTextParser.cleanToPlainText(v.text)}';
         })
         .join('\n');
 
@@ -885,138 +885,189 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final firstVerseKey =
         "${_currentBook.name}_${_currentChapter}_$firstVerseNum";
 
+    final actions = <({IconData icon, String label, VoidCallback onTap})>[
+      (
+        icon: Icons.auto_awesome,
+        label: 'Estudar',
+        onTap: () => _showCommentarySheet(),
+      ),
+      (
+        icon: Icons.layers_outlined,
+        label: 'Comparar',
+        onTap: () => _showComparisonSheet(firstVerse),
+      ),
+      (
+        icon: Icons.favorite_border_rounded,
+        label: 'Favoritar',
+        onTap: () {
+          for (final num in versesText) {
+            final key = "${_currentBook.name}_${_currentChapter}_$num";
+            ref.read(favoritesProvider.notifier).toggleFavorite(key);
+          }
+          setState(
+            () => ref.read(readingSelectionProvider.notifier).clearSelection(),
+          );
+        },
+      ),
+      (
+        icon: Icons.bookmark_border_rounded,
+        label: 'Marcar',
+        onTap: () => _showHighlightColorsSheet(versesText),
+      ),
+      (
+        icon: Icons.edit_note,
+        label: 'Anotar',
+        onTap: () => _showNotesSheet(firstVerse, firstVerseKey),
+      ),
+      (
+        icon: Icons.copy,
+        label: 'Copiar',
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: textForCopy));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Copiado!')));
+        },
+      ),
+      (
+        icon: Icons.share,
+        label: 'Compartilhar',
+        onTap: () => Share.share(textForCopy),
+      ),
+    ];
+
     return Positioned(
       bottom: 90,
       left: 16,
       right: 16,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.1),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.1),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 24, right: 12, bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${ref.watch(readingSelectionProvider).selectedVerses.length} versículo(s)',
+                        style: GoogleFonts.outfit(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          setState(
+                            () => ref
+                                .read(readingSelectionProvider.notifier)
+                                .clearSelection(),
+                          );
+                        },
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 500;
+                    if (isWide) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: actions.map((item) {
+                            return Expanded(
+                              child: _buildFloatingAction(
+                                item.icon,
+                                item.label,
+                                item.onTap,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      );
+                    } else {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          children: actions.map((item) {
+                            return SizedBox(
+                              width: 78,
+                              child: _buildFloatingAction(
+                                item.icon,
+                                item.label,
+                                item.onTap,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 24, right: 12, bottom: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${ref.watch(readingSelectionProvider).selectedVerses.length} versículo(s)',
-                    style: GoogleFonts.outfit(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.7),
-                      fontSize: 12,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.close_rounded,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(
-                        () => ref
-                            .read(readingSelectionProvider.notifier)
-                            .clearSelection(),
-                      );
-                    },
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  _buildFloatingAction(Icons.auto_awesome, 'Estudar', () {
-                    _showCommentarySheet();
-                  }),
-                  _buildFloatingAction(Icons.layers_outlined, 'Comparar', () {
-                    _showComparisonSheet(firstVerse);
-                  }),
-                  _buildFloatingAction(
-                    Icons.favorite_border_rounded,
-                    'Favoritar',
-                    () {
-                      for (final num in versesText) {
-                        final key =
-                            "${_currentBook.name}_${_currentChapter}_$num";
-                        ref
-                            .read(favoritesProvider.notifier)
-                            .toggleFavorite(key);
-                      }
-                      setState(
-                        () => ref
-                            .read(readingSelectionProvider.notifier)
-                            .clearSelection(),
-                      );
-                    },
-                  ),
-                  _buildFloatingAction(
-                    Icons.bookmark_border_rounded,
-                    'Marcar',
-                    () {
-                      _showHighlightColorsSheet(versesText);
-                    },
-                  ),
-                  _buildFloatingAction(Icons.edit_note, 'Anotar', () {
-                    _showNotesSheet(firstVerse, firstVerseKey);
-                  }),
-                  _buildFloatingAction(Icons.copy, 'Copiar', () {
-                    Clipboard.setData(ClipboardData(text: textForCopy));
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text('Copiado!')));
-                  }),
-                  _buildFloatingAction(Icons.share, 'Compartilhar', () {
-                    Share.share(textForCopy);
-                  }),
-
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
 
-  Widget _buildFloatingAction(IconData icon, String label, VoidCallback onTap) {
+  Widget _buildFloatingAction(
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 80,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(
               icon,
               color: Theme.of(context).colorScheme.onSurface,
               size: 24,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               label,
               style: GoogleFonts.outfit(
@@ -1024,6 +1075,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                   context,
                 ).colorScheme.onSurface.withValues(alpha: 0.8),
                 fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
               maxLines: 1,
@@ -1779,8 +1831,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                         ? (displayNumber.length > 2 ? 10.0 : 12.0)
                         : (displayNumber.length > 2 ? 12.0 : 14.0);
 
+                    final isRtl = BibleTextParser.isRtlText(verseToRender.text);
+
                     return [
                       RichText(
+                        textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+                        textAlign: isRtl ? TextAlign.right : TextAlign.left,
                         text: TextSpan(
                           style: _getFontStyle(
                             fontSettings.fontFamily,
@@ -1797,7 +1853,10 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                             WidgetSpan(
                               alignment: PlaceholderAlignment.middle,
                               child: Container(
-                                margin: EdgeInsets.only(right: badgeMargin),
+                                margin: EdgeInsets.only(
+                                  right: isRtl ? 0 : badgeMargin,
+                                  left: isRtl ? badgeMargin : 0,
+                                ),
                                 width: badgeSize,
                                 height: badgeSize,
                                 decoration: BoxDecoration(
@@ -1939,7 +1998,10 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final vUpper = version.toUpperCase();
     final hasStrongs = BibleService.versionsWithStrongs.contains(vUpper) ||
         vUpper.endsWith('_S') ||
-        vUpper.contains('STRONG');
+        vUpper.contains('STRONG') ||
+        vUpper.contains('BHS') ||
+        vUpper.contains('HEBRAICA') ||
+        BibleTextParser.isInterlinearText(verse.text);
     return BibleTextParser.buildRichVerseSpans(
       context: context,
       rawVerseText: verse.text,

@@ -210,9 +210,9 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final searchQuery = ref.watch(searchQueryProvider);
     
-    // Filtrar itens para a biblioteca
+    // Filtrar itens para a biblioteca (inclui baixados e itens salvos na nuvem da conta)
     final libraryItems = state.availablePackages.where((item) {
-      final matchesLibrary = state.isDownloaded(item.filename);
+      final matchesLibrary = state.isDownloaded(item.filename) || state.isInCloudLibrary(item.filename);
       final matchesCategory = selectedCategory == null || item.category == selectedCategory;
       final matchesSearch = searchQuery.isEmpty || 
                             item.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
@@ -409,9 +409,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                       children: [
                         _buildDestaquesTab(context, state, ref),
                         _buildCategoryGrid(context, ref, state, false),
-                        libraryItems.isEmpty 
-                            ? _buildEmptyLibraryView(ref) 
-                            : _buildStoreContent(context, libraryItems, state, ref),
+                        _buildLibraryTab(context, libraryItems, state, ref),
                       ],
                     ),
               ),
@@ -964,7 +962,162 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     }
   }
 
-  Widget _buildEmptyLibraryView(WidgetRef ref) {
+  Widget _buildLibraryTab(BuildContext context, List<StoreItem> libraryItems, StoreState state, WidgetRef ref) {
+    if (libraryItems.isEmpty) {
+      return _buildEmptyLibraryView(ref, state);
+    }
+
+    final missing = state.missingCloudPackages;
+
+    return Column(
+      children: [
+        if (missing.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.cloud_sync_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sincronização da Nuvem',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          '${missing.length} obra(s) salva(s) na sua conta de outros aparelhos.',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11.5,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    ),
+                    onPressed: state.isSyncingCloud
+                        ? null
+                        : () => ref.read(storeProvider.notifier).syncCloudLibrary(),
+                    icon: state.isSyncingCloud
+                        ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        : const Icon(Icons.download_rounded, size: 14),
+                    label: Text(
+                      state.isSyncingCloud ? 'Baixando...' : 'Baixar Todas',
+                      style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        Expanded(
+          child: _buildStoreContent(context, libraryItems, state, ref),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyLibraryView(WidgetRef ref, StoreState state) {
+    if (state.missingCloudPackages.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.cloud_sync_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 64,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Obras encontradas na Nuvem!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Você tem ${state.missingCloudPackages.length} obra(s) vinculada(s) à sua conta em outro dispositivo (PC / Android / Web).',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 28),
+              ElevatedButton.icon(
+                onPressed: state.isSyncingCloud
+                    ? null
+                    : () => ref.read(storeProvider.notifier).syncCloudLibrary(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                icon: state.isSyncingCloud
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    : const Icon(Icons.download_for_offline_rounded),
+                label: Text(
+                  state.isSyncingCloud ? 'Sincronizando...' : 'Baixar Todas (${state.missingCloudPackages.length})',
+                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1413,7 +1566,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     ),
                   )
                 else
-                  // Botão "Baixar" estilo Play Store Pill
+                  // Botão "Baixar" / "Sincronizar" estilo Play Store Pill
                   GestureDetector(
                     onTap: () => ref.read(storeProvider.notifier).downloadPackage(item),
                     child: Container(
@@ -1427,10 +1580,16 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.download_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                          Icon(
+                            state.isInCloudLibrary(item.filename)
+                                ? Icons.cloud_download_rounded
+                                : Icons.download_rounded,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           const SizedBox(width: 4),
                           Text(
-                            'Baixar',
+                            state.isInCloudLibrary(item.filename) ? 'Sincronizar' : 'Baixar',
                             style: GoogleFonts.outfit(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -1518,6 +1677,20 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     }
                   },
                 ),
+                if (ref.read(storeProvider).isInCloudLibrary(item.filename))
+                  ListTile(
+                    leading: const Icon(Icons.cloud_off_rounded, color: Colors.amber),
+                    title: Text('Remover da conta na nuvem', style: GoogleFonts.outfit(color: Colors.amber, fontWeight: FontWeight.w600)),
+                    onTap: () async {
+                      Navigator.pop(bottomCtx);
+                      await ref.read(storeProvider.notifier).removeFromCloud(item);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Removido da nuvem: ${item.name}')),
+                        );
+                      }
+                    },
+                  ),
               ],
             ),
           ),

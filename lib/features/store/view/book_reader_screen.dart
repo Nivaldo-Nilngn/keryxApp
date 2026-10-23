@@ -56,21 +56,72 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
   Future<void> _load() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
       final filename = widget.book.filename.split('/').last;
-      final path = p.join(dir.path, 'store', 'books', filename);
-      if (!await File(path).exists()) {
-        setState(() { _error = 'Arquivo não encontrado.'; _loading = false; }); return;
+      final Database db;
+
+      if (kIsWeb) {
+        final factory = databaseFactoryFfiWeb;
+        final dbPath = await factory.getDatabasesPath();
+        final candidates = [
+          p.join(dbPath, filename),
+          p.join(dbPath, widget.book.filename),
+          p.join(dbPath, 'books', filename),
+          p.join(dbPath, 'books', widget.book.filename),
+          filename,
+          widget.book.filename,
+        ];
+
+        String? foundPath;
+        for (final cand in candidates) {
+          try {
+            if (await factory.databaseExists(cand)) {
+              foundPath = cand;
+              break;
+            }
+          } catch (_) {}
+        }
+
+        if (foundPath == null) {
+          setState(() { _error = 'Arquivo não encontrado no navegador.'; _loading = false; });
+          return;
+        }
+
+        db = await factory.openDatabase(foundPath, options: OpenDatabaseOptions(readOnly: true));
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final possiblePaths = [
+          p.join(dir.path, 'store', 'books', filename),
+          p.join(dir.path, 'store', widget.book.filename),
+          p.join(dir.path, 'store', filename),
+        ];
+
+        String? foundPath;
+        for (final cand in possiblePaths) {
+          if (await File(cand).exists()) {
+            foundPath = cand;
+            break;
+          }
+        }
+
+        if (foundPath == null) {
+          setState(() { _error = 'Arquivo não encontrado.'; _loading = false; });
+          return;
+        }
+
+        db = await openDatabase(foundPath, readOnly: true);
       }
-      final db = kIsWeb
-          ? await databaseFactoryFfiWeb.openDatabase(path, options: OpenDatabaseOptions(readOnly: true))
-          : await openDatabase(path, readOnly: true);
+
       // journal tem HTML; journal2 tem texto plano (FTS). Usamos journal.
-      final rows = await db.rawQuery(
-        'SELECT j.id, j.title, j.content, j2.content AS plain '
-        'FROM journal j LEFT JOIN journal2 j2 ON j.id = j2.id '
-        'ORDER BY j.rowid',
-      ).catchError((_) => db.rawQuery('SELECT id, title, content FROM journal ORDER BY rowid'));
+      List<Map<String, dynamic>> rows;
+      try {
+        rows = await db.rawQuery(
+          'SELECT j.id, j.title, j.content, j2.content AS plain '
+          'FROM journal j LEFT JOIN journal2 j2 ON j.id = j2.id '
+          'ORDER BY j.rowid',
+        );
+      } catch (_) {
+        rows = await db.rawQuery('SELECT id, title, content FROM journal ORDER BY rowid');
+      }
       await db.close();
       final hymns = rows.map((r) {
         final id    = (r['id']    as String? ?? '').trim();
@@ -354,6 +405,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
   }
 
   Future<void> _initAudio() async {
+    if (kIsWeb) return;
     final numStr = hymn.number.padLeft(3, '0');
     // Verifica se o arquivo existe na pasta da loja ou na área de trabalho (desenvolvimento)
     final dir = await getApplicationDocumentsDirectory();
@@ -393,6 +445,15 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
   }
 
   Future<void> _downloadAudio() async {
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Download de áudio não disponível na versão Web.'),
+          backgroundColor: Colors.orangeAccent,
+        ));
+      }
+      return;
+    }
     setState(() { _isDownloading = true; _downloadProgress = 0.0; });
     try {
       final b2 = B2Service();

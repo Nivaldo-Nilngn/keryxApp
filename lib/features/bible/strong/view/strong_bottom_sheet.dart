@@ -159,10 +159,17 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
         .replaceAll(RegExp(r'<[^\>]+>'), '')
         .trim()
         .toUpperCase();
-    if (normalized.startsWith('WG')) return normalized.replaceFirst('WG', 'G');
-    if (normalized.startsWith('WH')) return normalized.replaceFirst('WH', 'H');
-    if (normalized.startsWith('SG')) return normalized.replaceFirst('SG', 'G');
-    if (normalized.startsWith('SH')) return normalized.replaceFirst('SH', 'H');
+    if (normalized.startsWith('SGE')) normalized = normalized.replaceFirst('SGE', 'G');
+    else if (normalized.startsWith('SHE')) normalized = normalized.replaceFirst('SHE', 'H');
+    else if (normalized.startsWith('WG')) normalized = normalized.replaceFirst('WG', 'G');
+    else if (normalized.startsWith('WH')) normalized = normalized.replaceFirst('WH', 'H');
+    else if (normalized.startsWith('SG')) normalized = normalized.replaceFirst('SG', 'G');
+    else if (normalized.startsWith('SH')) normalized = normalized.replaceFirst('SH', 'H');
+
+    final baseMatch = RegExp(r'^([HG]\d+)').firstMatch(normalized);
+    if (baseMatch != null) {
+      return baseMatch.group(1)!;
+    }
     return normalized;
   }
 

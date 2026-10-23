@@ -91,12 +91,41 @@ class StoreItemDetailsScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            'Conteúdo premium',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                            ),
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 6,
+                            children: [
+                              if (state.isInCloudLibrary(item.filename))
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.cloud_done_rounded, size: 12, color: Theme.of(context).colorScheme.primary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Na sua conta',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              Text(
+                                'Conteúdo premium',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -252,7 +281,9 @@ class StoreItemDetailsScreen extends ConsumerWidget {
                             ],
                           )
                         : Text(
-                            isDownloaded ? (item.category == StoreCategory.books || item.category == StoreCategory.commentaries || item.category == StoreCategory.bibles ? 'Abrir' : 'Já Instalado') : 'Instalar',
+                            isDownloaded 
+                                ? (item.category == StoreCategory.books || item.category == StoreCategory.commentaries || item.category == StoreCategory.bibles ? 'Abrir' : 'Já Instalado') 
+                                : (state.isInCloudLibrary(item.filename) ? 'Baixar da Conta' : 'Instalar'),
                             style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                   ),
