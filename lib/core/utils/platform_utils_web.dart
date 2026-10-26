@@ -22,13 +22,9 @@ bool isAndroidClient() {
 }
 
 void downloadFile(String url) {
-  final directUrl = url.contains('github.com')
-      ? 'https://keryx-version.nivaldo-nilngn.workers.dev/download'
-      : url;
-
-  final anchor = html.AnchorElement(href: directUrl)
+  final anchor = html.AnchorElement(href: url)
     ..setAttribute("download", "keryxApp.apk")
-    ..target = "_self"
+    ..target = "_blank"
     ..style.display = "none";
 
   html.document.body?.append(anchor);

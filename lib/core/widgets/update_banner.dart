@@ -68,7 +68,16 @@ class UpdateBanner extends ConsumerWidget {
           buttonLabel: 'BAIXAR APK',
           mainColor: const Color(0xFF10B981),
           icon: Icons.install_mobile_rounded,
-          onTap: () => ref.read(downloadServiceProvider).downloadAndInstall(context, downloadUrl),
+          onTap: () {
+            downloadFile(downloadUrl);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Download do keryxApp.apk iniciado! Acompanhe na barra de notificações.'),
+                backgroundColor: Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
         );
       }
 
