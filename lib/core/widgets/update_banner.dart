@@ -13,8 +13,7 @@ class UpdateBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. Ouvinte em tempo real: Se a versão mudar, reseta o "fechar" (X)
-    // para que o banner apareça novamente para a NOVA atualização.
+    // Se a versão mudar no servidor, reseta o dismiss para alertar nova versão
     ref.listen<AppUpdateInfo?>(latestUpdateInfoProvider.select((v) => v.valueOrNull), (prev, next) {
       if (next != null && prev?.latestVersion != next.latestVersion) {
         ref.read(isBannerDismissedProvider.notifier).state = false;
@@ -24,74 +23,92 @@ class UpdateBanner extends ConsumerWidget {
     final isDismissed = ref.watch(isBannerDismissedProvider);
     if (isDismissed) return const SizedBox.shrink();
 
-    final isAvailable = ref.watch(isUpdateAvailableProvider);
     final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
 
-    // Se houver atualização disponível (APK mais recente que o instalado),
-    // sempre exibe o banner em qualquer dispositivo (celulares, tablets, PWA).
-    if (isAvailable) {
-      return _buildLayout(context, ref, isAvailable, updateInfo);
+    // ── CENÁRIO 1: Navegador Web (kIsWeb) ──────────────────────────────────
+    if (kIsWeb) {
+      final size = MediaQuery.of(context).size;
+      final bool isIOS = isIosClient();
+      final bool isAndroid = isAndroidClient();
+
+      // No computador / desktop (largura >= 900 e não for cliente mobile):
+      // A versão Web já é a mais recente em tempo real servida da nuvem.
+      // Nunca exibe banner de APK nem de atualização no desktop.
+      if (!isIOS && !isAndroid && size.width >= 900) {
+        return const SizedBox.shrink();
+      }
+
+      // No iPhone ou iPad no Safari / Chrome:
+      // Orienta a adicionar à Tela de Início como PWA
+      if (isIOS) {
+        return _buildLayout(
+          context: context,
+          ref: ref,
+          title: 'Aplicativo no seu iPhone / iPad',
+          subtitle: 'Adicione à Tela de Início para usar em tela cheia',
+          buttonLabel: 'COMO INSTALAR',
+          mainColor: const Color(0xFF3B82F6),
+          icon: Icons.add_to_home_screen_rounded,
+          onTap: () => _showIOSInstructions(context),
+        );
+      }
+
+      // No Android acessando pelo navegador:
+      // Convida a baixar o aplicativo APK oficial
+      if (isAndroid) {
+        final downloadUrl = (updateInfo?.downloadUrl.isNotEmpty ?? false)
+            ? updateInfo!.downloadUrl.trim()
+            : 'https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.2/keryxApp.apk';
+
+        return _buildLayout(
+          context: context,
+          ref: ref,
+          title: 'Baixe o Aplicativo Oficial',
+          subtitle: 'Instale o app oficial no Android para recursos offline',
+          buttonLabel: 'BAIXAR APK',
+          mainColor: const Color(0xFF10B981),
+          icon: Icons.install_mobile_rounded,
+          onTap: () => ref.read(downloadServiceProvider).downloadAndInstall(context, downloadUrl),
+        );
+      }
+
+      return const SizedBox.shrink();
     }
 
-    // Se não houver atualização nova, mas estiver no Web/PWA:
-    // Exibe banner de convite para instalar APK / PWA nos dispositivos móveis ou tablets
-    if (kIsWeb) {
-      final isMobileOrTablet = defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS ||
-          isIosClient() ||
-          isAndroidClient() ||
-          MediaQuery.of(context).size.width < 900;
+    // ── CENÁRIO 2: Aplicativo Nativo Instalado (Android/iOS) ───────────────
+    final isAvailable = ref.watch(isUpdateAvailableProvider);
 
-      if (!isMobileOrTablet) return const SizedBox.shrink();
-      return _buildLayout(context, ref, isAvailable, updateInfo);
+    if (isAvailable && updateInfo != null) {
+      final versionLabel = updateInfo.versionName.isNotEmpty ? ' v${updateInfo.versionName}' : '';
+      return _buildLayout(
+        context: context,
+        ref: ref,
+        title: 'Nova Atualização Disponível$versionLabel',
+        subtitle: updateInfo.releaseNotes.isNotEmpty
+            ? updateInfo.releaseNotes
+            : 'Toque para atualizar agora seu KeryxApp',
+        buttonLabel: 'ATUALIZAR',
+        mainColor: const Color(0xFF22C55E),
+        icon: Icons.system_update_rounded,
+        onTap: () => ref.read(downloadServiceProvider).downloadAndInstall(context, updateInfo.downloadUrl),
+      );
     }
 
     return const SizedBox.shrink();
   }
 
-  Widget _buildLayout(BuildContext context, WidgetRef ref, bool isUpdateAvailable, AppUpdateInfo? updateInfo) {
+  Widget _buildLayout({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String title,
+    required String subtitle,
+    required String buttonLabel,
+    required Color mainColor,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    // Detectamos se é iOS pelo platform ou userAgent no navegador
-    final bool isIOS = isIosClient();
-
-    // Caso 1: Atualização disponível (Celular, Tablet ou Web)
-    final versionLabel = updateInfo?.versionName.isNotEmpty ?? false ? ' v${updateInfo!.versionName}' : '';
-    String title = 'Nova Atualização Disponível$versionLabel';
-    String subtitle = (updateInfo?.releaseNotes.isNotEmpty ?? false)
-        ? updateInfo!.releaseNotes
-        : 'Toque para atualizar agora seu KeryxApp';
-    String buttonLabel = 'ATUALIZAR';
-    Color mainColor = const Color(0xFF22C55E); // Verde padrão de atualização
-    IconData icon = Icons.system_update_rounded;
-
-    // Caso 2: Acessando via Navegador Web (kIsWeb) e não há atualização pendente
-    if (kIsWeb && !isUpdateAvailable) {
-      if (isIOS) {
-        // iPhone no Safari / Chrome
-        title = 'Aplicativo no seu iPhone';
-        subtitle = 'Toque e adicione à Tela de Início';
-        buttonLabel = 'INSTALAR';
-        mainColor = Colors.blue;
-        icon = Icons.add_to_home_screen_rounded;
-      } else {
-        // Android no Navegador (não está instalado via APK)
-        title = 'Baixe o Aplicativo Oficial';
-        subtitle = 'Para uma experiência completa e mais rápida';
-        buttonLabel = 'BAIXAR';
-        mainColor = Colors.blue;
-        icon = Icons.install_mobile_rounded;
-      }
-    }
-
-    // Se estiver no app nativo instalado e já estiver na versão mais recente, não exibe
-    final bool shouldShow = kIsWeb || isUpdateAvailable;
-    if (!shouldShow) return const SizedBox.shrink();
-
-    final String url = (updateInfo?.downloadUrl.isNotEmpty ?? false)
-        ? updateInfo!.downloadUrl.trim()
-        : 'https://keryx-version.nivaldo-nilngn.workers.dev/download';
 
     return Container(
       width: double.infinity,
@@ -119,14 +136,14 @@ class UpdateBanner extends ConsumerWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
                     fontSize: 13,
+                    fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -148,13 +165,7 @@ class UpdateBanner extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                if (kIsWeb && isIOS) {
-                  _showIOSInstructions(context);
-                } else {
-                  ref.read(downloadServiceProvider).downloadAndInstall(context, url);
-                }
-              },
+              onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 child: Text(
@@ -196,7 +207,7 @@ class UpdateBanner extends ConsumerWidget {
             const Icon(Icons.apple_rounded, size: 24),
             const SizedBox(width: 8),
             Text(
-              'Instalar no iPhone',
+              'Instalar no iPhone / iPad',
               style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ],
@@ -206,7 +217,7 @@ class UpdateBanner extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Para usar o KeryxApp em tela cheia e offline no seu iPhone:',
+              'Para usar o KeryxApp em tela cheia e com acesso rápido no seu iPhone ou iPad:',
               style: GoogleFonts.inter(fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 16),
@@ -235,7 +246,7 @@ class UpdateBanner extends ConsumerWidget {
           width: 20,
           height: 20,
           decoration: const BoxDecoration(
-            color: Colors.blue,
+            color: Color(0xFF3B82F6),
             shape: BoxShape.circle,
           ),
           child: Center(

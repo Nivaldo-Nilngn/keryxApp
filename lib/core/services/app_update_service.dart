@@ -398,7 +398,11 @@ final latestUpdateInfoProvider = FutureProvider<AppUpdateInfo?>((ref) {
 });
 
 /// Indica se há nova versão disponível (latestVersion > buildNumber)
+/// Na Web (PWA/Browser), o usuário consome a versão mais recente diretamente da nuvem,
+/// portanto a verificação de APK é desativada.
 final isUpdateAvailableProvider = Provider<bool>((ref) {
+  if (kIsWeb) return false;
+
   final current = ref.watch(currentAppVersionProvider).valueOrNull;
   final latest = ref.watch(latestUpdateInfoProvider).valueOrNull;
 
