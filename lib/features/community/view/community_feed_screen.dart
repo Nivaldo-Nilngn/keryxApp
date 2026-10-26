@@ -80,24 +80,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
     return Scaffold(
       backgroundColor: bg,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 96),
-        child: FloatingActionButton.extended(
-          backgroundColor: AppTheme.kPrimaryGold,
-          foregroundColor: Colors.black,
-          elevation: 5,
-          onPressed: _openCreatePostModal,
-          icon: const Icon(Icons.edit_note_rounded, size: 22, color: Colors.black),
-          label: Text(
-            'Compartilhar Bênção',
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ),
-      ),
       body: Stack(
         children: [
           RefreshIndicator(
@@ -174,13 +156,53 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                     ],
                   ),
                   actions: [
-                    IconButton(
-                      icon: const Icon(Icons.add_box_outlined, size: 24),
-                      tooltip: 'Criar Postagem',
-                      color: AppTheme.kPrimaryGold,
-                      onPressed: _openCreatePostModal,
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 14),
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                          child: InkWell(
+                            onTap: _openCreatePostModal,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Ink(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFD97706).withValues(alpha: 0.35),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.add_rounded, color: Colors.black, size: 19),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Criar',
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.black,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 6),
                   ],
                 ),
 
