@@ -21,26 +21,32 @@ class UpdateBanner extends ConsumerWidget {
       }
     });
 
-    // 2. Verificação inteligente para Web / Mobile:
-    // Se for Web e a largura for pequena (< 600px), assume que é mobile para o banner aparecer
-    final isWebMobile = kIsWeb && MediaQuery.of(context).size.width < 600;
-
-    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS ||
-        isIosClient() ||
-        isAndroidClient() ||
-        isWebMobile;
-
-    // Se for Desktop real (sem ser simulação de largura mobile), esconde
-    if (!isMobile) return const SizedBox.shrink();
-
     final isDismissed = ref.watch(isBannerDismissedProvider);
     if (isDismissed) return const SizedBox.shrink();
 
     final isAvailable = ref.watch(isUpdateAvailableProvider);
     final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
 
-    return _buildLayout(context, ref, isAvailable, updateInfo);
+    // Se houver atualização disponível (APK mais recente que o instalado),
+    // sempre exibe o banner em qualquer dispositivo (celulares, tablets, PWA).
+    if (isAvailable) {
+      return _buildLayout(context, ref, isAvailable, updateInfo);
+    }
+
+    // Se não houver atualização nova, mas estiver no Web/PWA:
+    // Exibe banner de convite para instalar APK / PWA nos dispositivos móveis ou tablets
+    if (kIsWeb) {
+      final isMobileOrTablet = defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          isIosClient() ||
+          isAndroidClient() ||
+          MediaQuery.of(context).size.width < 900;
+
+      if (!isMobileOrTablet) return const SizedBox.shrink();
+      return _buildLayout(context, ref, isAvailable, updateInfo);
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildLayout(BuildContext context, WidgetRef ref, bool isUpdateAvailable, AppUpdateInfo? updateInfo) {
@@ -50,15 +56,18 @@ class UpdateBanner extends ConsumerWidget {
     // Detectamos se é iOS pelo platform ou userAgent no navegador
     final bool isIOS = isIosClient();
 
-    // Caso 1: Aplicativo Instalado no Android / iOS (!kIsWeb)
-    String title = 'Nova Atualização Disponível';
-    String subtitle = 'Toque para atualizar agora';
+    // Caso 1: Atualização disponível (Celular, Tablet ou Web)
+    final versionLabel = updateInfo?.versionName.isNotEmpty ?? false ? ' v${updateInfo!.versionName}' : '';
+    String title = 'Nova Atualização Disponível$versionLabel';
+    String subtitle = (updateInfo?.releaseNotes.isNotEmpty ?? false)
+        ? updateInfo!.releaseNotes
+        : 'Toque para atualizar agora seu KeryxApp';
     String buttonLabel = 'ATUALIZAR';
     Color mainColor = const Color(0xFF22C55E); // Verde padrão de atualização
     IconData icon = Icons.system_update_rounded;
 
-    // Caso 2: Acessando via Navegador Web (kIsWeb)
-    if (kIsWeb) {
+    // Caso 2: Acessando via Navegador Web (kIsWeb) e não há atualização pendente
+    if (kIsWeb && !isUpdateAvailable) {
       if (isIOS) {
         // iPhone no Safari / Chrome
         title = 'Aplicativo no seu iPhone';

@@ -12,6 +12,8 @@ import 'package:keryx_app/features/study/view/public_annotation_detail_screen.da
 import 'package:keryx_app/features/study/model/note_card.dart';
 import 'package:keryx_app/core/services/notification_service.dart';
 import 'package:keryx_app/core/services/push_notification_service.dart';
+import 'package:keryx_app/core/services/app_update_service.dart';
+import 'package:keryx_app/core/services/internal_download_service.dart';
 
 class _NotifEntry {
   final String? id;
@@ -37,11 +39,24 @@ class _NotifEntry {
   });
 }
 
-class NotificationsBottomSheet extends ConsumerWidget {
+class NotificationsBottomSheet extends ConsumerStatefulWidget {
   const NotificationsBottomSheet({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsBottomSheet> createState() => _NotificationsBottomSheetState();
+}
+
+class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSheet> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(latestUpdateInfoProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final storeState = ref.watch(downloadedStorePackagesProvider);
     final harpaBook = storeState.availablePackages
         .where((p) => p.name.toLowerCase().contains('harpa') && storeState.isDownloaded(p.filename))
@@ -56,6 +71,8 @@ class NotificationsBottomSheet extends ConsumerWidget {
     final unreadCount = ref.watch(unreadNotificationsCountProvider);
     final dismissedDaily = ref.watch(dismissedDailyProvider);
     final dismissedIds = ref.watch(dismissedNotificationIdsProvider);
+    final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
+    final isUpdateAvailable = ref.watch(isUpdateAvailableProvider);
 
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
@@ -318,6 +335,24 @@ class NotificationsBottomSheet extends ConsumerWidget {
                     final isHymnDismissed = dismissedDaily.contains('hymn_$todayStr');
 
                     final entries = <_NotifEntry>[
+                      if (isUpdateAvailable && updateInfo != null)
+                        _NotifEntry(
+                          id: 'update_v${updateInfo.versionName}',
+                          icon: Icons.system_update_rounded,
+                          iconColor: const Color(0xFF10B981),
+                          title: 'Nova Atualização: v${updateInfo.versionName}',
+                          time: 'Disponível',
+                          description: (updateInfo.releaseNotes.isNotEmpty)
+                              ? updateInfo.releaseNotes
+                              : 'Nova versão disponível para o seu aparelho. Toque para baixar e atualizar agora.',
+                          isUnread: true,
+                          onTap: () {
+                            final url = (updateInfo.downloadUrl.isNotEmpty)
+                                ? updateInfo.downloadUrl.trim()
+                                : 'https://keryx-version.nivaldo-nilngn.workers.dev/download';
+                            ref.read(downloadServiceProvider).downloadAndInstall(context, url);
+                          },
+                        ),
                       if (devocionalAsync.valueOrNull != null && !isDevocionalDismissed)
                         _NotifEntry(
                           id: 'devocional_$todayStr',

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:keryx_app/core/widgets/responsive_layout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
@@ -19,18 +18,10 @@ import 'package:keryx_app/features/store/view/book_reader_screen.dart';
 import 'package:keryx_app/features/study_plan/presentation/study_plan_window.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/widgets/update_banner.dart';
+import 'package:keryx_app/core/services/app_update_service.dart';
 
-// Constantes de cores do novo design (Dark Theme Base)
-const Color _surfaceBase = Color(0xFF080C14);
-const Color _surfaceElevated = Color(0xFF111827);
-const Color _surfaceContainer = Color(0xFF1C2028);
-const Color _surfaceCard = Color(0xFF182234);
-const Color _textPrimary = Color(0xFFF8FAFC);
-const Color _textSecondary = Color(0xFF94A3B8);
-const Color _textMuted = Color(0xFF64748B);
 const Color _secondaryColor = Color(0xFFFFB95F);
 const Color _primaryContainer = Color(0xFF4F46E5);
-const Color _onSurface = Color(0xFFDFE2EE);
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -39,7 +30,30 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(latestUpdateInfoProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(latestUpdateInfoProvider);
+      ref.invalidate(currentAppVersionProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -545,9 +559,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .where((p) => p.category == StoreCategory.books && storeState.isDownloaded(p.filename))
         .toList();
 
-    final isMedium = ResponsiveLayout.isMedium(context);
-    final isExpanded = ResponsiveLayout.isExpanded(context);
-    final isCompact = !isMedium && !isExpanded;
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

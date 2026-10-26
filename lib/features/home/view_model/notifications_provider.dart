@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keryx_app/features/home/model/app_notification.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
+import 'package:keryx_app/core/services/app_update_service.dart';
 
 /// Notifier para gerenciar IDs de notificações dispensadas localmente de forma imediata (UI otimista)
 class DismissedNotificationIdsNotifier extends StateNotifier<Set<String>> {
@@ -84,7 +85,8 @@ final notificationsProvider = StreamProvider<List<AppNotification>>((ref) {
 final unreadNotificationsCountProvider = Provider<int>((ref) {
   final list = ref.watch(notificationsProvider).valueOrNull ?? [];
   final dismissedIds = ref.watch(dismissedNotificationIdsProvider);
-  return list.where((n) => !n.read && !dismissedIds.contains(n.id)).length;
+  final isUpdate = ref.watch(isUpdateAvailableProvider);
+  return list.where((n) => !n.read && !dismissedIds.contains(n.id)).length + (isUpdate ? 1 : 0);
 });
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
