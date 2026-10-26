@@ -13,6 +13,8 @@ import 'package:keryx_app/features/store/view/store_item_details_screen.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/core/widgets/keryx_top_bar.dart';
+import 'package:keryx_app/features/store/widgets/store_item_cover_art.dart';
+import 'package:keryx_app/features/store/widgets/category_illustration_card.dart';
 
 final selectedCategoryProvider = StateProvider<StoreCategory?>((ref) => null);
 final searchQueryProvider = StateProvider<String>((ref) => '');
@@ -502,7 +504,6 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     final isDownloaded = state.isDownloaded(item.filename);
     final downloadProgress = state.downloadProgress[item.filename];
     final isDownloading = downloadProgress != null;
-    final color = _getCategoryColor(item.category);
     
     return GestureDetector(
       onTap: () {
@@ -514,177 +515,89 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Capa Estilo Play Store Books (Livro Compacto)
-            Container(
-              width: 130,
-              height: 152,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                gradient: LinearGradient(
-                  colors: [
-                    color.withValues(alpha: 0.9),
-                    color.withValues(alpha: 0.6),
-                    const Color(0xFF0F172A),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            // Capa Estilo Livro Bíblico 3D de Luxo
+            Stack(
+              children: [
+                StoreItemCoverArt(
+                  item: item,
+                  width: 130,
+                  height: 156,
+                  borderRadius: 14,
+                  showRibbon: true,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  width: 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Stack(
-                  children: [
-                    // Lombada 3D do livro à esquerda
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: 8,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withValues(alpha: 0.45),
-                              Colors.white.withValues(alpha: 0.12),
-                              Colors.transparent,
-                            ],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
+                if (isDownloaded)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black45,
+                            blurRadius: 4,
                           ),
-                        ),
+                        ],
                       ),
+                      child: const Icon(Icons.check, size: 12, color: Colors.white),
                     ),
-                    // Conteúdo interno da capa
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 10, 10, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(item.categoryIcon, size: 14, color: Colors.white.withValues(alpha: 0.9)),
-                              ),
-                              if (isDownloaded)
-                                Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.greenAccent,
-                                    shape: BoxShape.circle,
+                  ),
+                // Overlay de download com opção de cancelar
+                if (isDownloading)
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: GestureDetector(
+                        onTap: () {
+                          ref.read(storeProvider.notifier).cancelDownload(item);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Download de ${item.name} cancelado.'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.75),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 32,
+                                  height: 32,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      CircularProgressIndicator(
+                                        value: downloadProgress,
+                                        strokeWidth: 2.8,
+                                        color: Colors.redAccent,
+                                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                      ),
+                                      const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                                    ],
                                   ),
-                                  child: const Icon(Icons.check, size: 10, color: Colors.black),
                                 ),
-                            ],
-                          ),
-                          const Spacer(),
-                          Text(
-                            item.name,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              height: 1.15,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withValues(alpha: 0.7),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${(downloadProgress * 100).toInt()}% • Cancelar',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          if (item.sizeBytes != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.4),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                '${(item.sizeBytes! / 1024 / 1024).toStringAsFixed(1)} MB',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    // Overlay de download com opção de cancelar
-                    if (isDownloading)
-                      Positioned.fill(
-                        child: GestureDetector(
-                          onTap: () {
-                            ref.read(storeProvider.notifier).cancelDownload(item);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Download de ${item.name} cancelado.'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            color: Colors.black.withValues(alpha: 0.75),
-                            child: Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 32,
-                                    height: 32,
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        CircularProgressIndicator(
-                                          value: downloadProgress,
-                                          strokeWidth: 2.8,
-                                          color: Colors.redAccent,
-                                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                                        ),
-                                        const Icon(Icons.close_rounded, size: 16, color: Colors.white),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '${(downloadProgress * 100).toInt()}% • Cancelar',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
                         ),
                       ),
-                  ],
-                ),
-              ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
             // Título do Livro
@@ -874,7 +787,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                   ? items.where((item) => state.isDownloaded(item.filename)).length
                   : items.where((item) => !state.isDownloaded(item.filename)).length;
               
-              return _AnimatedCategoryCard(
+              return CategoryIllustrationCard(
                 category: cat,
                 label: label,
                 itemCount: itemCount,
@@ -1347,39 +1260,12 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                       color: _selectedItems.contains(item) ? Colors.redAccent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
                     ),
                   ),
-                // 1. Ícone Squircle Estilo Play Store
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        color.withValues(alpha: 0.9),
-                        color.withValues(alpha: 0.5),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.25),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      width: 1,
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      item.categoryIcon,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
+                // 1. Capa de Livro Bíblico 3D com Sigla Oficial e Encadernação de Luxo
+                StoreItemCoverArt(
+                  item: item,
+                  width: 52,
+                  height: 66,
+                  borderRadius: 8,
                 ),
                 const SizedBox(width: 14),
                 // 2. Coluna Central de Detalhes

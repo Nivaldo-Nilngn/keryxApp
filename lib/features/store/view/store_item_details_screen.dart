@@ -15,6 +15,7 @@ import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
+import 'package:keryx_app/features/store/widgets/store_item_cover_art.dart';
 
 final storeCommentsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, itemId) {
   return FirebaseFirestore.instance
@@ -47,7 +48,6 @@ class StoreItemDetailsScreen extends ConsumerWidget {
     final isDownloaded = state.isDownloaded(item.filename);
     final downloadProgress = state.downloadProgress[item.filename];
     final isDownloading = downloadProgress != null;
-    final color = _getCategoryColor(item.category);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -131,23 +131,13 @@ class StoreItemDetailsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    // App Icon
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: color.withValues(alpha: 0.3)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ]
-                      ),
-                      child: Icon(item.categoryIcon, size: 54, color: color),
+                    // Capa de Livro Bíblico 3D com Sigla e Encadernação Nobre
+                    StoreItemCoverArt(
+                      item: item,
+                      width: 95,
+                      height: 125,
+                      borderRadius: 14,
+                      showRibbon: true,
                     ),
                   ],
                 ),
