@@ -2,59 +2,110 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/app_update_service.dart';
 import '../services/internal_download_service.dart';
 import '../utils/platform_utils.dart';
 
-final isBannerDismissedProvider = StateProvider<bool>((ref) => false);
-
-class UpdateBanner extends ConsumerWidget {
+class UpdateBanner extends ConsumerStatefulWidget {
   const UpdateBanner({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Se a versão mudar no servidor, reseta o dismiss para alertar nova versão
-    ref.listen<AppUpdateInfo?>(latestUpdateInfoProvider.select((v) => v.valueOrNull), (prev, next) {
-      if (next != null && prev?.latestVersion != next.latestVersion) {
-        ref.read(isBannerDismissedProvider.notifier).state = false;
+  ConsumerState<UpdateBanner> createState() => _UpdateBannerState();
+}
+
+class _UpdateBannerState extends ConsumerState<UpdateBanner> {
+  bool _isDismissedLocally = false;
+  String? _currentDismissKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkDismissStatus();
+  }
+
+  Future<void> _checkDismissStatus() async {
+    final updateInfo = ref.read(latestUpdateInfoProvider).valueOrNull;
+    final key = _computeDismissKey(updateInfo);
+    if (key == null) return;
+
+    _currentDismissKey = key;
+    final prefs = await SharedPreferences.getInstance();
+    final dismissed = prefs.getBool(key) ?? false;
+
+    if (mounted && dismissed != _isDismissedLocally) {
+      setState(() => _isDismissedLocally = dismissed);
+    }
+  }
+
+  String? _computeDismissKey(AppUpdateInfo? updateInfo) {
+    if (kIsWeb) {
+      if (isIosClient()) return 'keryx_banner_dismissed_ios_pwa';
+      if (isAndroidClient()) {
+        final version = updateInfo?.latestVersion ?? 0;
+        return 'keryx_banner_dismissed_android_web_$version';
       }
-    });
+      return null;
+    }
+    final version = updateInfo?.latestVersion ?? 0;
+    return 'keryx_banner_dismissed_native_$version';
+  }
 
-    final isDismissed = ref.watch(isBannerDismissedProvider);
-    if (isDismissed) return const SizedBox.shrink();
+  Future<void> _handleDismiss(String? key) async {
+    setState(() => _isDismissedLocally = true);
+    if (key != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(key, true);
+    }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
+    final isForceUpdate = ref.watch(isForceUpdateRequiredProvider);
+
+    // Se a versão mudar, reavalia a chave de persistência
+    final key = _computeDismissKey(updateInfo);
+    if (key != _currentDismissKey) {
+      _currentDismissKey = key;
+      _checkDismissStatus();
+    }
+
+    // Se for atualização obrigatória, o dismiss é desconsiderado
+    if (!isForceUpdate && _isDismissedLocally) {
+      return const SizedBox.shrink();
+    }
 
     // ── CENÁRIO 1: Navegador Web (kIsWeb) ──────────────────────────────────
     if (kIsWeb) {
-      final size = MediaQuery.of(context).size;
-      final bool isIOS = isIosClient();
-      final bool isAndroid = isAndroidClient();
+      // Já instalado como PWA aberto pela Tela de Início: nada a oferecer
+      if (isStandalonePwa()) return const SizedBox.shrink();
 
-      // No computador / desktop (largura >= 900 e não for cliente mobile):
-      // A versão Web já é a mais recente em tempo real servida da nuvem.
-      // Nunca exibe banner de APK nem de atualização no desktop.
-      if (!isIOS && !isAndroid && size.width >= 900) {
-        return const SizedBox.shrink();
-      }
+      final isIOS = isIosClient();
+      final isAndroid = isAndroidClient();
 
-      // No iPhone ou iPad no Safari / Chrome:
-      // Orienta a adicionar à Tela de Início como PWA
+      // No Desktop: versão servida em tempo real da nuvem, nada a exibir
+      if (!isIOS && !isAndroid) return const SizedBox.shrink();
+
+      // No iPhone ou iPad
       if (isIOS) {
+        final inApp = isInAppBrowser();
         return _buildLayout(
           context: context,
-          ref: ref,
-          title: 'Aplicativo no seu iPhone / iPad',
-          subtitle: 'Adicione à Tela de Início para usar em tela cheia',
+          canDismiss: !isForceUpdate,
+          title: inApp ? 'Abra no Safari para instalar' : 'Aplicativo no seu iPhone / iPad',
+          subtitle: inApp
+              ? 'Este navegador não permite instalar. Abra o link no Safari.'
+              : 'Adicione à Tela de Início para usar em tela cheia',
           buttonLabel: 'COMO INSTALAR',
           mainColor: const Color(0xFF3B82F6),
           icon: Icons.add_to_home_screen_rounded,
-          onTap: () => _showIOSInstructions(context),
+          onTap: () => _showIOSInstructions(context, inApp: inApp),
+          onDismiss: () => _handleDismiss(key),
         );
       }
 
-      // No Android acessando pelo navegador:
-      // Convida a baixar o aplicativo APK oficial
+      // No Android acessando pelo navegador
       if (isAndroid) {
         final downloadUrl = (updateInfo?.downloadUrl.isNotEmpty ?? false)
             ? updateInfo!.downloadUrl.trim()
@@ -62,14 +113,14 @@ class UpdateBanner extends ConsumerWidget {
 
         return _buildLayout(
           context: context,
-          ref: ref,
+          canDismiss: !isForceUpdate,
           title: 'Baixe o Aplicativo Oficial',
           subtitle: 'Instale o app oficial no Android para recursos offline',
           buttonLabel: 'BAIXAR APK',
           mainColor: const Color(0xFF10B981),
           icon: Icons.install_mobile_rounded,
           onTap: () {
-            downloadFile(downloadUrl);
+            downloadFile(downloadUrl, fileName: 'keryxApp.apk');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Download do keryxApp.apk iniciado! Acompanhe na barra de notificações.'),
@@ -78,6 +129,7 @@ class UpdateBanner extends ConsumerWidget {
               ),
             );
           },
+          onDismiss: () => _handleDismiss(key),
         );
       }
 
@@ -91,7 +143,7 @@ class UpdateBanner extends ConsumerWidget {
       final versionLabel = updateInfo.versionName.isNotEmpty ? ' v${updateInfo.versionName}' : '';
       return _buildLayout(
         context: context,
-        ref: ref,
+        canDismiss: !isForceUpdate,
         title: 'Nova Atualização Disponível$versionLabel',
         subtitle: updateInfo.releaseNotes.isNotEmpty
             ? updateInfo.releaseNotes
@@ -99,7 +151,8 @@ class UpdateBanner extends ConsumerWidget {
         buttonLabel: 'ATUALIZAR',
         mainColor: const Color(0xFF22C55E),
         icon: Icons.system_update_rounded,
-        onTap: () => ref.read(downloadServiceProvider).downloadAndInstall(context, updateInfo.downloadUrl),
+        onTap: () => ref.read(downloadServiceProvider).downloadAndInstall(context, updateInfo),
+        onDismiss: () => _handleDismiss(key),
       );
     }
 
@@ -108,13 +161,14 @@ class UpdateBanner extends ConsumerWidget {
 
   Widget _buildLayout({
     required BuildContext context,
-    required WidgetRef ref,
+    required bool canDismiss,
     required String title,
     required String subtitle,
     required String buttonLabel,
     required Color mainColor,
     required IconData icon,
     required VoidCallback onTap,
+    required VoidCallback onDismiss,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -189,24 +243,29 @@ class UpdateBanner extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(width: 2),
-          IconButton(
-            icon: Icon(
-              Icons.close_rounded,
-              size: 18,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+          if (canDismiss) ...[
+            const SizedBox(width: 2),
+            IconButton(
+              icon: Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+              ),
+              onPressed: onDismiss,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              splashRadius: 18,
             ),
-            onPressed: () => ref.read(isBannerDismissedProvider.notifier).state = true,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            splashRadius: 18,
-          ),
+          ],
         ],
       ),
     );
   }
 
-  void _showIOSInstructions(BuildContext context) {
+  void _showIOSInstructions(BuildContext context, {required bool inApp}) {
+    final size = MediaQuery.of(context).size;
+    final isIpad = size.shortestSide >= 600;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -216,7 +275,7 @@ class UpdateBanner extends ConsumerWidget {
             const Icon(Icons.apple_rounded, size: 24),
             const SizedBox(width: 8),
             Text(
-              'Instalar no iPhone / iPad',
+              isIpad ? 'Instalar no iPad' : 'Instalar no iPhone',
               style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ],
@@ -226,15 +285,37 @@ class UpdateBanner extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Para usar o KeryxApp em tela cheia e com acesso rápido no seu iPhone ou iPad:',
+              inApp
+                  ? 'Navegadores embutidos (Instagram, WhatsApp, etc.) não conseguem instalar apps diretamente:'
+                  : 'Para usar o KeryxApp em tela cheia e com acesso rápido no seu dispositivo:',
               style: GoogleFonts.inter(fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 16),
-            _buildStep('1', 'Toque no botão Compartilhar (ícone com quadrado e seta para cima no Safari).'),
-            const SizedBox(height: 10),
-            _buildStep('2', 'Role para baixo e selecione "Adicionar à Tela de Início".'),
-            const SizedBox(height: 10),
-            _buildStep('3', 'Toque em "Adicionar" no canto superior direito.'),
+            if (inApp) ...[
+              _buildStep('1', 'Toque no menu (⋯ ou Compartilhar) e escolha "Abrir no Safari" ou "Abrir no Navegador".'),
+              const SizedBox(height: 10),
+              _buildStep(
+                '2',
+                isIpad
+                    ? 'No Safari, toque no botão Compartilhar (no canto superior direito da tela).'
+                    : 'No Safari, toque no botão Compartilhar (na barra inferior da tela).',
+              ),
+              const SizedBox(height: 10),
+              _buildStep('3', 'Role para baixo e selecione "Adicionar à Tela de Início".'),
+              const SizedBox(height: 10),
+              _buildStep('4', 'Toque em "Adicionar" no canto superior direito.'),
+            ] else ...[
+              _buildStep(
+                '1',
+                isIpad
+                    ? 'Toque no botão Compartilhar (no canto superior direito no Safari do iPad).'
+                    : 'Toque no botão Compartilhar (na barra inferior do Safari no iPhone).',
+              ),
+              const SizedBox(height: 10),
+              _buildStep('2', 'Role para baixo e selecione "Adicionar à Tela de Início".'),
+              const SizedBox(height: 10),
+              _buildStep('3', 'Toque em "Adicionar" no canto superior direito.'),
+            ],
           ],
         ),
         actions: [
@@ -252,24 +333,23 @@ class UpdateBanner extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 20,
-          height: 20,
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
           decoration: const BoxDecoration(
             color: Color(0xFF3B82F6),
             shape: BoxShape.circle,
           ),
-          child: Center(
-            child: Text(
-              number,
-              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-            ),
+          child: Text(
+            number,
+            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
-            style: GoogleFonts.inter(fontSize: 12.5),
+            style: GoogleFonts.inter(fontSize: 12.5, height: 1.35),
           ),
         ),
       ],

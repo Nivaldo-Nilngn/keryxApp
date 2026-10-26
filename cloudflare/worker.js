@@ -35,7 +35,14 @@ export default {
       try {
         const authHeader = request.headers.get("Authorization") || "";
         const tokenHeader = request.headers.get("x-app-token") || "";
-        const expectedToken = env.APP_TOKEN || "KeryxAppToken2026";
+        const expectedToken = env.VERSION_ADMIN_TOKEN || env.APP_TOKEN;
+
+        if (!expectedToken) {
+          return new Response(
+            JSON.stringify({ error: "Serviço não configurado com token administrativo seguro." }),
+            { status: 500, headers: corsHeaders }
+          );
+        }
 
         const bearerMatch = authHeader.replace(/^Bearer\s+/i, "").trim();
         const isValid = bearerMatch === expectedToken || tokenHeader === expectedToken;
@@ -64,7 +71,8 @@ export default {
           ios_url: String(body.ios_url || "https://keryxapp.pages.dev").trim(),
           release_notes: String(body.release_notes || "").trim(),
           force_update: Boolean(body.force_update),
-          min_version: Number(body.min_version) || 1
+          min_version: Number(body.min_version) || 1,
+          sha256: body.sha256 ? String(body.sha256).trim() : null
         };
 
         if (env.VERSION_KV) {

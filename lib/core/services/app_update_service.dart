@@ -1,22 +1,24 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' as io;
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/platform_downloader.dart';
-import '../theme/app_theme.dart';
+import 'internal_download_service.dart';
 
-/// Modelo de dados da versão retornado pelo Cloudflare Worker / R2 / Pages
+/// Valida se a URL de download do APK pertence a fontes oficiais autorizadas
+bool isTrustedDownloadUrl(String url) {
+  final u = Uri.tryParse(url);
+  if (u == null || u.scheme != 'https') return false;
+  final isRepo = u.host == 'github.com' &&
+      u.path.startsWith('/Nivaldo-Nilngn/keryxApp/');
+  final isWorker = u.host == 'keryx-version.nivaldo-nilngn.workers.dev';
+  return isRepo || isWorker;
+}
+
+/// Modelo de dados da versão retornado pelo Cloudflare Worker / GitHub Releases
 class AppUpdateInfo {
   final int latestVersion;
   final String versionName;
@@ -26,6 +28,7 @@ class AppUpdateInfo {
   final bool forceUpdate;
   final int minVersion;
   final String? releaseDate;
+  final String? sha256;
 
   AppUpdateInfo({
     required this.latestVersion,
@@ -36,6 +39,7 @@ class AppUpdateInfo {
     this.forceUpdate = false,
     this.minVersion = 0,
     this.releaseDate,
+    this.sha256,
   });
 
   factory AppUpdateInfo.fromJson(Map<String, dynamic> json) {
@@ -48,6 +52,7 @@ class AppUpdateInfo {
       forceUpdate: json['force_update'] as bool? ?? false,
       minVersion: (json['min_version'] as num?)?.toInt() ?? 0,
       releaseDate: json['release_date'] as String?,
+      sha256: json['sha256'] as String?,
     );
   }
 
@@ -59,7 +64,8 @@ class AppUpdateInfo {
         'release_notes': releaseNotes,
         'force_update': forceUpdate,
         'min_version': minVersion,
-        'release_date': releaseDate,
+        if (releaseDate != null) 'release_date': releaseDate,
+        if (sha256 != null) 'sha256': sha256,
       };
 }
 
@@ -75,23 +81,19 @@ class AppCurrentVersion {
 
 class AppUpdateService {
   final http.Client _client;
-  final Dio _dio;
 
-  /// URL padrão ou definida no arquivo .env
+  /// URL padrão para consulta de versões
   static String get defaultVersionUrl {
     final envUrl = dotenv.env['CLOUDFLARE_VERSION_URL']?.trim();
     if (envUrl != null && envUrl.isNotEmpty) {
       return envUrl;
     }
-    // Fallback padrão configurável pelo Cloudflare
     return 'https://keryx-version.nivaldo-nilngn.workers.dev';
   }
 
   AppUpdateService({
     http.Client? client,
-    Dio? dio,
-  })  : _client = client ?? http.Client(),
-        _dio = dio ?? Dio();
+  }) : _client = client ?? http.Client();
 
   /// Obtém a versão e build atuais do aplicativo instalado
   Future<AppCurrentVersion> getCurrentVersion() async {
@@ -121,7 +123,7 @@ class AppUpdateService {
         Uri.parse(cacheBustUrl),
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'KeryxApp-Updater/1.0',
+          'User-Agent': 'KeryxApp-Updater/2.0',
         },
       ).timeout(const Duration(seconds: 10));
 
@@ -134,248 +136,16 @@ class AppUpdateService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('AppUpdateService: Não foi possível obter versão do Cloudflare: $e');
+        print('AppUpdateService: Não foi possível obter versão: $e');
       }
       return null;
     }
   }
 
-  /// Publica uma nova versão tanto no Cloudflare Worker (KV) quanto no Firestore
-  Future<bool> publishNewVersion(AppUpdateInfo newInfo) async {
-    bool cloudflareSuccess = false;
-    final token = dotenv.env['APP_TOKEN']?.trim() ?? 'KeryxAppToken2026';
-    final url = dotenv.env['CLOUDFLARE_VERSION_URL']?.trim() ?? defaultVersionUrl;
-
-    final payload = newInfo.toJson();
-
-    // 1. Atualiza no Cloudflare Worker via POST
-    try {
-      final response = await _client.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-          'x-app-token': token,
-        },
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        cloudflareSuccess = true;
-      }
-    } catch (e) {
-      if (kDebugMode) print('Erro ao atualizar versão no Cloudflare: $e');
-    }
-
-    // 2. Sincroniza também no Firestore (app_config/version) para redundância
-    try {
-      await FirebaseFirestore.instance
-          .collection('app_config')
-          .doc('version')
-          .set({
-        ...payload,
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      if (kDebugMode) print('Erro ao atualizar versão no Firestore: $e');
-    }
-
-    return cloudflareSuccess;
-  }
-
-
-  /// Baixa o APK no Android e abre o instalador nativo, ou abre a URL no navegador
-  Future<void> downloadAndInstallApk(BuildContext context, String url) async {
-    if (kIsWeb) {
-      // No navegador (Web / PWA), dispara o download nativo do arquivo APK sem abrir nova aba
-      triggerBrowserDownload(url, fileName: 'keryxApp.apk');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Download do keryxApp.apk iniciado! Verifique as notificações de download.'),
-          backgroundColor: Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => _ApkDownloadDialog(url: url, dio: _dio),
-      );
-    } else {
-      final uri = Uri.parse(url);
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-}
-
-class _ApkDownloadDialog extends StatefulWidget {
-  final String url;
-  final Dio dio;
-
-  const _ApkDownloadDialog({required this.url, required this.dio});
-
-  @override
-  State<_ApkDownloadDialog> createState() => _ApkDownloadDialogState();
-}
-
-class _ApkDownloadDialogState extends State<_ApkDownloadDialog> {
-  double _progress = 0.0;
-  int _received = 0;
-  int _total = -1;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _startDownload();
-  }
-
-  Future<void> _startDownload() async {
-    try {
-      final directory = await getTemporaryDirectory();
-      final filePath = '${directory.path}/keryx_update.apk';
-
-      final file = io.File(filePath);
-      if (await file.exists()) {
-        await file.delete();
-      }
-
-      await widget.dio.download(
-        widget.url,
-        filePath,
-        options: Options(
-          followRedirects: true,
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(minutes: 5),
-          validateStatus: (status) => status != null && status < 500,
-          headers: {
-            'user-agent': 'KeryxApp-Updater',
-            'Accept': '*/*',
-          },
-        ),
-        onReceiveProgress: (received, total) {
-          if (mounted) {
-            setState(() {
-              _received = received;
-              _total = total;
-              if (total > 0) {
-                _progress = received / total;
-              }
-            });
-          }
-        },
-      );
-
-      if (mounted) {
-        Navigator.pop(context); // Fecha diálogo
-      }
-
-      final result = await OpenFilex.open(filePath);
-      if (result.type != ResultType.done && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Não foi possível iniciar o instalador: ${result.message}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      String msg = 'Erro no download: $e';
-      if (e is DioException) {
-        if (e.type == DioExceptionType.connectionTimeout) {
-          msg = 'Tempo de conexão esgotado ao contatar o servidor.';
-        } else if (e.response?.statusCode == 404) {
-          msg = 'Arquivo APK não encontrado no GitHub / servidor (404).';
-        }
-      }
-      if (mounted) {
-        setState(() => _error = msg);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final downloadedMb = (_received / (1024 * 1024)).toStringAsFixed(1);
-    final totalMb = _total > 0 ? (_total / (1024 * 1024)).toStringAsFixed(1) : null;
-
-    return AlertDialog(
-      backgroundColor: theme.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _error != null ? Icons.error_outline_rounded : Icons.downloading_rounded,
-              color: _error != null ? Colors.redAccent : AppTheme.kPrimaryGold,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              _error != null ? 'Erro no Download' : 'Baixando Atualização',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_error != null)
-            Text(
-              _error!,
-              style: GoogleFonts.manrope(color: Colors.redAccent, fontSize: 13),
-              textAlign: TextAlign.center,
-            )
-          else ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: _total > 0 ? _progress : null,
-                minHeight: 10,
-                backgroundColor: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                color: AppTheme.kPrimaryGold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _total > 0
-                  ? '${(_progress * 100).toInt()}% concluído ($downloadedMb MB de $totalMb MB)'
-                  : '$downloadedMb MB baixados...',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        if (_error != null)
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('FECHAR'),
-          ),
-      ],
-    );
+  /// Dispara a rotina unificada de download e instalação
+  Future<void> downloadAndInstallApk(BuildContext context, AppUpdateInfo info) async {
+    final downloadService = DownloadService();
+    await downloadService.downloadAndInstall(context, info);
   }
 }
 
@@ -398,8 +168,7 @@ final latestUpdateInfoProvider = FutureProvider<AppUpdateInfo?>((ref) {
 });
 
 /// Indica se há nova versão disponível (latestVersion > buildNumber)
-/// Na Web (PWA/Browser), o usuário consome a versão mais recente diretamente da nuvem,
-/// portanto a verificação de APK é desativada.
+/// Na Web, o usuário sempre consome a versão mais recente em tempo real servida da nuvem.
 final isUpdateAvailableProvider = Provider<bool>((ref) {
   if (kIsWeb) return false;
 
@@ -410,5 +179,15 @@ final isUpdateAvailableProvider = Provider<bool>((ref) {
   return latest.latestVersion > current.buildNumber;
 });
 
-/// Armazena qual versão já foi dispensada pelo usuário nesta sessão
-final dismissedUpdateVersionProvider = StateProvider<int?>((ref) => null);
+/// Indica se a atualização é estritamente obrigatória (force_update == true ou minVersion > buildNumber)
+final isForceUpdateRequiredProvider = Provider<bool>((ref) {
+  if (kIsWeb) return false;
+
+  final current = ref.watch(currentAppVersionProvider).valueOrNull;
+  final latest = ref.watch(latestUpdateInfoProvider).valueOrNull;
+
+  if (current == null || latest == null) return false;
+  if (latest.latestVersion <= current.buildNumber) return false;
+
+  return latest.forceUpdate || latest.minVersion > current.buildNumber;
+});

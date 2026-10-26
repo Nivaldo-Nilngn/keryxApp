@@ -93,6 +93,11 @@ service cloud.firestore {
       allow write: if isPrimaryAdmin();
     }
 
+    match /app_config/{docId} {
+      allow read: if true;
+      allow write: if isPrimaryAdmin();
+    }
+
     match /access_logs/{logId} {
       allow read, write: if isPrimaryAdmin();
     }

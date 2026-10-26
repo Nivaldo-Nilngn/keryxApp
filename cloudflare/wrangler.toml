@@ -5,6 +5,4 @@ compatibility_date = "2024-01-01"
 [[kv_namespaces]]
 binding = "VERSION_KV"
 id = "4b50f6628c3841a29eab8d4da55dd9e4"
-
-[vars]
-APP_TOKEN = "KeryxAppToken2026"
+# Secrets como VERSION_ADMIN_TOKEN devem ser adicionados via 'npx wrangler secret put VERSION_ADMIN_TOKEN'

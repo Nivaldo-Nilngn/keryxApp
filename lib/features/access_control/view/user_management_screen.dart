@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/app_update_service.dart';
@@ -681,9 +682,14 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         releaseDate: DateTime.now().toIso8601String().split('T')[0],
       );
 
-      final success = await ref
-          .read(appUpdateServiceProvider)
-          .publishNewVersion(newInfo);
+      // Grava no Firestore protegido pelas Security Rules (isPrimaryAdmin)
+      await FirebaseFirestore.instance
+          .collection('app_config')
+          .doc('version')
+          .set({
+        ...newInfo.toJson(),
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       ref.invalidate(latestUpdateInfoProvider);
       ref.invalidate(isUpdateAvailableProvider);
@@ -698,17 +704,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    success
-                        ? 'Versão v${newInfo.versionName} (Build ${newInfo.latestVersion}) publicada com sucesso!'
-                        : 'Versão gravada no Firestore (verifique a conexão com o Cloudflare).',
+                    'Configuração da versão v${newInfo.versionName} (Build ${newInfo.latestVersion}) salva no Firestore! Para publicar o APK, execute ./scripts/publish_release.sh.',
                     style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-            backgroundColor: success ? const Color(0xFF10B981) : Colors.orangeAccent,
+            backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
