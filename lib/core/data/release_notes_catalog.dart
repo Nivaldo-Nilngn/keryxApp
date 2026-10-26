@@ -5,6 +5,70 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.1',
+      buildNumber: 10,
+      title: 'IATheos Inteligente, Capas 3D & Notas de Atualização',
+      releaseDate: '26 de Outubro de 2026',
+      highlight:
+          'Grande reformulação da IA Teológica com modos de estudo especializados, novas capas 3D de livros bíblicos encadernados em couro e sistema automático de notas de versão.',
+      items: [
+        // ── Novos Recursos (Implementações) ─────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'IATheos com Especialidades Teológicas',
+          description:
+              'A IA agora conta com 5 modos de pesquisa dedicados: Geral, Exegese (grego/hebraico), História & Patrística, Esboços de Pregação e Mensagens Devocionais.',
+          customIcon: Icons.auto_awesome_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Mosaico 2x2 & Avatar Celestial da IA',
+          description:
+              'Nova interface moderna estilo ChatGPT/Perplexity com avatar iluminado em auréola dourada e cards organizados com cores temáticas por categoria.',
+          customIcon: Icons.dashboard_customize_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Capas 3D em Couro com Siglas Douradas na Loja',
+          description:
+              'Todas as 91 Bíblias e comentários agora exibem capas de livros tridimensionais com textura de couro nobre, lombadas detalhadas, fita marcadora e siglas oficiais douradas.',
+          customIcon: Icons.menu_book_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Notificações & Modal de Atualização Automática',
+          description:
+              'Sempre que o app for atualizado, o sistema notifica no Android e exibe uma janela comemorativa detalhando tudo o que foi implementado, modificado ou corrigido.',
+          customIcon: Icons.notifications_active_rounded,
+        ),
+
+        // ── Modificações & Melhorias ─────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Remoção do Acesso Anônimo no Login',
+          description:
+              'O botão de entrar como convidado foi removido para assegurar sincronização completa de anotações, marcadores e compras na nuvem.',
+          customIcon: Icons.security_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Performance e Renderização Otimizada na Loja',
+          description:
+              'Cards de categorias e itens redesenhados em Flutter nativo, reduzindo consumo de memória e dispensando imagens pesadas na listagem.',
+          customIcon: Icons.speed_rounded,
+        ),
+
+        // ── Correções & Ajustes ──────────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Ajuste de Disparo de Atualização nos Dispositivos',
+          description:
+              'Sincronização imediata entre os endpoints de versão na Cloudflare e os aparelhos conectados.',
+          customIcon: Icons.cloud_sync_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.0',
       buildNumber: 9,
       title: 'Comunidade Renovada, Avatares & Acesso Aprimorado',
