@@ -24,9 +24,9 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     _checkDismissStatus();
   }
 
-  Future<void> _checkDismissStatus() async {
+  Future<void> _checkDismissStatus({bool isIpad = false}) async {
     final updateInfo = ref.read(latestUpdateInfoProvider).valueOrNull;
-    final key = _computeDismissKey(updateInfo);
+    final key = _computeDismissKey(updateInfo, isIpad: isIpad);
     if (key == null) return;
 
     _currentDismissKey = key;
@@ -38,9 +38,10 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     }
   }
 
-  String? _computeDismissKey(AppUpdateInfo? updateInfo) {
+  String? _computeDismissKey(AppUpdateInfo? updateInfo, {bool isIpad = false}) {
     if (kIsWeb) {
-      if (isIosClient()) return 'keryx_banner_dismissed_ios_pwa';
+      if (isIpad) return 'keryx_banner_dismissed_ipad_pwa';
+      if (isIphoneClient() || isIosClient()) return 'keryx_banner_dismissed_iphone_pwa';
       if (isAndroidClient()) {
         final version = updateInfo?.latestVersion ?? 0;
         return 'keryx_banner_dismissed_android_web_$version';
@@ -64,48 +65,74 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
     final isForceUpdate = ref.watch(isForceUpdateRequiredProvider);
 
-    // Se a versão mudar, reavalia a chave de persistência
-    final key = _computeDismissKey(updateInfo);
-    if (key != _currentDismissKey) {
-      _currentDismissKey = key;
-      _checkDismissStatus();
-    }
-
-    // Se for atualização obrigatória, o dismiss é desconsiderado
-    if (!isForceUpdate && _isDismissedLocally) {
-      return const SizedBox.shrink();
-    }
-
     // ── CENÁRIO 1: Navegador Web (kIsWeb) ──────────────────────────────────
     if (kIsWeb) {
       // Já instalado como PWA aberto pela Tela de Início: nada a oferecer
       if (isStandalonePwa()) return const SizedBox.shrink();
 
-      final isIOS = isIosClient();
-      final isAndroid = isAndroidClient();
+      final size = MediaQuery.of(context).size;
+      final bool detectedIpad = isIpadClient();
+      final bool detectedIphone = isIphoneClient();
+      final bool isAndroid = isAndroidClient();
 
-      // No Desktop: versão servida em tempo real da nuvem, nada a exibir
+      // No modo iPad: detectado por UserAgent/Platform ou se for tablet com tamanho típico
+      final bool isIpad = detectedIpad || 
+          (!isAndroid && !detectedIphone && (size.width >= 600 && size.width <= 1400));
+
+      final bool isIOS = detectedIphone || isIpad || isIosClient();
+
+      // No Desktop puro (não mobile e tela larga fora dos padrões de tablet Apple): nada a exibir
       if (!isIOS && !isAndroid) return const SizedBox.shrink();
 
-      // No iPhone ou iPad
+      // Reavalia a chave de persistência com base no dispositivo específico
+      final key = _computeDismissKey(updateInfo, isIpad: isIpad);
+      if (key != _currentDismissKey) {
+        _currentDismissKey = key;
+        _checkDismissStatus(isIpad: isIpad);
+      }
+
+      // Se o usuário dispensou este banner nesta versão/dispositivo, não exibe
+      if (!isForceUpdate && _isDismissedLocally) {
+        return const SizedBox.shrink();
+      }
+
+      // ── CENÁRIO 1A: iPad (Safari ou PWA) ─────────────────────────────────
+      if (isIpad) {
+        final inApp = isInAppBrowser();
+        return _buildLayout(
+          context: context,
+          canDismiss: !isForceUpdate,
+          title: inApp ? 'Abra no Safari para instalar' : 'Aplicativo no seu iPad',
+          subtitle: inApp
+              ? 'Este navegador não permite instalar. Abra o link no Safari.'
+              : 'Adicione à Tela de Início no Safari para usar em tela cheia',
+          buttonLabel: 'COMO INSTALAR',
+          mainColor: const Color(0xFF3B82F6),
+          icon: Icons.tablet_mac_rounded,
+          onTap: () => _showIOSInstructions(context, inApp: inApp, isIpad: true),
+          onDismiss: () => _handleDismiss(key),
+        );
+      }
+
+      // ── CENÁRIO 1B: iPhone (Safari ou PWA) ────────────────────────────────
       if (isIOS) {
         final inApp = isInAppBrowser();
         return _buildLayout(
           context: context,
           canDismiss: !isForceUpdate,
-          title: inApp ? 'Abra no Safari para instalar' : 'Aplicativo no seu iPhone / iPad',
+          title: inApp ? 'Abra no Safari para instalar' : 'Aplicativo no seu iPhone',
           subtitle: inApp
               ? 'Este navegador não permite instalar. Abra o link no Safari.'
               : 'Adicione à Tela de Início para usar em tela cheia',
           buttonLabel: 'COMO INSTALAR',
           mainColor: const Color(0xFF3B82F6),
-          icon: Icons.add_to_home_screen_rounded,
-          onTap: () => _showIOSInstructions(context, inApp: inApp),
+          icon: Icons.phone_iphone_rounded,
+          onTap: () => _showIOSInstructions(context, inApp: inApp, isIpad: false),
           onDismiss: () => _handleDismiss(key),
         );
       }
 
-      // No Android acessando pelo navegador
+      // ── CENÁRIO 1C: Android no Navegador ──────────────────────────────────
       if (isAndroid) {
         final downloadUrl = (updateInfo?.downloadUrl.isNotEmpty ?? false)
             ? updateInfo!.downloadUrl.trim()
@@ -137,6 +164,16 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     }
 
     // ── CENÁRIO 2: Aplicativo Nativo Instalado (Android/iOS) ───────────────
+    final key = _computeDismissKey(updateInfo);
+    if (key != _currentDismissKey) {
+      _currentDismissKey = key;
+      _checkDismissStatus();
+    }
+
+    if (!isForceUpdate && _isDismissedLocally) {
+      return const SizedBox.shrink();
+    }
+
     final isAvailable = ref.watch(isUpdateAvailableProvider);
 
     if (isAvailable && updateInfo != null) {
@@ -262,18 +299,19 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     );
   }
 
-  void _showIOSInstructions(BuildContext context, {required bool inApp}) {
-    final size = MediaQuery.of(context).size;
-    final isIpad = size.shortestSide >= 600;
-
+  void _showIOSInstructions(BuildContext context, {required bool inApp, required bool isIpad}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.apple_rounded, size: 24),
-            const SizedBox(width: 8),
+            Icon(
+              isIpad ? Icons.tablet_mac_rounded : Icons.phone_iphone_rounded,
+              size: 24,
+              color: const Color(0xFF3B82F6),
+            ),
+            const SizedBox(width: 10),
             Text(
               isIpad ? 'Instalar no iPad' : 'Instalar no iPhone',
               style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
@@ -287,34 +325,36 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
             Text(
               inApp
                   ? 'Navegadores embutidos (Instagram, WhatsApp, etc.) não conseguem instalar apps diretamente:'
-                  : 'Para usar o KeryxApp em tela cheia e com acesso rápido no seu dispositivo:',
+                  : (isIpad
+                      ? 'Para usar o KeryxApp em tela cheia e com acesso rápido no seu iPad:'
+                      : 'Para usar o KeryxApp em tela cheia e com acesso rápido no seu iPhone:'),
               style: GoogleFonts.inter(fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 16),
             if (inApp) ...[
-              _buildStep('1', 'Toque no menu (⋯ ou Compartilhar) e escolha "Abrir no Safari" ou "Abrir no Navegador".'),
+              _buildStep('1', 'Toque no menu (⋯ ou Compartilhar) e escolha "Abrir no Safari".'),
               const SizedBox(height: 10),
               _buildStep(
                 '2',
                 isIpad
-                    ? 'No Safari, toque no botão Compartilhar (no canto superior direito da tela).'
-                    : 'No Safari, toque no botão Compartilhar (na barra inferior da tela).',
+                    ? 'No Safari do iPad, toque no botão Compartilhar (no canto superior direito / barra do topo).'
+                    : 'No Safari do iPhone, toque no botão Compartilhar (na barra inferior / rodapé da tela).',
               ),
               const SizedBox(height: 10),
-              _buildStep('3', 'Role para baixo e selecione "Adicionar à Tela de Início".'),
+              _buildStep('3', 'No menu de opções, role para baixo e selecione "Adicionar à Tela de Início".'),
               const SizedBox(height: 10),
-              _buildStep('4', 'Toque em "Adicionar" no canto superior direito.'),
+              _buildStep('4', 'Toque em "Adicionar" no canto superior direito para confirmar.'),
             ] else ...[
               _buildStep(
                 '1',
                 isIpad
-                    ? 'Toque no botão Compartilhar (no canto superior direito no Safari do iPad).'
-                    : 'Toque no botão Compartilhar (na barra inferior do Safari no iPhone).',
+                    ? 'Toque no botão Compartilhar (no canto superior direito / topo do Safari no iPad).'
+                    : 'Toque no botão Compartilhar (na barra inferior / rodapé do Safari no iPhone).',
               ),
               const SizedBox(height: 10),
-              _buildStep('2', 'Role para baixo e selecione "Adicionar à Tela de Início".'),
+              _buildStep('2', 'Role as opções para baixo e selecione "Adicionar à Tela de Início".'),
               const SizedBox(height: 10),
-              _buildStep('3', 'Toque em "Adicionar" no canto superior direito.'),
+              _buildStep('3', 'Toque em "Adicionar" no canto superior direito da janela.'),
             ],
           ],
         ),

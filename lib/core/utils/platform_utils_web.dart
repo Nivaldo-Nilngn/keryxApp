@@ -5,18 +5,46 @@ import 'dart:typed_data';
 
 const kWorkerBase = 'https://keryx-version.nivaldo-nilngn.workers.dev';
 
-/// Detecta se o cliente é iOS ou iPadOS (incluindo iPads que se anunciam como Macintosh)
-bool isIosClient() {
+/// Detecta se o cliente é iPad (iPadOS com Safari Desktop-Class ou emulação de iPad)
+bool isIpadClient() {
+  final ua = (html.window.navigator.userAgent).toLowerCase();
+  final platform = (html.window.navigator.platform ?? '').toLowerCase();
+  final touchPoints = html.window.navigator.maxTouchPoints ?? 0;
+
+  // 1. Explicitamente contém "ipad" no UserAgent ou Platform
+  if (ua.contains('ipad') || platform.contains('ipad')) {
+    return true;
+  }
+
+  // 2. iPadOS moderno (Safari Desktop-Class que se anuncia como Macintosh)
+  // No iPadOS real, a Apple envia platform 'MacIntel' com maxTouchPoints > 0
+  if ((ua.contains('macintosh') || platform.contains('macintel')) && touchPoints > 0) {
+    return true;
+  }
+
+  // 3. Emulação no Chrome DevTools com perfil de iPad / Tablet Apple
+  final isApple = ua.contains('macintosh') || platform.contains('macintel') || ua.contains('apple');
+  if (isApple && (ua.contains('mobile') || ua.contains('tablet') || touchPoints >= 1)) {
+    return true;
+  }
+
+  return false;
+}
+
+/// Detecta se o cliente é iPhone ou iPod
+bool isIphoneClient() {
   final ua = (html.window.navigator.userAgent).toLowerCase();
   final platform = (html.window.navigator.platform ?? '').toLowerCase();
 
   return ua.contains('iphone') ||
-      ua.contains('ipad') ||
       ua.contains('ipod') ||
       platform.contains('iphone') ||
-      platform.contains('ipad') ||
-      platform.contains('ipod') ||
-      (ua.contains('macintosh') && (html.window.navigator.maxTouchPoints ?? 0) > 1);
+      platform.contains('ipod');
+}
+
+/// Detecta se o cliente é dispositivo Apple (iPhone ou iPad)
+bool isIosClient() {
+  return isIphoneClient() || isIpadClient();
 }
 
 /// Detecta se o cliente é Android

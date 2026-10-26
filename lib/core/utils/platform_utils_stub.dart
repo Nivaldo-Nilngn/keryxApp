@@ -3,22 +3,22 @@ import 'package:flutter/foundation.dart';
 
 const kWorkerBase = 'https://keryx-version.nivaldo-nilngn.workers.dev';
 
-bool isIosClient() {
-  return defaultTargetPlatform == TargetPlatform.iOS;
-}
+bool isIpadClient() => false;
 
-bool isAndroidClient() {
-  return defaultTargetPlatform == TargetPlatform.android;
-}
+bool isIphoneClient() => defaultTargetPlatform == TargetPlatform.iOS;
+
+bool isIosClient() => defaultTargetPlatform == TargetPlatform.iOS;
+
+bool isAndroidClient() => defaultTargetPlatform == TargetPlatform.android;
 
 bool isStandalonePwa() => false;
 
 bool isInAppBrowser() => false;
 
 void downloadFile(String url, {String fileName = 'keryxApp.apk'}) {
-  // Em plataformas não-web (Android/iOS), o download é gerenciado nativamente
+  // Em plataformas não-web, tratado nativamente
 }
 
 void downloadBytes(Uint8List bytes, String fileName, String mimeType) {
-  // Em plataformas não-web, tratado por serviços de arquivo locais
+  // Em plataformas não-web, tratado nativamente
 }
