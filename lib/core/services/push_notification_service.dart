@@ -5,6 +5,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
@@ -16,6 +18,17 @@ const _androidChannel = AndroidNotificationChannel(
   'keryx_app_notifications',
   'Notificações Keryx',
   description: 'Notificações de avisos, downloads e novidades do KeryxApp',
+  importance: Importance.max,
+  playSound: true,
+  enableVibration: true,
+  showBadge: true,
+);
+
+/// Configuração do canal de Devocional Diário no Android
+const _devotionalChannel = AndroidNotificationChannel(
+  'keryx_devotional_channel',
+  'Devocional Diário',
+  description: 'Lembretes matinais diários do Devocional e Palavra do Dia',
   importance: Importance.max,
   playSound: true,
   enableVibration: true,
@@ -110,22 +123,36 @@ class PushNotificationService {
     // 9. Trata clique na notificação em segundo plano
     _subscriptions.add(FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('📱 App aberto via notificação: ${message.data}');
-      if (message.data['type'] == 'app_update') {
+      if (message.data['type'] == 'app_update' || message.data['type'] == 'devocional') {
         _ref.read(navigationProvider.notifier).setIndex(0);
       }
     }));
+
+    // 10. Inicializa fuso horário e agenda notificação nativa diária do Devocional matinal
+    if (!kIsWeb) {
+      try {
+        tz.initializeTimeZones();
+        try {
+          tz.setLocalLocation(tz.getLocation('America/Sao_Paulo'));
+        } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ Erro ao inicializar timezone: $e');
+      }
+      await scheduleDailyDevotionalNotification();
+    }
   }
 
-  /// Cria o canal no Android 8.0+
+  /// Cria os canais no Android 8.0+
   Future<void> _createNotificationChannel() async {
     if (kIsWeb) return;
     try {
-      await localNotificationsPlugin
+      final androidImpl = localNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(_androidChannel);
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidImpl?.createNotificationChannel(_androidChannel);
+      await androidImpl?.createNotificationChannel(_devotionalChannel);
     } catch (e) {
-      debugPrint('⚠️ Erro ao criar canal de notificação: $e');
+      debugPrint('⚠️ Erro ao criar canais de notificação: $e');
     }
   }
 
@@ -170,11 +197,75 @@ class PushNotificationService {
       if (id != null) {
         checkAndMarkAsNotified(id.toString());
       }
-      if (data['type'] == 'app_update') {
+      if (data['type'] == 'app_update' || data['type'] == 'devocional') {
         _ref.read(navigationProvider.notifier).setIndex(0);
       }
     } catch (e) {
       debugPrint('❌ Erro ao processar payload do clique: $e');
+    }
+  }
+
+  /// Agenda a notificação nativa matinal diária do Devocional (padrão: 07:00 da manhã)
+  /// Dispara pontualmente no horário local todos os dias através do AlarmManager nativo.
+  Future<void> scheduleDailyDevotionalNotification({
+    int hour = 7,
+    int minute = 0,
+    String? customTitle,
+    String? customBody,
+  }) async {
+    if (kIsWeb) return;
+
+    try {
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduledDate = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+      );
+
+      // Se o horário de hoje já passou, agenda a partir de amanhã
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+
+      await localNotificationsPlugin.zonedSchedule(
+        id: 777,
+        title: customTitle ?? '🌅 Devocional Diário • Bom dia!',
+        body: customBody ??
+            'Comece o seu dia com a Palavra de Deus. Toque para ler o versículo e a reflexão de hoje.',
+        scheduledDate: scheduledDate,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'keryx_devotional_channel',
+            'Devocional Diário',
+            channelDescription:
+                'Lembretes matinais diários do Devocional e Palavra do Dia',
+            importance: Importance.max,
+            priority: Priority.max,
+            icon: '@mipmap/launcher_icon',
+            ticker: 'Devocional Diário',
+            enableVibration: true,
+            playSound: true,
+            category: AndroidNotificationCategory.reminder,
+            visibility: NotificationVisibility.public,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: jsonEncode({'type': 'devocional'}),
+      );
+      debugPrint(
+          '⏰ Devocional matinal agendado para às ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} com repetição diária!');
+    } catch (e) {
+      debugPrint('⚠️ Erro ao agendar notificação diária do devocional: $e');
     }
   }
 

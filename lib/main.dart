@@ -36,6 +36,7 @@ import 'core/services/notification_service.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/community_notification_listener.dart';
 import 'features/home/view_model/notifications_provider.dart';
+import 'features/home/service/devocional_service.dart';
 
 /// Handler obrigatório de segundo plano para processar notificações do Firebase
 @pragma('vm:entry-point')
@@ -176,6 +177,17 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
               versionName: info.versionName,
               releaseNotes: info.releaseNotes,
               downloadUrl: info.downloadUrl,
+            );
+      }
+    });
+
+    // Atualiza a notificação diária matinal com o versículo e título do devocional de hoje
+    ref.listen<AsyncValue<DevocionalData?>>(devocionalDiarioProvider, (prev, next) {
+      final dev = next.valueOrNull;
+      if (dev != null && dev.title.isNotEmpty) {
+        ref.read(pushNotificationServiceProvider).scheduleDailyDevotionalNotification(
+              customTitle: '🌅 Devocional: ${dev.title}',
+              customBody: '${dev.verse} — ${dev.verseReference}',
             );
       }
     });
