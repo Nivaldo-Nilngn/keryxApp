@@ -31,6 +31,9 @@ import 'features/access_control/service/access_control_service.dart';
 import 'features/access_control/state/access_control_providers.dart';
 import 'features/access_control/view/pending_approval_screen.dart';
 import 'features/access_control/view/update_required_screen.dart';
+import 'core/services/notification_service.dart';
+import 'core/services/push_notification_service.dart';
+import 'core/services/community_notification_listener.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,6 +90,15 @@ class _KeryxAppState extends ConsumerState<KeryxApp> {
   NavbarRouteObserver? _navbarObserver;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(pushNotificationServiceProvider).initialize();
+      ref.read(communityNotificationListenerProvider).startListening();
+    });
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Inicializa o observer apenas uma vez, com o container do ProviderScope
@@ -114,6 +126,7 @@ class _KeryxAppState extends ConsumerState<KeryxApp> {
     }
 
     return MaterialApp(
+      scaffoldMessengerKey: ref.watch(scaffoldMessengerKeyProvider),
       navigatorObservers: [if (_navbarObserver != null) _navbarObserver!],
       builder: (context, child) {
         return NotificationListener<ScrollNotification>(
@@ -178,9 +191,11 @@ class AppInitializer extends StatelessWidget {
         'Quase lá...',
       ],
       initFuture: () async {
-        // Copia strongV2.db do asset para o filesystem (somente na 1ª vez).
-        // Nas próximas inicializações o arquivo já existe e abre instantâneo.
-        await DatabaseService().getStrongDatabase();
+        // No Mobile/Desktop, inicializa o Strong se necessário.
+        // No Web, o Strong carrega sob demanda (lazy) para inicialização instantânea da página.
+        if (!kIsWeb) {
+          await DatabaseService().getStrongDatabase();
+        }
       },
       onReady: () {
         Navigator.of(context).pushReplacement(

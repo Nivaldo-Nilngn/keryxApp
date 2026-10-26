@@ -157,25 +157,30 @@ final currentChapterProvider =
       );
     });
 
-/// Parâmetros para comparação de versículos
+/// Parâmetros para comparação de versículos (suporta um ou múltiplos versículos)
 typedef CompareParams = ({
   String bookId,
   int chapter,
-  int verse,
+  String versesStr,
   String versionsStr,
 });
 
-// Provider para comparar um versículo em múltiplas versões
+// Provider para comparar versículos em múltiplas versões
 final compareVersesProvider =
     FutureProvider.family<List<Map<String, dynamic>>, CompareParams>((
       ref,
       params,
     ) async {
       final bibleService = ref.watch(bibleServiceProvider);
+      final verses = params.versesStr
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toList();
       return bibleService.getVerseAcrossVersions(
         bookId: params.bookId,
         chapter: params.chapter,
-        verse: params.verse,
+        verses: verses.isEmpty ? [1] : verses,
         versions: params.versionsStr.split(','),
       );
     });
@@ -730,6 +735,26 @@ class HighlightsNotifier extends StateNotifier<Map<String, int>> {
       }
     }
   }
+
+  Future<void> clearAll() async {
+    state = {};
+    if (userId != null) {
+      try {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('highlights')
+            .get();
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      } catch (e) {
+        debugPrint('Erro ao limpar highlights: $e');
+      }
+    }
+  }
 }
 
 // Estado para versículos favoritos (chave = "Livro_Capitulo_Versiculo")
@@ -790,6 +815,26 @@ class FavoritesNotifier extends StateNotifier<Set<String>> {
             .collection('favorites')
             .doc(key)
             .set({'updatedAt': FieldValue.serverTimestamp()});
+      }
+    }
+  }
+
+  Future<void> clearAll() async {
+    state = {};
+    if (userId != null) {
+      try {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('favorites')
+            .get();
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      } catch (e) {
+        debugPrint('Erro ao limpar favoritos: $e');
       }
     }
   }
@@ -858,6 +903,26 @@ class AnnotationsNotifier extends StateNotifier<Map<String, String>> {
             .collection('annotations')
             .doc(key)
             .delete();
+      }
+    }
+  }
+
+  Future<void> clearAll() async {
+    state = {};
+    if (userId != null) {
+      try {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('annotations')
+            .get();
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      } catch (e) {
+        debugPrint('Erro ao limpar annotations: $e');
       }
     }
   }
@@ -962,6 +1027,22 @@ class LastReadNotifier extends StateNotifier<LastReadData?> {
 
     // Registra atividade na jornada do usuário
     await JourneyNotifier.recordActivityStatic();
+  }
+
+  Future<void> clear() async {
+    state = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('lastRead');
+    if (userId != null) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'lastRead': FieldValue.delete(),
+          'lastReadAt': FieldValue.delete(),
+        });
+      } catch (e) {
+        debugPrint('Erro ao limpar last read no Firebase: $e');
+      }
+    }
   }
 
   Future<void> _saveLocal(LastReadData data) async {

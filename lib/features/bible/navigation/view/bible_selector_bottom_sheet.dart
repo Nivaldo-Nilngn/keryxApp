@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:keryx_app/core/widgets/responsive_layout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/core/constants/bible_metadata.dart';
-import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/features/bible/model/bible_model.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
@@ -21,6 +20,7 @@ class BibleSelectorBottomSheet extends ConsumerStatefulWidget {
   final SelectorStage? initialStage;
   final Set<int>? allowedBookIds;
   final String? commentaryFilename;
+  final bool fullSelection;
 
   const BibleSelectorBottomSheet({
     super.key,
@@ -30,6 +30,7 @@ class BibleSelectorBottomSheet extends ConsumerStatefulWidget {
     this.initialStage,
     this.allowedBookIds,
     this.commentaryFilename,
+    this.fullSelection = false,
   });
 
   @override
@@ -166,8 +167,9 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
       ref.read(selectedVersionProvider.notifier).setVersion(version);
     });
 
-    if (widget.initialStage == SelectorStage.versions || 
-        (widget.initialBook != null && widget.initialChapter != null)) {
+    if (!widget.fullSelection && 
+        (widget.initialStage == SelectorStage.versions || 
+         (widget.initialBook != null && widget.initialChapter != null))) {
       Navigator.of(context).pop((
         book: widget.initialBook ?? BibleBook(id: 1, name: 'Gênesis', abbrev: 'gn', author: 'Moisés', group: 'Pentateuco', chapters: 50),
         chapter: widget.initialChapter ?? 1,
@@ -198,6 +200,11 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
     if (details == null) return;
 
     if (ResponsiveLayout.isExpanded(context) || ResponsiveLayout.isMedium(context)) {
+      if (!widget.fullSelection && _selectedChapterForVerse == chapter) {
+        // Tocar no capítulo já selecionado no tablet abre o capítulo diretamente apenas quando não estiver em seleção completa
+        _finishSelection(chapter, null);
+        return;
+      }
       setState(() {
         _selectedChapterForVerse = chapter;
       });
@@ -261,6 +268,27 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
     );
   }
 
+  bool get _canGoBack {
+    if (_stage == SelectorStage.verses) return true;
+    if (_stage == SelectorStage.chapters) return true;
+    if (_stage == SelectorStage.books) {
+      return widget.fullSelection || widget.initialStage == SelectorStage.versions;
+    }
+    return false;
+  }
+
+  void _goBack() {
+    setState(() {
+      if (_stage == SelectorStage.verses) {
+        _stage = SelectorStage.chapters;
+      } else if (_stage == SelectorStage.chapters) {
+        _stage = SelectorStage.books;
+      } else if (_stage == SelectorStage.books) {
+        _stage = SelectorStage.versions;
+      }
+    });
+  }
+
   Widget _buildHeader() {
     String title = '';
     String subtitle = '';
@@ -271,36 +299,103 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
         break;
       case SelectorStage.books:
         title = 'Escolher livro';
-        subtitle = 'Toque em um livro para abrir a seleção de capítulos.';
+        subtitle = 'Versão: ${_selectedVersion ?? 'Padrão'} • Toque em um livro para continuar';
         break;
       case SelectorStage.chapters:
         title = 'Escolher capítulo';
-        subtitle = _selectedBookName ?? 'Capítulos';
+        final isTablet = ResponsiveLayout.isExpanded(context) || ResponsiveLayout.isMedium(context);
+        subtitle = isTablet
+            ? '${_selectedBookName ?? 'Livro'} • Selecione o capítulo e versículo'
+            : '${_selectedBookName ?? 'Livro'} • Toque em um capítulo';
         break;
       case SelectorStage.verses:
         title = 'Escolher versículo';
-        subtitle = _selectedBookName ?? 'Versículos';
+        subtitle = '${_selectedBookName ?? 'Livro'} $_selectedChapterForVerse • Toque no versículo desejado';
         break;
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          if (_canGoBack) ...[
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.arrow_back, size: 18, color: Theme.of(context).colorScheme.onSurface),
+              ),
+              tooltip: 'Voltar',
+              onPressed: _goBack,
+            ),
+            const SizedBox(width: 4),
+          ] else
+            const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 20, 
+                          fontWeight: FontWeight.bold, 
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_selectedVersion != null && _stage != SelectorStage.versions) ...[
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _stage = SelectorStage.versions;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _selectedVersion!,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.swap_horiz, size: 12, color: Theme.of(context).colorScheme.primary),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                  style: TextStyle(
+                    fontSize: 13, 
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -314,6 +409,7 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
               ),
               child: Icon(Icons.close, size: 16, color: Theme.of(context).colorScheme.onSurface),
             ),
+            tooltip: 'Fechar',
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -514,7 +610,7 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
     if (widget.commentaryFilename == null && allowedIds == null) {
       // It's the bible selector, fetch dynamically
       final availableBibleBooks = ref.read(booksProvider).valueOrNull?.map((b) => b.id).toSet();
-      if (availableBibleBooks != null) {
+      if (availableBibleBooks != null && availableBibleBooks.isNotEmpty) {
         allowedIds = availableBibleBooks.whereType<int>().toSet();
       }
     }
@@ -566,7 +662,6 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Material(
                   color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
@@ -605,61 +700,68 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
   }
 
   Widget _buildVersesGrid() {
-    if (_selectedChapterForVerse == null) {
+    if (_selectedChapterForVerse == null || _selectedBookId == null) {
       return Center(
         child: Text('Selecione um capítulo', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)))
       );
     }
 
-    return FutureBuilder<BibleChapter>(
-      future: ref.read(bibleServiceProvider).getChapter(
-        _selectedVersion ?? 'NVI',
-        BibleMetadata.bookDetails[_selectedBookId!]!['abbrev'], 
-        _selectedChapterForVerse!, 
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return Center(child: Text('Erro', style: TextStyle(color: Theme.of(context).colorScheme.error)));
-        }
-        final chapterData = snapshot.data!;
-        final isTablet = ResponsiveLayout.isExpanded(context) || ResponsiveLayout.isMedium(context);
-        return GridView.builder(
-          key: const ValueKey('verses_grid'),
-          padding: EdgeInsets.fromLTRB(24, 8, 24, 48 + MediaQuery.of(context).padding.bottom),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isTablet ? 4 : 4,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+    final verseCount = BibleMetadata.getVerseCount(_selectedBookId!, _selectedChapterForVerse!);
+    final isTablet = ResponsiveLayout.isExpanded(context) || ResponsiveLayout.isMedium(context);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(42),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)),
+            ),
+            icon: Icon(Icons.menu_book, size: 18, color: Theme.of(context).colorScheme.primary),
+            label: Text(
+              'Inserir Capítulo $_selectedChapterForVerse inteiro',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+            ),
+            onPressed: () => _finishSelection(_selectedChapterForVerse!, null),
           ),
-          itemCount: chapterData.verses.length,
-          itemBuilder: (context, index) {
-            final verse = chapterData.verses[index].number;
-            return InkWell(
-              onTap: () => _finishSelection(_selectedChapterForVerse!, verse),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$verse',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold, 
-                    fontSize: 16,
-                    color: Theme.of(context).colorScheme.onSurface,
+        ),
+        Expanded(
+          child: GridView.builder(
+            key: ValueKey('verses_grid_${_selectedBookId}_$_selectedChapterForVerse'),
+            padding: EdgeInsets.fromLTRB(24, 0, 24, 48 + MediaQuery.of(context).padding.bottom),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isTablet ? 4 : 4,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+            ),
+            itemCount: verseCount,
+            itemBuilder: (context, index) {
+              final verse = index + 1;
+              return InkWell(
+                onTap: () => _finishSelection(_selectedChapterForVerse!, verse),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$verse',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -804,38 +906,43 @@ class _BibleSelectorBottomSheetState extends ConsumerState<BibleSelectorBottomSh
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.only(left: 24.0, bottom: 8.0),
-                child: Text('Versículo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7))),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Versículo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7))),
+                    if (_selectedChapterForVerse != null)
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.menu_book, size: 16),
+                        label: Text('Capítulo $_selectedChapterForVerse inteiro', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        onPressed: () => _finishSelection(_selectedChapterForVerse!, null),
+                      ),
+                  ],
+                ),
               ),
               Expanded(
-                child: _selectedChapterForVerse == null 
+                child: _selectedChapterForVerse == null || _selectedBookId == null
                 ? Center(
                     child: Text('Selecione um capítulo', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)))
                   )
-                : FutureBuilder<BibleChapter>(
-                    future: ref.read(bibleServiceProvider).getChapter(
-                      _selectedVersion ?? 'NVI',
-                      BibleMetadata.bookDetails[_selectedBookId!]!['abbrev'], 
-                      _selectedChapterForVerse!, 
-                    ),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError || !snapshot.hasData) {
-                        return Center(child: Text('Erro', style: TextStyle(color: Theme.of(context).colorScheme.error)));
-                      }
-                      final chapterData = snapshot.data!;
+                : Builder(
+                    builder: (context) {
+                      final verseCount = BibleMetadata.getVerseCount(_selectedBookId!, _selectedChapterForVerse!);
                       return GridView.builder(
+                        key: ValueKey('verses_tablet_${_selectedBookId}_$_selectedChapterForVerse'),
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 4,
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
                         ),
-                        itemCount: chapterData.verses.length,
+                        itemCount: verseCount,
                         itemBuilder: (context, index) {
-                          final verse = chapterData.verses[index].number;
+                          final verse = index + 1;
                           return InkWell(
                             onTap: () => _finishSelection(_selectedChapterForVerse!, verse),
                             borderRadius: BorderRadius.circular(16),

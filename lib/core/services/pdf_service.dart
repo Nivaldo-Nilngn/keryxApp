@@ -354,6 +354,51 @@ class PdfService {
     }
     return [];
   }
+
+  /// Remove todos os PDFs e e-books baixados localmente e limpa caches e progresso
+  Future<void> clearAllDownloadedPdfs() async {
+    if (kIsWeb) {
+      TelegramHttpDownloadService.webBytesCache.clear();
+      TelegramHttpDownloadService.webDataUrlCache.clear();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final list = prefs.getStringList(_webDownloadedKey) ?? [];
+        for (final fileName in list) {
+          final clean = fileName.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
+          await prefs.remove('web_pdf_file_id_$fileName');
+          await prefs.remove('web_pdf_file_id_$clean');
+          await prefs.remove('pdf_progress_${fileName}_page');
+          await prefs.remove('pdf_progress_${clean}_page');
+          await prefs.remove('pdf_progress_${fileName}_bookmarks');
+          await prefs.remove('pdf_progress_${clean}_bookmarks');
+        }
+        await prefs.remove(_webDownloadedKey);
+      } catch (_) {}
+    } else {
+      try {
+        final dir = await _pdfDir;
+        if (await dir.exists()) {
+          final files = await dir.list().toList();
+          for (final f in files) {
+            try {
+              await f.delete();
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    }
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'cloudPdfs': [],
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('⚠️ Erro ao limpar cloudPdfs no Firestore: $e');
+      }
+    }
+  }
 }
 
 /// Gerenciador Global de Downloads desacoplado da vida útil de qualquer tela

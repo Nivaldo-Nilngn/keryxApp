@@ -16,10 +16,15 @@ import 'package:keryx_app/features/bible/reading/view/commentary_reader_screen.d
 import 'package:keryx_app/features/store/view/store_screen.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
+import 'package:flutter/services.dart';
+import 'package:keryx_app/features/study/model/note_card.dart';
+import 'package:keryx_app/features/study/view_model/note_cards_provider.dart';
+import 'package:keryx_app/features/study/view/annotations_screen.dart';
 
 // ─── Providers de Estado do Hub de Estudos ────────────────────────────────────
 // 0: Comentários Bíblicos (Módulos MyBible)
-// 1: Análise Teológica com IA
+// 1: Minhas Anotações (Caderno de Estudo do Versículo)
+// 2: Análise Teológica com IA
 final _studyHubTabProvider = StateProvider.autoDispose<int>((ref) => 0);
 
 final _selectedSheetCommentaryProvider = StateProvider.autoDispose<String>(
@@ -30,11 +35,70 @@ final _aiAnalysisRequestedProvider = StateProvider.autoDispose<bool>(
   (ref) => false,
 );
 
-class StudyHubPanel extends ConsumerWidget {
-  const StudyHubPanel({super.key});
+class StudyHubPanel extends ConsumerStatefulWidget {
+  final int initialTab;
+  final void Function(int targetBookId, int targetChapter, int targetVerse)?
+  onNavigateToVerse;
+
+  const StudyHubPanel({
+    super.key,
+    this.initialTab = 0,
+    this.onNavigateToVerse,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StudyHubPanel> createState() => _StudyHubPanelState();
+}
+
+class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
+  late TextEditingController _notesController;
+  bool _isNoteDirty = false;
+  String? _lastVerseKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _notesController = TextEditingController();
+    _notesController.addListener(_onNoteChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(_studyHubTabProvider.notifier).state = widget.initialTab;
+    });
+  }
+
+  void _onNoteChanged() {
+    if (!_isNoteDirty && mounted) {
+      setState(() => _isNoteDirty = true);
+    }
+  }
+
+  @override
+  void deactivate() {
+    _flushNotesIfDirty();
+    super.deactivate();
+  }
+
+  void _flushNotesIfDirty() {
+    if (_isNoteDirty && _lastVerseKey != null) {
+      _isNoteDirty = false;
+      final text = _notesController.text.trim();
+      ref.read(annotationsProvider.notifier).saveAnnotation(_lastVerseKey!, text);
+      if (text.isNotEmpty) {
+        ref.read(noteCardsProvider.notifier).save(NoteCard.fromLegacy(_lastVerseKey!, text));
+      } else {
+        ref.read(noteCardsProvider.notifier).delete(_lastVerseKey!);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _notesController.removeListener(_onNoteChanged);
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final selectionState = ref.watch(readingSelectionProvider);
     final currentBook = selectionState.book;
@@ -63,6 +127,14 @@ class StudyHubPanel extends ConsumerWidget {
     final verses = verseNums
         .map((v) => chapterData.verses.firstWhere((element) => element.number == v))
         .toList();
+
+    final verseKey = "${currentBook.name}_${currentChapter}_${verses.first.number}";
+    if (_lastVerseKey != verseKey) {
+      _lastVerseKey = verseKey;
+      final savedNote = ref.read(annotationsProvider)[verseKey] ?? '';
+      _notesController.text = savedNote;
+      _isNoteDirty = false;
+    }
 
     final bookIdInt = BibleMetadata.findBookId(currentBook.abbrev);
     final allMetas = ref.watch(
@@ -249,16 +321,16 @@ class StudyHubPanel extends ConsumerWidget {
                             children: [
                               Icon(
                                 Icons.auto_stories_rounded,
-                                size: 16,
+                                size: 15,
                                 color: activeTab == 0
                                     ? AppTheme.kPrimaryGold
                                     : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
                               ),
-                              const SizedBox(width: 7),
+                              const SizedBox(width: 5),
                               Text(
                                 'Comentários',
                                 style: GoogleFonts.outfit(
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: activeTab == 0 ? FontWeight.bold : FontWeight.w500,
                                   color: activeTab == 0
                                       ? (isDark ? Colors.white : Colors.black87)
@@ -266,9 +338,9 @@ class StudyHubPanel extends ConsumerWidget {
                                 ),
                               ),
                               if (downloadedMetas.isNotEmpty) ...[
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 4),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                   decoration: BoxDecoration(
                                     color: activeTab == 0
                                         ? AppTheme.kPrimaryGold.withValues(alpha: 0.2)
@@ -280,7 +352,7 @@ class StudyHubPanel extends ConsumerWidget {
                                         ? '...'
                                         : '${relevantMetas.length}',
                                     style: TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 9,
                                       fontWeight: FontWeight.bold,
                                       color: activeTab == 0
                                           ? AppTheme.kPrimaryGold
@@ -296,7 +368,7 @@ class StudyHubPanel extends ConsumerWidget {
                     ),
                   ),
 
-                  // Aba 1: Análise com IA
+                  // Aba 1: Minhas Anotações
                   Expanded(
                     child: GestureDetector(
                       onTap: () => ref.read(_studyHubTabProvider.notifier).state = 1,
@@ -322,19 +394,80 @@ class StudyHubPanel extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.auto_awesome,
+                                Icons.edit_note_rounded,
                                 size: 16,
                                 color: activeTab == 1
                                     ? AppTheme.kPrimaryGold
                                     : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
                               ),
-                              const SizedBox(width: 7),
+                              const SizedBox(width: 5),
                               Text(
-                                'Análise com IA',
+                                'Anotações',
                                 style: GoogleFonts.outfit(
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: activeTab == 1 ? FontWeight.bold : FontWeight.w500,
                                   color: activeTab == 1
+                                      ? (isDark ? Colors.white : Colors.black87)
+                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                ),
+                              ),
+                              if (ref.watch(annotationsProvider)[verseKey]?.trim().isNotEmpty == true) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: AppTheme.kPrimaryGold,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Aba 2: Análise com IA
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => ref.read(_studyHubTabProvider.notifier).state = 2,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: activeTab == 2
+                              ? (isDark ? const Color(0xFF23263A) : Colors.white)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: activeTab == 2
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.12),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome,
+                                size: 15,
+                                color: activeTab == 2
+                                    ? AppTheme.kPrimaryGold
+                                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'IA Teológica',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 12,
+                                  fontWeight: activeTab == 2 ? FontWeight.bold : FontWeight.w500,
+                                  color: activeTab == 2
                                       ? (isDark ? Colors.white : Colors.black87)
                                       : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                 ),
@@ -355,19 +488,29 @@ class StudyHubPanel extends ConsumerWidget {
           // ─── 4. Corpo do Painel ─────────────────────────────────────────────
           Expanded(
             child: activeTab == 1
-                ? _buildAIContent(context, ref, currentBook, currentChapter, verses)
-                : _buildCommentariesTab(
+                ? _buildAnnotationsTab(
                     context,
                     ref,
-                    downloadedMetas,
-                    relevantMetas,
-                    activeMeta,
-                    isCheckingCoverage,
                     currentBook,
                     currentChapter,
                     verses,
-                    bookIdInt,
-                  ),
+                    verseKey,
+                    activeMeta,
+                  )
+                : activeTab == 2
+                    ? _buildAIContent(context, ref, currentBook, currentChapter, verses)
+                    : _buildCommentariesTab(
+                        context,
+                        ref,
+                        downloadedMetas,
+                        relevantMetas,
+                        activeMeta,
+                        isCheckingCoverage,
+                        currentBook,
+                        currentChapter,
+                        verses,
+                        bookIdInt,
+                      ),
           ),
         ],
       ),
@@ -1004,11 +1147,21 @@ class StudyHubPanel extends ConsumerWidget {
                             : '$currentNote\n\n--- [${meta.name}] ---\n$cleanSnippet';
 
                         ref.read(annotationsProvider.notifier).saveAnnotation(verseKey, newNote);
+                        ref.read(noteCardsProvider.notifier).save(NoteCard.fromLegacy(verseKey, newNote));
+                        _notesController.text = newNote;
+                        setState(() => _isNoteDirty = false);
 
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Nota salva em Anotações com sucesso!'),
-                            backgroundColor: Color(0xFF10B981),
+                          SnackBar(
+                            content: const Text('Comentário salvo em suas Anotações!'),
+                            backgroundColor: const Color(0xFF10B981),
+                            action: SnackBarAction(
+                              label: 'Ver Anotação',
+                              textColor: Colors.white,
+                              onPressed: () {
+                                ref.read(_studyHubTabProvider.notifier).state = 1;
+                              },
+                            ),
                           ),
                         );
                       },
@@ -1249,16 +1402,27 @@ class StudyHubPanel extends ConsumerWidget {
                       onPressed: () {
                         final verseKey = "${currentBook.name}_${currentChapter}_${verses.first.number}";
                         final currentNote = ref.read(annotationsProvider)[verseKey] ?? '';
+                        final cleanText = text.trim();
                         final newNote = currentNote.isEmpty
-                            ? '--- [Análise Teológica IA] ---\n$text'
-                            : '$currentNote\n\n--- [Análise Teológica IA] ---\n$text';
+                            ? '--- [Análise Teológica IA] ---\n$cleanText'
+                            : '$currentNote\n\n--- [Análise Teológica IA] ---\n$cleanText';
 
                         ref.read(annotationsProvider.notifier).saveAnnotation(verseKey, newNote);
+                        ref.read(noteCardsProvider.notifier).save(NoteCard.fromLegacy(verseKey, newNote));
+                        _notesController.text = newNote;
+                        setState(() => _isNoteDirty = false);
 
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Insights da IA salvos em Anotações!'),
-                            backgroundColor: Color(0xFF10B981),
+                          SnackBar(
+                            content: const Text('Insights da IA salvos em Anotações!'),
+                            backgroundColor: const Color(0xFF10B981),
+                            action: SnackBarAction(
+                              label: 'Ver Anotação',
+                              textColor: Colors.white,
+                              onPressed: () {
+                                ref.read(_studyHubTabProvider.notifier).state = 1;
+                              },
+                            ),
                           ),
                         );
                       },
@@ -1466,6 +1630,350 @@ class StudyHubPanel extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // ABA 1: MINHAS ANOTAÇÕES (ÁREA DE ESTUDOS DO VERSÍCULO)
+  // ══════════════════════════════════════════════════════════════════════════════
+  Widget _buildAnnotationsTab(
+    BuildContext context,
+    WidgetRef ref,
+    BibleBook currentBook,
+    int currentChapter,
+    List<BibleVerse> verses,
+    String verseKey,
+    CommentaryMetadata? activeMeta,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const primaryGold = AppTheme.kPrimaryGold;
+    final verseNum = verses.first.number;
+    final verseText = verses.first.text;
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 10,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ─── 1. Card com o Versículo Citado ────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.04)
+                  : Colors.black.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: primaryGold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${currentBook.name} $currentChapter:$verseNum',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: primaryGold,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    InkWell(
+                      onTap: () {
+                        final quote = '> "$verseText"\n— ${currentBook.name} $currentChapter:$verseNum\n\n';
+                        if (_notesController.text.contains(verseText)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Este versículo já está citado na anotação.'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                          return;
+                        }
+                        final newText = quote + _notesController.text;
+                        _notesController.text = newText;
+                        setState(() => _isNoteDirty = true);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.format_quote_rounded, size: 14, color: primaryGold),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Citar no texto',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: primaryGold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '"$verseText"',
+                  style: GoogleFonts.merriweather(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    height: 1.5,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                  ),
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ─── 2. Barra de Status da Anotação ────────────────────────────────
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _isNoteDirty
+                      ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                      : (_notesController.text.trim().isNotEmpty
+                          ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: _isNoteDirty
+                            ? const Color(0xFFF59E0B)
+                            : (_notesController.text.trim().isNotEmpty
+                                ? const Color(0xFF10B981)
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isNoteDirty
+                          ? 'Modificações não salvas'
+                          : (_notesController.text.trim().isNotEmpty
+                              ? 'Anotação salva'
+                              : 'Nova anotação'),
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _isNoteDirty
+                            ? const Color(0xFFF59E0B)
+                            : (_notesController.text.trim().isNotEmpty
+                                ? const Color(0xFF10B981)
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              if (_notesController.text.trim().isNotEmpty) ...[
+                IconButton(
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  tooltip: 'Copiar anotação',
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: _notesController.text));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Anotação copiada para a área de transferência!'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                  tooltip: 'Excluir anotação',
+                  onPressed: () => _confirmDeleteAnnotation(context, ref, verseKey),
+                ),
+              ],
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // ─── 3. Área de Edição (Caderno de Estudo) ─────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF161822)
+                  : Colors.grey.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _isNoteDirty
+                    ? primaryGold.withValues(alpha: 0.4)
+                    : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08)),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: TextField(
+              controller: _notesController,
+              maxLines: null,
+              minLines: 8,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              style: GoogleFonts.outfit(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 15,
+                height: 1.55,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Escreva aqui suas reflexões, anotações de estudo, orações, comentários pessoais ou sermões sobre este versículo...',
+                hintStyle: GoogleFonts.outfit(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ─── 4. Botão de Salvar Anotação ───────────────────────────────────
+          SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                final text = _notesController.text.trim();
+                ref.read(annotationsProvider.notifier).saveAnnotation(verseKey, text);
+                if (text.isNotEmpty) {
+                  final card = NoteCard.fromLegacy(verseKey, text);
+                  ref.read(noteCardsProvider.notifier).save(card);
+                } else {
+                  ref.read(noteCardsProvider.notifier).delete(verseKey);
+                }
+                setState(() => _isNoteDirty = false);
+                FocusScope.of(context).unfocus();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Anotação salva com sucesso!'),
+                    backgroundColor: Color(0xFF10B981),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: Icon(
+                _isNoteDirty ? Icons.save_rounded : Icons.check_circle_rounded,
+                size: 20,
+              ),
+              label: Text(
+                _isNoteDirty ? 'Salvar Anotação' : 'Anotação Salva',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _isNoteDirty ? primaryGold : const Color(0xFF10B981),
+                foregroundColor: Colors.black,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ─── 5. Acesso ao Caderno Geral de Anotações ───────────────────────
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AnnotationsScreen()),
+                );
+              },
+              icon: Icon(
+                Icons.collections_bookmark_outlined,
+                size: 16,
+                color: isDark ? primaryGold : Theme.of(context).colorScheme.primary,
+              ),
+              label: Text(
+                'Abrir todas as Minhas Anotações',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? primaryGold : Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAnnotation(BuildContext context, WidgetRef ref, String verseKey) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Excluir Anotação?', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        content: Text(
+          'Tem certeza que deseja apagar a anotação deste versículo?',
+          style: GoogleFonts.outfit(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(annotationsProvider.notifier).removeAnnotation(verseKey);
+              ref.read(noteCardsProvider.notifier).delete(verseKey);
+              _notesController.clear();
+              setState(() => _isNoteDirty = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Anotação excluída.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Excluir', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
       ),
     );
   }

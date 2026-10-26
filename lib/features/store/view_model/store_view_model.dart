@@ -6,6 +6,7 @@ import 'package:keryx_app/features/store/repository/store_repository.dart';
 import 'package:keryx_app/features/home/view_model/notifications_provider.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
+import 'package:keryx_app/core/services/bible_service.dart';
 
 class StoreState {
   final List<StoreItem> availablePackages;
@@ -204,6 +205,13 @@ class StoreNotifier extends StateNotifier<StoreState> {
       
       if (item.category == StoreCategory.fonts) {
          await CustomFontLoader.loadDownloadedFonts();
+      } else if (item.category == StoreCategory.bibles) {
+        final match = RegExp(r'\(([A-Za-z0-9_\-]+)\)').firstMatch(filename);
+        if (match != null && match.group(1) != null) {
+          BibleService.notifyDatabaseDownloaded(match.group(1));
+        }
+        final key = filename.split('/').last.split('.').first;
+        BibleService.notifyDatabaseDownloaded(key);
       }
       
       _notificationService.addNotification(
@@ -330,6 +338,31 @@ class StoreNotifier extends StateNotifier<StoreState> {
     }
   }
   
+  Future<void> clearAllDownloadedAndCloud() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _repository.clearAll();
+      state = state.copyWith(
+        downloadedFilenames: {},
+        cloudLibrary: {},
+        isLoading: false,
+      );
+      if (userId != null) {
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(userId).set({
+            'cloudLibrary': [],
+          }, SetOptions(merge: true));
+        } catch (e) {
+          debugPrint('⚠️ Erro ao limpar cloudLibrary no Firestore: $e');
+        }
+      }
+      await loadPackages();
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
   Future<void> refresh() async {
     await loadPackages();
   }

@@ -11,9 +11,11 @@ import 'package:keryx_app/features/store/repository/b2_service.dart';
 import 'dart:convert';
 import 'package:archive/archive_io.dart';
 import 'package:keryx_app/core/constants/bible_metadata.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:keryx_app/core/services/database_service.dart';
+import 'package:keryx_app/core/services/bible_service.dart';
+import 'package:keryx_app/core/utils/bible_text_parser.dart';
 
 class StoreRepository {
   static const String _storageDir = 'store';
@@ -321,6 +323,20 @@ class StoreRepository {
           cleanFilename.toUpperCase(),
         ]);
 
+        final abbrMatch = RegExp(r'\(([A-Za-z0-9_\-]+)\)').firstMatch(cleanFilename);
+        if (abbrMatch != null && abbrMatch.group(1) != null) {
+          final abbr = abbrMatch.group(1)!.trim().toUpperCase();
+          aliases.addAll([
+            join(dbPath, '$abbr.sqlite'),
+            join(dbPath, '$abbr.bbl.mybible'),
+            join(dbPath, '$abbr.db'),
+            '$abbr.sqlite',
+            '$abbr.bbl.mybible',
+            '$abbr.db',
+            abbr,
+          ]);
+        }
+
         for (final alias in aliases) {
           try {
             await factory.writeDatabaseBytes(alias, bytes);
@@ -550,6 +566,8 @@ class StoreRepository {
     }
     
     await prefs.setStringList(_prefsKey, list);
+    DatabaseService().invalidateVersion(filename);
+    BibleService.notifyDatabaseDownloaded(filename);
   }
   
   // Caminho local do arquivo baixado (Resolve caminhos relativos ou nomes base)
@@ -727,29 +745,79 @@ class StoreRepository {
     final prefs = await SharedPreferences.getInstance();
     
     if (!kIsWeb) {
-      final dir = await _localStorageDir;
-      final files = await dir.list(recursive: true).toList();
-      
-      for (final file in files) {
-        if (file is File) {
-          await file.delete();
+      try {
+        final dir = await _localStorageDir;
+        if (await dir.exists()) {
+          final files = await dir.list(recursive: true).toList();
+          for (final file in files) {
+            if (file is File) {
+              try {
+                await file.delete();
+              } catch (_) {}
+            }
+          }
         }
+      } catch (e) {
+        debugPrint('⚠️ Erro ao deletar arquivos locais em clearAll: $e');
       }
     } else {
       final downloaded = prefs.getStringList(_prefsKey) ?? [];
       final factory = databaseFactoryFfiWeb;
       final dbPath = await factory.getDatabasesPath();
       for (final item in downloaded) {
-        if (item.endsWith('.sqlite') || item.endsWith('.db') || item.endsWith('.mybible')) {
+        final cleanFilename = item.contains('/') ? item.split('/').last : item;
+        final candidates = <String>{
+          join(dbPath, cleanFilename),
+          cleanFilename,
+          join(dbPath, item),
+          item,
+        };
+
+        String baseName = cleanFilename;
+        for (final ext in ['.bbl.mybible', '.cmt.mybible', '.dct.mybible', '.bok.mybible', '.mybible', '.sqlite', '.db']) {
+          if (baseName.toLowerCase().endsWith(ext)) {
+            baseName = baseName.substring(0, baseName.length - ext.length);
+            break;
+          }
+        }
+        final upperKey = baseName.toUpperCase();
+        candidates.addAll([
+          join(dbPath, '$upperKey.sqlite'),
+          join(dbPath, '$upperKey.bbl.mybible'),
+          join(dbPath, '$upperKey.db'),
+          '$upperKey.sqlite',
+          '$upperKey.bbl.mybible',
+          '$upperKey.db',
+          cleanFilename.toLowerCase(),
+          cleanFilename.toUpperCase(),
+        ]);
+
+        final abbrMatch = RegExp(r'\(([A-Za-z0-9_\-]+)\)').firstMatch(cleanFilename);
+        if (abbrMatch != null && abbrMatch.group(1) != null) {
+          final abbr = abbrMatch.group(1)!.trim().toUpperCase();
+          candidates.addAll([
+            join(dbPath, '$abbr.sqlite'),
+            join(dbPath, '$abbr.bbl.mybible'),
+            join(dbPath, '$abbr.db'),
+            '$abbr.sqlite',
+            '$abbr.bbl.mybible',
+            '$abbr.db',
+            abbr,
+          ]);
+        }
+
+        for (final cand in candidates) {
           try {
-            final base = item.contains('/') ? item.split('/').last : item;
-            await factory.deleteDatabase(join(dbPath, base));
+            await factory.deleteDatabase(cand).timeout(const Duration(milliseconds: 1500));
           } catch (_) {}
         }
       }
     }
     
     await prefs.remove(_prefsKey);
+    BibleService.notifyDatabaseDownloaded(null);
+    BibleService.clearAllCaches();
+    BibleTextParser.clearCache();
     
     debugPrint('🗑️ Todos os downloads foram limpos');
   }

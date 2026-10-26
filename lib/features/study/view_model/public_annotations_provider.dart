@@ -131,6 +131,27 @@ class PublicAnnotationsNotifier extends StateNotifier<AsyncValue<List<NoteCard>>
     } else {
       batch.set(likeRef, {'timestamp': FieldValue.serverTimestamp()});
       batch.update(noteRef, {'likeCount': FieldValue.increment(1)});
+
+      if (note.authorId != null && note.authorId != user.uid) {
+        final notifRef = _db
+            .collection('users')
+            .doc(note.authorId)
+            .collection('notifications')
+            .doc();
+        batch.set(notifRef, {
+          'type': 'like',
+          'title': 'Nova curtida na Comunidade',
+          'body': '${user.displayName ?? 'Alguém'} curtiu sua publicação "${note.title}".',
+          'message': '${user.displayName ?? 'Alguém'} curtiu sua publicação "${note.title}".',
+          'postTitle': note.title,
+          'annotationId': note.id,
+          'fromUserId': user.uid,
+          'fromUserName': user.displayName ?? 'Alguém',
+          'read': false,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
     }
 
     try {

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:keryx_app/core/services/database_service.dart';
 import 'package:keryx_app/core/utils/bible_text_parser.dart';
 import 'package:keryx_app/features/bible/model/bible_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:http/http.dart' as http;
 
@@ -46,13 +48,61 @@ class CommentaryMetadata {
 class BibleService {
   final DatabaseService _dbService = DatabaseService();
 
-  // Cache em memória para evitar requisições repetidas ao servidor (Cloud)
+  // Cache em memória de capítulos locais completos (0ms na leitura e scroll)
+  static final Map<String, BibleChapter> _chapterMemoryCache = {};
   static final Map<String, String?> _commentaryCache = {};
+  static final Map<String, List<BibleVerse>> _cloudChapterCache = {};
+  static final Map<String, String> _verseTextCache = {};
+  static final Map<String, Future<List<BibleVerse>>> _inFlightChapterRequests = {};
+  static final Set<String> _missingLocalDatabases = {};
+  static final Set<String> _emptyCloudVersions = {};
+
+  // Pool de conexões limitando chamadas concorrentes à Cloudflare para no máximo 3
+  static int _activeCloudRequests = 0;
+  static final List<Completer<void>> _cloudRequestQueue = [];
+
+  static Future<T> _runWithCloudflareThrottle<T>(Future<T> Function() action) async {
+    while (_activeCloudRequests >= 3) {
+      final completer = Completer<void>();
+      _cloudRequestQueue.add(completer);
+      await completer.future;
+    }
+    _activeCloudRequests++;
+    try {
+      return await action();
+    } finally {
+      _activeCloudRequests--;
+      if (_cloudRequestQueue.isNotEmpty) {
+        final next = _cloudRequestQueue.removeAt(0);
+        next.complete();
+      }
+    }
+  }
+
+  static void notifyDatabaseDownloaded([String? version]) {
+    if (version != null && version.isNotEmpty) {
+      final key = version.toUpperCase();
+      _missingLocalDatabases.remove(key);
+      _emptyCloudVersions.remove(key);
+    } else {
+      _missingLocalDatabases.clear();
+      _emptyCloudVersions.clear();
+    }
+    _verseTextCache.clear();
+    _chapterMemoryCache.clear();
+  }
+
+  /// Limpa todos os caches de memória do serviço da Bíblia
+  static void clearAllCaches() {
+    notifyDatabaseDownloaded();
+  }
 
   static const List<String> availableVersions = [
     'NVI',
     'ACF',
+    'ARA',
     'ARA_S',
+    'BPT',
     'ARC',
     'NVT',
     'NAA',
@@ -271,10 +321,14 @@ class BibleService {
 
   /// Retorna o banco de dados da versão ou fallback JSON
   Future<Database?> _getDb(String version) async {
+    final key = version.toUpperCase();
+    if (_missingLocalDatabases.contains(key)) {
+      return null;
+    }
     try {
       return await _dbService.getDatabase(version);
     } catch (e) {
-      print("Erro ao acessar SQLite: $e. Usando fallback JSON.");
+      _missingLocalDatabases.add(key);
       return null;
     }
   }
@@ -420,14 +474,20 @@ class BibleService {
   Future<BibleChapter> getChapter(
     String version,
     String bookId,
-    int chapter,
-  ) async {
+    int chapter, {
+    bool isPrefetch = false,
+  }) async {
+    final cacheKey = "${version.toUpperCase()}_${bookId}_$chapter";
+    if (_chapterMemoryCache.containsKey(cacheKey)) {
+      return _chapterMemoryCache[cacheKey]!;
+    }
+
     final bookIndex = _bookIndex(bookId);
     final bookIdInt = bookIndex + 1;
     final bookName = BibleMetadata.getBookName(bookIdInt);
     final metadata = BibleMetadata.getMetadata(bookIdInt);
 
-    // 1. Tenta via SQLite (Rápido - apenas Mobile)
+    // 1. Tenta via SQLite (Rápido - Mobile e Web local)
     final db = await _getDb(version);
     if (db != null) {
       try {
@@ -511,27 +571,18 @@ class BibleService {
           }).toList();
 
           // Re-numeração sequencial se os números estiverem em passos 2 (ex: 2,4,6...)
-          // Bíblia Católica armazena texto nos índices pares, sendo os ímpares espaçadores
-          if (verses.length >= 2 && verses.first.number == 2) {
-            final reNumbered = <BibleVerse>[];
-            int seq = 1;
-            for (final v in verses) {
-              reNumbered.add(BibleVerse(number: seq++, text: v.text, title: v.title));
-            }
-            return BibleChapter(
-              book: BibleBook(
-                abbrev: bookId,
-                name: bookName,
-                author: metadata?['author'] as String? ?? '',
-                group: metadata?['group'] as String? ?? '',
-                chapters: metadata?['chapters'] as int? ?? 0,
-              ),
-              chapterNumber: chapter,
-              verses: reNumbered,
-            );
-          }
+          final finalVerses = (verses.length >= 2 && verses.first.number == 2)
+              ? (() {
+                  final reNumbered = <BibleVerse>[];
+                  int seq = 1;
+                  for (final v in verses) {
+                    reNumbered.add(BibleVerse(number: seq++, text: v.text, title: v.title));
+                  }
+                  return reNumbered;
+                })()
+              : verses;
 
-          return BibleChapter(
+          final chapterObj = BibleChapter(
             book: BibleBook(
               abbrev: bookId,
               name: bookName,
@@ -540,40 +591,66 @@ class BibleService {
               chapters: metadata?['chapters'] as int? ?? 0,
             ),
             chapterNumber: chapter,
-            verses: verses,
+            verses: finalVerses,
           );
+
+          if (_chapterMemoryCache.length > 30) {
+            _chapterMemoryCache.remove(_chapterMemoryCache.keys.first);
+          }
+          _chapterMemoryCache[cacheKey] = chapterObj;
+
+          // Pré-carregamento silencioso do próximo capítulo em background
+          if (!isPrefetch) {
+            final totalChapters = metadata?['chapters'] as int? ?? 150;
+            if (chapter < totalChapters) {
+              Future.microtask(() async {
+                try {
+                  await getChapter(version, bookId, chapter + 1, isPrefetch: true);
+                } catch (_) {}
+              });
+            }
+          }
+
+          return chapterObj;
         }
       } catch (e) {
-        print("Erro na query SQLite: $e. Tentando Cloudflare/JSON.");
+        print("Erro na query SQLite: $e. Tentando Cloudflare.");
       }
     }
 
-    // 2. Tenta via Cloudflare D1 (Rápido - Web e Fallback Mobile)
-    try {
-      final cloudVerses = await _fetchFromCloudflare(
-        version,
-        bookIdInt,
-        chapter,
-      );
-      if (cloudVerses.isNotEmpty) {
-        return BibleChapter(
-          book: BibleBook(
-            abbrev: bookId,
-            name: bookName,
-            author: metadata?['author'] as String? ?? '',
-            group: metadata?['group'] as String? ?? '',
-            chapters: metadata?['chapters'] as int? ?? 0,
-          ),
-          chapterNumber: chapter,
-          verses: cloudVerses,
-        );
+    // 2. Tenta via Cloudflare D1 se a versão não estiver marcada como vazia
+    if (!_emptyCloudVersions.contains(version.toUpperCase())) {
+      try {
+        final cloudVerses = await _runWithCloudflareThrottle(() => _fetchFromCloudflare(
+          version,
+          bookIdInt,
+          chapter,
+          isPrefetch: isPrefetch,
+        ));
+        if (cloudVerses.isNotEmpty) {
+          final cloudChapter = BibleChapter(
+            book: BibleBook(
+              abbrev: bookId,
+              name: bookName,
+              author: metadata?['author'] as String? ?? '',
+              group: metadata?['group'] as String? ?? '',
+              chapters: metadata?['chapters'] as int? ?? 0,
+            ),
+            chapterNumber: chapter,
+            verses: cloudVerses,
+          );
+          _chapterMemoryCache[cacheKey] = cloudChapter;
+          return cloudChapter;
+        } else {
+          _emptyCloudVersions.add(version.toUpperCase());
+        }
+      } catch (e) {
+        _emptyCloudVersions.add(version.toUpperCase());
       }
-    } catch (e) {
-      print("Erro ao buscar da Cloudflare: $e. Tentando JSON local.");
     }
 
     // 3. Fallback Final (Sem conexão e sem cache local)
-    throw 'Não foi possível carregar o capítulo. Verifique sua conexão.';
+    throw 'Não foi possível carregar o capítulo. Verifique se o módulo está baixado na Loja.';
   }
 
   /// Busca versículos que contenham a [query] na versão informada.
@@ -631,8 +708,65 @@ class BibleService {
   Future<List<BibleVerse>> _fetchFromCloudflare(
     String version,
     int bookId,
+    int chapter, {
+    bool isPrefetch = false,
+  }) async {
+    final cacheKey = "${version.toUpperCase()}_${bookId}_$chapter";
+
+    // 1. Memória RAM (0ms)
+    if (_cloudChapterCache.containsKey(cacheKey)) {
+      return _cloudChapterCache[cacheKey]!;
+    }
+
+    // 2. Requisição em voo (deduplica chamadas simultâneas)
+    if (_inFlightChapterRequests.containsKey(cacheKey)) {
+      return await _inFlightChapterRequests[cacheKey]!;
+    }
+
+    // 3. Cache Persistente Local (SharedPreferences / IndexedDB) (0ms)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedJson = prefs.getString('cf_ch_$cacheKey');
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        final List<dynamic> list = jsonDecode(cachedJson);
+        final verses = list.map((m) {
+          return BibleVerse(
+            number: m['n'] as int,
+            text: m['t'] as String,
+            title: m['h'] as String?,
+          );
+        }).toList();
+        _cloudChapterCache[cacheKey] = verses;
+        for (final v in verses) {
+          _verseTextCache["${version.toUpperCase()}_${bookId}_${chapter}_${v.number}"] = v.text;
+        }
+        return verses;
+      }
+    } catch (_) {}
+
+    // 4. Executa requisição para a Cloudflare com deduplicação
+    final future = _doFetchFromCloudflare(
+      version,
+      bookId,
+      chapter,
+      cacheKey,
+      isPrefetch: isPrefetch,
+    );
+    _inFlightChapterRequests[cacheKey] = future;
+    try {
+      return await future;
+    } finally {
+      _inFlightChapterRequests.remove(cacheKey);
+    }
+  }
+
+  Future<List<BibleVerse>> _doFetchFromCloudflare(
+    String version,
+    int bookId,
     int chapter,
-  ) async {
+    String cacheKey, {
+    bool isPrefetch = false,
+  }) async {
     try {
       final bodyStr = jsonEncode({
         'action': 'getChapter',
@@ -640,7 +774,6 @@ class BibleService {
         'book_id': bookId,
         'chapter': chapter,
       });
-      print("CLOUDFLARE REQUEST: $bodyStr");
 
       final resp = await http
           .post(
@@ -648,16 +781,12 @@ class BibleService {
             headers: {'Content-Type': 'application/json'},
             body: bodyStr,
           )
-          .timeout(const Duration(seconds: 20));
-
-      print(
-        "CLOUDFLARE RESPONSE [${resp.statusCode}]: ${resp.body.length > 200 ? '${resp.body.substring(0, 200)}...' : resp.body}",
-      );
+          .timeout(const Duration(seconds: 15));
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         final List<dynamic> results = data['results'] ?? [];
-        return results.map((m) {
+        final verses = results.map((m) {
           final cleaned = _extractAndCleanVerseText(m['text'] as String);
           return BibleVerse(
             number: m['verse'] as int,
@@ -665,11 +794,51 @@ class BibleService {
             title: cleaned.title,
           );
         }).toList();
+
+        _cloudChapterCache[cacheKey] = verses;
+
+        // Popula cache de versículos para Cross References
+        for (final v in verses) {
+          _verseTextCache["${version.toUpperCase()}_${bookId}_${chapter}_${v.number}"] = v.text;
+        }
+
+        // Salva persistentemente de forma assíncrona
+        _persistChapterToStorage(cacheKey, verses);
+
+        // Pré-carrega APENAS o próximo capítulo imediato (se não for já uma requisição de prefetch)
+        if (!isPrefetch && verses.isNotEmpty) {
+          _prefetchAdjacentChapters(version, bookId, chapter);
+        }
+
+        return verses;
       }
     } catch (e) {
-      print("Worker Error (getChapter) for $version: $e");
+      debugPrint("Worker Error (getChapter) for $version: $e");
     }
     return [];
+  }
+
+  void _persistChapterToStorage(String cacheKey, List<BibleVerse> verses) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final serialized = jsonEncode(verses.map((v) => {
+        'n': v.number,
+        't': v.text,
+        if (v.title != null) 'h': v.title,
+      }).toList());
+      await prefs.setString('cf_ch_$cacheKey', serialized);
+    } catch (_) {}
+  }
+
+  void _prefetchAdjacentChapters(String version, int bookId, int currentChapter) {
+    final meta = BibleMetadata.getMetadata(bookId);
+    final maxChapters = meta?['chapters'] as int? ?? 1;
+    if (currentChapter < maxChapters) {
+      final nextKey = "${version.toUpperCase()}_${bookId}_${currentChapter + 1}";
+      if (!_cloudChapterCache.containsKey(nextKey) && !_inFlightChapterRequests.containsKey(nextKey)) {
+        _fetchFromCloudflare(version, bookId, currentChapter + 1, isPrefetch: true);
+      }
+    }
   }
 
   Future<Map<String, dynamic>?> _searchCloudflare(
@@ -818,114 +987,106 @@ class BibleService {
   Future<List<Map<String, dynamic>>> getVerseAcrossVersions({
     required String bookId,
     required int chapter,
-    required int verse,
+    required List<int> verses,
     required List<String> versions,
   }) async {
-    print("================== COMPARISON MODAL LOGS ==================");
-    print("STARTING getVerseAcrossVersions");
-    print("Versions to compare: $versions");
-    print("Params: bookId: $bookId, chapter: $chapter, verse: $verse");
-
     final bookIdInt = _bookIndex(bookId) + 1;
+    final sortedVerses = verses.toList()..sort();
 
-    // Se estiver no Web, processa em paralelo via Cloudflare
-    if (kIsWeb) {
-      print("kIsWeb is true! Skipping to cloudflare...");
-      try {
-        final futures = versions.map(
-          (v) => _fetchFromCloudflare(v, bookIdInt, chapter),
-        );
-        final results = await Future.wait(futures);
+    // Processa em lotes de no máximo 3 versões simultâneas para garantir baixa concorrência e zero engasgo
+    final crossResults = <Map<String, dynamic>>[];
+    const int batchSize = 3;
 
-        final crossResults = <Map<String, dynamic>>[];
-        for (int i = 0; i < versions.length; i++) {
-          final verses = results[i];
-          final targetVerse = verses
-              .where((v) => v.number == verse)
-              .firstOrNull;
-          if (targetVerse != null) {
-            crossResults.add({
-              'version': versions[i],
-              'text': targetVerse.text,
-            });
+    for (int i = 0; i < versions.length; i += batchSize) {
+      final batch = versions.sublist(
+        i,
+        (i + batchSize > versions.length) ? versions.length : i + batchSize,
+      );
+
+      final batchFutures = batch.map((version) async {
+        try {
+          final verseTexts = <String>[];
+          for (final vNum in sortedVerses) {
+            final text = await getVerseText(
+              version: version,
+              bookId: bookIdInt,
+              chapter: chapter,
+              verse: vNum,
+            );
+            if (text != null && text.trim().isNotEmpty) {
+              final clean = BibleTextParser.cleanToPlainText(text);
+              verseTexts.add(sortedVerses.length == 1 ? clean : '$vNum $clean');
+            }
           }
+
+          if (verseTexts.isNotEmpty) {
+            return {
+              'version': version,
+              'text': verseTexts.join('\n\n'),
+            };
+          }
+        } catch (e, stack) {
+          debugPrint("Erro ao ler versão $version na comparação: $e\n$stack");
         }
-        return crossResults;
-      } catch (e) {
-        print("Erro ao buscar versões coordenadas: $e");
-      }
+        return null;
+      });
+
+      final batchResults = await Future.wait(batchFutures);
+      crossResults.addAll(batchResults.whereType<Map<String, dynamic>>());
     }
 
-    final results = <Map<String, dynamic>>[];
-
-    // Processa uma por uma no Mobile (Local -> Fallback Cloudflare)
-    for (final version in versions) {
-      print("Processing version: $version");
-      try {
-        final text = await getVerseText(
-          version: version,
-          bookId: bookIdInt,
-          chapter: chapter,
-          verse: verse,
-        );
-
-        if (text != null && text.isNotEmpty) {
-          results.add({'version': version, 'text': text});
-        } else {
-          results.add({
-            'version': version,
-            'text':
-                'Erro: Nenhum texto encontrado para esta versão. O arquivo pode estar vazio ou ocorreu falha de conexão com a nuvem.',
-          });
-        }
-      } catch (e, stack) {
-        print("Erro ao ler versão $version: $e\n$stack");
-        results.add({
-          'version': version,
-          'text': 'Erro técnico ao buscar o verso: $e',
-        });
-      }
-    }
-
-    print("Sorting results...");
-    results.sort((a, b) {
+    crossResults.sort((a, b) {
       final indexA = versions.indexOf(a['version']);
       final indexB = versions.indexOf(b['version']);
       return indexA.compareTo(indexB);
     });
 
-    print(
-      "getVerseAcrossVersions FINISHED. Returning ${results.length} results.",
-    );
-    print("===========================================================");
-    return results;
+    return crossResults;
   }
 
-  /// Busca o texto de um versículo (Local -> Cloud)
+  /// Busca o texto de um versículo (Local -> Cloud controlado)
   Future<String?> getVerseText({
     required String version,
     required int bookId,
     required int chapter,
     required int verse,
   }) async {
-    print("getVerseText: $version $bookId:$chapter:$verse");
+    final key = version.toUpperCase();
+    final vKey = "${key}_${bookId}_${chapter}_$verse";
+    if (_verseTextCache.containsKey(vKey)) {
+      return _verseTextCache[vKey];
+    }
+
     // 1. Tenta Local
     final local = await _dbService.getVerse(version, bookId, chapter, verse);
-    print("getVerseText local result for $version: $local");
-    if (local != null && local.isNotEmpty) return _cleanVerseText(local);
+    if (local != null && local.isNotEmpty) {
+      final res = _cleanVerseText(local);
+      _verseTextCache[vKey] = res;
+      return res;
+    }
 
-    // 2. Tenta Cloudflare
+    // Se o banco local comprovadamente não existe ou Cloudflare já retornou vazio para esta versão,
+    // evitamos chamadas de rede redundantes
+    if (_missingLocalDatabases.contains(key) || _emptyCloudVersions.contains(key)) {
+      return null;
+    }
+
+    // 2. Tenta Cloudflare com pool limitado a no máximo 3 chamadas concorrentes
     try {
-      print("getVerseText fetching from cloudflare for $version");
-      final cloudVerses = await _fetchFromCloudflare(version, bookId, chapter);
-      print(
-        "getVerseText cloudflare returned ${cloudVerses.length} verses for $version",
+      final cloudVerses = await _runWithCloudflareThrottle(
+        () => _fetchFromCloudflare(version, bookId, chapter),
       );
+      if (cloudVerses.isEmpty) {
+        _emptyCloudVersions.add(key);
+        return null;
+      }
       final match = cloudVerses.where((v) => v.number == verse).firstOrNull;
-      print("getVerseText cloudflare match for $version: ${match?.text}");
+      if (match?.text != null) {
+        _verseTextCache[vKey] = match!.text;
+      }
       return match?.text;
     } catch (e) {
-      print("getVerseText error fetching from cloudflare for $version: $e");
+      _emptyCloudVersions.add(key);
       return null;
     }
   }

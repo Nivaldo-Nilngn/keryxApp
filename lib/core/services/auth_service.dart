@@ -182,6 +182,40 @@ class AuthService {
     }
   }
 
+  Future<void> updateProfile({String? displayName, String? photoUrl}) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final trimmedName = displayName?.trim();
+      final trimmedPhoto = photoUrl?.trim();
+
+      if (trimmedName != null && trimmedName.isNotEmpty) {
+        await user.updateDisplayName(trimmedName);
+      }
+      if (trimmedPhoto != null) {
+        await user.updatePhotoURL(trimmedPhoto.isNotEmpty ? trimmedPhoto : null);
+      }
+      await user.reload();
+
+      final updates = <String, dynamic>{
+        'lastActivity': FieldValue.serverTimestamp(),
+      };
+      if (trimmedName != null && trimmedName.isNotEmpty) {
+        updates['displayName'] = trimmedName;
+        updates['name'] = trimmedName;
+      }
+      if (trimmedPhoto != null) {
+        updates['photoUrl'] = trimmedPhoto.isNotEmpty ? trimmedPhoto : null;
+      }
+
+      await _firestore.collection('users').doc(user.uid).set(updates, SetOptions(merge: true));
+    } catch (e) {
+      print('Erro ao atualizar perfil: $e');
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       // No Web, o signOut do google_sign_in pode travar devido a políticas de CORS/COOP.

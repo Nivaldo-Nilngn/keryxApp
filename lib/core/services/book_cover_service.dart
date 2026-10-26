@@ -178,7 +178,7 @@ class BookCoverService {
     }
 
     // 1. If we have a local path (filesystem or asset) and we DON'T have a real pdf cover yet, extract it!
-    if (localPath != null && (cachedMeta == null || !cachedMeta.isRealPdfCover)) {
+    if (!kIsWeb && localPath != null && (cachedMeta == null || !cachedMeta.isRealPdfCover)) {
       if (localPath.startsWith('assets/') || File(localPath).existsSync()) {
         final localMeta = await _extractLocalCover(title, localPath);
         if (localMeta != null) {

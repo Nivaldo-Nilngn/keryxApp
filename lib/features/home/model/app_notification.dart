@@ -2,14 +2,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppNotification {
   final String id;
-  final String type; // 'comment', 'reply', 'download', 'system'
+  final String type; // 'comment', 'reply', 'download', 'system', 'like'
   final String annotationId;
   final String commentId;
   final String fromUserId;
   final String fromUserName;
   final String body;
-  final String? title;   // Para notificações de download/sistema
-  final String? message; // Para notificações de download/sistema
+  final String? title;   // Para notificações
+  final String? message; // Para notificações
+  final String? postTitle; // Título do post/estudo da Comunidade
   final bool read;
   final DateTime createdAt;
 
@@ -23,6 +24,7 @@ class AppNotification {
     required this.body,
     this.title,
     this.message,
+    this.postTitle,
     this.read = false,
     required this.createdAt,
   });
@@ -37,10 +39,14 @@ class AppNotification {
         body: m['body'] ?? m['message'] ?? '',
         title: m['title'] as String?,
         message: m['message'] as String?,
-        read: m['read'] ?? false,
+        postTitle: m['postTitle'] as String?,
+        read: m['read'] ?? m['isRead'] ?? false,
         createdAt: (m['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       );
 
   bool get isSystemNotification =>
       type == 'download' || type == 'system' || type == 'delete';
+
+  bool get isCommunityNotification =>
+      type == 'comment' || type == 'reply' || type == 'like';
 }

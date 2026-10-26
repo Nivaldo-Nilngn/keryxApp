@@ -47,32 +47,115 @@ class ParsedVerse {
   });
 }
 
+enum _ParsedTokenType {
+  plain,
+  italic,
+  bold,
+  jesus,
+  selo,
+  footnote,
+  strong,
+}
+
+class _ParsedVerseToken {
+  final _ParsedTokenType type;
+  final String text;
+  final String? codeOrType;
+  final String? footnoteBody;
+  final int verseNumber;
+
+  const _ParsedVerseToken({
+    required this.type,
+    required this.text,
+    this.codeOrType,
+    this.footnoteBody,
+    this.verseNumber = 0,
+  });
+}
+
 /// Parser utilitário para textos bíblicos, tags MySword, HTML, Strong e cabeçalhos
 class BibleTextParser {
-  // Regexes para títulos e subtítulos de seção (BJP, NA2009, MySword)
+  // Regexes pré-compiladas estáticas (evita recompilação custosa a cada frame/versículo)
   static final RegExp _titleRegex = RegExp(
     r'<(?:TS\d*|ts\d*|title|TITLE|h\d*|H\d*|t|T)>(.*?)<\/(?:TS\d*|ts\d*|title|TITLE|h\d*|H\d*|t|T)>|<(?:TS\d*|ts\d*)>(.*?)<(?:Ts\d*|ts\d*)>',
     dotAll: true,
   );
 
-  // Regex para tags de estilo não visuais (como blocos de CSS na versão A Mensagem)
   static final RegExp _styleRegex = RegExp(
     r'<style[^>]*>.*?</style>',
     caseSensitive: false,
     dotAll: true,
   );
 
-  // Regex para tags de controle do MySword / SWORD / USFM
   static final RegExp _swordControlRegex = RegExp(
     r'<(?:pb|br|hr)\s*\/?>|<\/?(?:S|W|WTG|n|Q\d*|q\d*|wj|CI|FI|FO|FR|FU|GM|GW|LD|ND|PI|pn|PM|PO|PP|PR|PS|PT|R|RA|RC|RD|RM|RQ|RS|RT|RU|SE|SM|ST|SU|TA|TB|TC|TH|TI|TP|TR|TS|TT|VR|VP|VS)[^>]*>',
     caseSensitive: false,
   );
 
-  // Regex para tags Strong's no formato <H1234>, <WH1234>, <G1234>, <WG1234> ou sem fechamento <WH1234
   static final RegExp _strongTagRegex = RegExp(
     r'<W?[HG]\d+>?',
     caseSensitive: false,
   );
+
+  static final RegExp _hebrewRegex = RegExp(r'[\u0590-\u05FF]');
+  static final RegExp _hebrewConsonantsRegex = RegExp(r'[^\u05D0-\u05EA]');
+  static final RegExp _tokenPattern = RegExp(r'「(.*?)」', dotAll: true);
+  static final RegExp _blockPattern = RegExp(r'『(.*?)』(?:\s*《(.*?)》)?', dotAll: true);
+  static final RegExp _htmlTagRegex = RegExp(r'<[^>]+>');
+  static final RegExp _bracketsRegex = RegExp(r'[「」『』《》]');
+  static final RegExp _multipleWhitespaceRegex = RegExp(r'\s{2,}');
+  static final RegExp _brTagRegex = RegExp(r'<br\s*\/?>', caseSensitive: false);
+  static final RegExp _rfBlockRegex = RegExp(r'<RF>.*?<Rf>', dotAll: true, caseSensitive: false);
+  static final RegExp _clBlockRegex = RegExp(r'<CL>.*?<Cl>', dotAll: true, caseSensitive: false);
+  static final RegExp _footnoteBlockRegex = RegExp(r'<(?:f|note)>.*?<\/(?:f|note)>', dotAll: true, caseSensitive: false);
+  static final RegExp _alphaNumTagRegex = RegExp(r'<[a-zA-Z]{1,4}\d+>?');
+  static final RegExp _seloRegex = RegExp(r'<SELO[A-Z0-9]+>[^<]+<\/selo[a-z0-9]+>', caseSensitive: false);
+  static final RegExp _seloCaptureRegex = RegExp(r'<SELO[A-Z0-9]+>([^<]+)<\/selo[a-z0-9]+>', caseSensitive: false);
+  static final RegExp _seloSearchRegex = RegExp(r'<SELO([A-Z0-9]+)>', caseSensitive: false);
+  static final RegExp _sentenceSplitRegex = RegExp(r'(?<=[.!?])\s+');
+  static final RegExp _alphaCharRegex = RegExp(r'[A-Za-zÀ-Úà-ú]');
+  static final RegExp _upperInitialWordsRegex = RegExp(r'^([A-ZÀ-Ú0-9\s,;:\-–—]{4,})\b(?=\s+[a-zà-ú])');
+
+  static final RegExp _s1Regex = RegExp(r'<S1([HG])(\d+)>', caseSensitive: false);
+  static final RegExp _sheRegex = RegExp(r'(?:<w>|\b)S([HEG])E?(\d+)[a-zA-Z]?(?:<w>|\b)', caseSensitive: false);
+  static final RegExp _wPartRegex = RegExp(r'』(.*?)《', dotAll: true);
+  static final RegExp _bodyRegex = RegExp(r'『(.*?)』', dotAll: true);
+  static final RegExp _itemRegex = RegExp(
+    r'^(?:(\d+)\s*)?(.*?)(?:(S[HEG]E?\d+[a-zA-Z]?|W?[HG]\d+[a-zA-Z]?)\s*)?([\u0590-\u05FF\uFB1D-\uFB4F\u0370-\u03FF\u1F00-\u1FFF־׃׀]+)\s*$',
+    dotAll: true,
+  );
+  static final RegExp _digitsOnlyRegex = RegExp(r'[^0-9]');
+  static final RegExp _trailerRegex = RegExp(r'[׃־׀]');
+  static final RegExp _whitespaceRegex = RegExp(r'\s+');
+
+  static final RegExp _tokenRegex = RegExp(
+    r'(?:<(RF|CL|f|note)>(.*?)<\/(?:RF|CL|f|note)>|<(RF|CL)>(.*?)<(?:Rf|Cl)>)' // 1,2 ou 3,4: Nota
+    r'|(?:([^\s<>]+)\s*<(W?[HG]\d+)>?)', // 5, 6: Palavra antes da tag
+    caseSensitive: false,
+    dotAll: true,
+  );
+
+  static final RegExp _formatRegex = RegExp(
+    r'(?:<(RF|CL|f|note)>(.*?)<\/(?:RF|CL|f|note)>|<(RF|CL)>(.*?)<(?:Rf|Cl)>)'
+    r'|<(i|em)>(.*?)<\/(?:i|em)>'
+    r'|<(b|strong)>(.*?)<\/(?:b|strong)>'
+    r'|<(?:wj|jesus|red)>(.*?)<\/(?:wj|jesus|red)>'
+    r'|<SELO[A-Z0-9]+>([^<]+)<\/selo[a-z0-9]+>',
+    caseSensitive: false,
+    dotAll: true,
+  );
+
+  // Caches em memória com capacidade limitada para evitar memory leaks na Web
+  static final Map<String, String> _cleanPlainTextCache = {};
+  static final Map<String, ({String text, String? title})> _titleAndTextCache = {};
+  static final Map<String, List<_ParsedVerseToken>> _tokenCache = {};
+
+  /// Limpa todos os caches em memória do parser
+  static void clearCache() {
+    _cleanPlainTextCache.clear();
+    _titleAndTextCache.clear();
+    _tokenCache.clear();
+  }
 
   /// Verifica se o texto é de um módulo interlinear (ex: BHS, LXX, MyBible/MySword)
   static bool isInterlinearText(String text) {
@@ -87,18 +170,16 @@ class BibleTextParser {
   /// Verifica se o texto é escrito da direita para a esquerda (Hebraico)
   static bool isRtlText(String text) {
     if (text.isEmpty) return false;
-    return RegExp(r'[\u0590-\u05FF]').hasMatch(text);
+    return _hebrewRegex.hasMatch(text);
   }
 
   /// Converte tokens de módulos interlineares em uma lista de palavras estruturadas
   static List<InterlinearWord> parseInterlinearTokens(String raw) {
     final result = <InterlinearWord>[];
-    final tokenPattern = RegExp(r'「(.*?)」', dotAll: true);
-    final matches = tokenPattern.allMatches(raw).toList();
+    final matches = _tokenPattern.allMatches(raw).toList();
 
     if (matches.isEmpty) {
-      final blockPattern = RegExp(r'『(.*?)』(?:\s*《(.*?)》)?', dotAll: true);
-      for (final m in blockPattern.allMatches(raw)) {
+      for (final m in _blockPattern.allMatches(raw)) {
         final body = m.group(1) ?? '';
         final morph = m.group(2) ?? '';
         _parseTokenFallback(body, morph, result);
@@ -119,9 +200,9 @@ class BibleTextParser {
       if (w.endsWith('־')) {
         needsSpace = false;
       } else {
-        final isHebrew = RegExp(r'[\u0590-\u05FF]').hasMatch(w);
+        final isHebrew = _hebrewRegex.hasMatch(w);
         if (isHebrew) {
-          final consonants = w.replaceAll(RegExp(r'[^\u05D0-\u05EA]'), '');
+          final consonants = w.replaceAll(_hebrewConsonantsRegex, '');
           if (consonants.length <= 1 && i < result.length - 1) {
             needsSpace = false;
           }
@@ -147,11 +228,11 @@ class BibleTextParser {
   static void _parseRawToken(String content, List<InterlinearWord> result) {
     // 1. Extração do código Strong: prioriza <S1H(\d+)> ou <S1G(\d+)>, fallback para SHE(\d+) ou SGE(\d+)
     String? strongCode;
-    final s1Match = RegExp(r'<S1([HG])(\d+)>', caseSensitive: false).firstMatch(content);
+    final s1Match = _s1Regex.firstMatch(content);
     if (s1Match != null) {
       strongCode = '${s1Match.group(1)!.toUpperCase()}${s1Match.group(2)}';
     } else {
-      final sheMatch = RegExp(r'(?:<w>|\b)S([HEG])E?(\d+)[a-zA-Z]?(?:<w>|\b)', caseSensitive: false).firstMatch(content);
+      final sheMatch = _sheRegex.firstMatch(content);
       if (sheMatch != null) {
         final prefix = sheMatch.group(1)!.toUpperCase() == 'H' ? 'H' : 'G';
         strongCode = '$prefix${sheMatch.group(2)}';
@@ -159,7 +240,7 @@ class BibleTextParser {
     }
 
     // 2. Extrai partes <w> entre 『...』 e 《...》
-    final wPartMatch = RegExp(r'』(.*?)《', dotAll: true).firstMatch(content);
+    final wPartMatch = _wPartRegex.firstMatch(content);
     if (wPartMatch != null) {
       final wTokens = wPartMatch.group(1)!.split('<w>');
       final parts = wTokens.where((x) => x.isNotEmpty).toList();
@@ -173,7 +254,7 @@ class BibleTextParser {
         var trailer = '';
         for (int i = 6; i < parts.length; i++) {
           final p = parts[i].trim();
-          if (p == '׃' || p == '־' || p == '׀' || p == 'פ' || p == 'ס' || RegExp(r'[׃־׀]').hasMatch(p)) {
+          if (p == '׃' || p == '־' || p == '׀' || p == 'פ' || p == 'ס' || _trailerRegex.hasMatch(p)) {
             trailer += p;
           }
         }
@@ -194,7 +275,7 @@ class BibleTextParser {
 
     // Fallback se não bater nos slots estruturados de <w>
     var body = content;
-    final bodyMatch = RegExp(r'『(.*?)』', dotAll: true).firstMatch(content);
+    final bodyMatch = _bodyRegex.firstMatch(content);
     if (bodyMatch != null) {
       body = bodyMatch.group(1)!;
     }
@@ -202,23 +283,19 @@ class BibleTextParser {
   }
 
   static void _parseTokenFallback(String body, String morph, List<InterlinearWord> result) {
-    final itemRegex = RegExp(
-      r'^(?:(\d+)\s*)?(.*?)(?:(S[HEG]E?\d+[a-zA-Z]?|W?[HG]\d+[a-zA-Z]?)\s*)?([\u0590-\u05FF\uFB1D-\uFB4F\u0370-\u03FF\u1F00-\u1FFF־׃׀]+)\s*$',
-      dotAll: true,
-    );
-    final cleanBody = body.replaceAll(RegExp(r'<[^>]+>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
-    final m = itemRegex.firstMatch(cleanBody);
+    final cleanBody = body.replaceAll(_htmlTagRegex, ' ').replaceAll(_whitespaceRegex, ' ').trim();
+    final m = _itemRegex.firstMatch(cleanBody);
     if (m != null) {
       var rawStrong = m.group(3);
       String? strongCode;
       if (rawStrong != null) {
         rawStrong = rawStrong.toUpperCase();
         if (rawStrong.startsWith('SHE') || rawStrong.startsWith('SH') || rawStrong.startsWith('WH')) {
-          strongCode = 'H${rawStrong.replaceAll(RegExp(r'[^0-9]'), '')}';
+          strongCode = 'H${rawStrong.replaceAll(_digitsOnlyRegex, '')}';
         } else if (rawStrong.startsWith('SGE') || rawStrong.startsWith('SG') || rawStrong.startsWith('WG')) {
-          strongCode = 'G${rawStrong.replaceAll(RegExp(r'[^0-9]'), '')}';
+          strongCode = 'G${rawStrong.replaceAll(_digitsOnlyRegex, '')}';
         } else if (rawStrong.startsWith('H') || rawStrong.startsWith('G')) {
-          strongCode = '${rawStrong[0]}${rawStrong.substring(1).replaceAll(RegExp(r'[^0-9]'), '')}';
+          strongCode = '${rawStrong[0]}${rawStrong.substring(1).replaceAll(_digitsOnlyRegex, '')}';
         }
       }
       final word = m.group(4)!.trim();
@@ -242,9 +319,12 @@ class BibleTextParser {
     return sb.toString();
   }
 
-  /// Extrai o título e normaliza o texto bruto vindo do banco de dados
+  /// Extrai o título e normaliza o texto bruto vindo do banco de dados (com cache em memória)
   static ({String text, String? title}) extractTitleAndText(String rawText) {
     if (rawText.isEmpty) return (text: '', title: null);
+
+    final cached = _titleAndTextCache[rawText];
+    if (cached != null) return cached;
 
     String? extractedTitle;
     String workingText = rawText;
@@ -268,18 +348,27 @@ class BibleTextParser {
     // 2. Normalização de CAIXA ALTA (VIVA, ARC1969, JFA-rc)
     workingText = normalizeAllCaps(workingText);
 
-    return (text: workingText.trim(), title: extractedTitle);
+    final result = (text: workingText.trim(), title: extractedTitle);
+    if (_titleAndTextCache.length > 1000) {
+      _titleAndTextCache.clear();
+    }
+    _titleAndTextCache[rawText] = result;
+    return result;
   }
 
   /// Retorna as sub-versões disponíveis em um texto (ex: JER, CNBB em 5catolicas)
   static List<String> getAvailableSubVersions(String rawVerseText) {
-    final matches = RegExp(r'<SELO([A-Z0-9]+)>', caseSensitive: false).allMatches(rawVerseText);
+    final matches = _seloSearchRegex.allMatches(rawVerseText);
     return matches.map((m) => m.group(1)!.toUpperCase()).toSet().toList();
   }
 
-  /// Limpa completamente qualquer marcação e retorna apenas o texto legível limpo
+  /// Limpa completamente qualquer marcação e retorna apenas o texto legível limpo (com cache em memória)
   static String cleanToPlainText(String text, {String? subVersionFilter}) {
     if (text.isEmpty) return '';
+
+    final cacheKey = '${text.hashCode}_${subVersionFilter ?? ""}';
+    final cached = _cleanPlainTextCache[cacheKey];
+    if (cached != null) return cached;
 
     var clean = text;
 
@@ -288,15 +377,15 @@ class BibleTextParser {
 
     // Filtra pela sub-versão se fornecida
     if (subVersionFilter != null && subVersionFilter.isNotEmpty) {
-      final blockMatch = RegExp('<($subVersionFilter)>(.*?)</\\1>', caseSensitive: false, dotAll: true).firstMatch(clean);
+      final subRegex = RegExp('<($subVersionFilter)>(.*?)</\\1>', caseSensitive: false, dotAll: true);
+      final blockMatch = subRegex.firstMatch(clean);
       if (blockMatch != null) {
         clean = blockMatch.group(2)!;
-        // Remove as tags de selo, pois já estamos na versão isolada
-        clean = clean.replaceAll(RegExp(r'<SELO[A-Z0-9]+>[^<]+<\/selo[a-z0-9]+>', caseSensitive: false), '');
+        clean = clean.replaceAll(_seloRegex, '');
       }
     } else {
       // Formata selos de multi-traduções (ex: 5catolicas) para leitura geral
-      clean = clean.replaceAllMapped(RegExp(r'<SELO[A-Z0-9]+>([^<]+)<\/selo[a-z0-9]+>', caseSensitive: false), (match) {
+      clean = clean.replaceAllMapped(_seloCaptureRegex, (match) {
         return ' — ${match.group(1)}: ';
       });
     }
@@ -305,31 +394,37 @@ class BibleTextParser {
     if (isInterlinearText(clean)) {
       final interlinearWords = parseInterlinearTokens(clean);
       if (interlinearWords.isNotEmpty) {
-        return assembleInterlinearText(interlinearWords);
+        final res = assembleInterlinearText(interlinearWords);
+        if (_cleanPlainTextCache.length > 2000) _cleanPlainTextCache.clear();
+        _cleanPlainTextCache[cacheKey] = res;
+        return res;
       }
     }
 
     // Remove blocos de notas inteiros
-    clean = clean.replaceAll(RegExp(r'<RF>.*?<Rf>', dotAll: true, caseSensitive: false), '');
-    clean = clean.replaceAll(RegExp(r'<CL>.*?<Cl>', dotAll: true, caseSensitive: false), '');
-    clean = clean.replaceAll(RegExp(r'<(?:f|note)>.*?<\/(?:f|note)>', dotAll: true, caseSensitive: false), '');
+    clean = clean.replaceAll(_rfBlockRegex, '');
+    clean = clean.replaceAll(_clBlockRegex, '');
+    clean = clean.replaceAll(_footnoteBlockRegex, '');
 
     // Remove tags Strong
     clean = clean.replaceAll(_strongTagRegex, '');
-    clean = clean.replaceAll(RegExp(r'<[a-zA-Z]{1,4}\d+>?'), '');
+    clean = clean.replaceAll(_alphaNumTagRegex, '');
 
     // Converte quebras de linha básicas
-    clean = clean.replaceAll(RegExp(r'<br\s*\/?>', caseSensitive: false), ' ');
+    clean = clean.replaceAll(_brTagRegex, ' ');
 
     // Remove tags HTML/XML residuais e delimitadores interlineares residuais
-    clean = clean.replaceAll(RegExp(r'<[^>]+>'), '');
-    clean = clean.replaceAll(RegExp(r'[「」『』《》]'), '');
+    clean = clean.replaceAll(_htmlTagRegex, '');
+    clean = clean.replaceAll(_bracketsRegex, '');
 
     // Desescapa entidades HTML
     clean = unescapeHtml(clean);
 
     // Remove múltiplos espaços em branco
-    return clean.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+    final result = clean.replaceAll(_multipleWhitespaceRegex, ' ').trim();
+    if (_cleanPlainTextCache.length > 2000) _cleanPlainTextCache.clear();
+    _cleanPlainTextCache[cacheKey] = result;
+    return result;
   }
 
   /// Desescapa entidades HTML comuns
@@ -352,18 +447,14 @@ class BibleTextParser {
   static String normalizeAllCaps(String text) {
     if (text.isEmpty) return text;
 
-    // Se o versículo inteiro ou uma grande sentença estiver em caixa alta:
-    // Ex: "NO PRINCÍPIO, criou Deus..." ou "DISSE O SENHOR AO MEU SENHOR: ASSENTA-TE..."
     final trimmed = text.trim();
     if (trimmed.length > 3 &&
         trimmed == trimmed.toUpperCase() &&
-        trimmed.contains(RegExp(r'[A-ZÀ-Ú]'))) {
+        trimmed.contains(_alphaCharRegex)) {
       return _toSentenceCase(trimmed);
     }
 
-    // Se as primeiras palavras estiverem em CAIXA ALTA (ex: "NO PRINCÍPIO, Deus...")
-    // Detecta padrão inicial de 2 ou mais palavras em maiúsculas
-    final match = RegExp(r'^([A-ZÀ-Ú0-9\s,;:\-–—]{4,})\b(?=\s+[a-zà-ú])').firstMatch(trimmed);
+    final match = _upperInitialWordsRegex.firstMatch(trimmed);
     if (match != null) {
       final upperPart = match.group(1)!;
       final rest = trimmed.substring(upperPart.length);
@@ -376,13 +467,12 @@ class BibleTextParser {
 
   static String _toSentenceCase(String input) {
     if (input.isEmpty) return input;
-    // Divide por pontuação final (. ! ?) mantendo os delimitadores
-    final sentences = input.split(RegExp(r'(?<=[.!?])\s+'));
+    final sentences = input.split(_sentenceSplitRegex);
     final result = <String>[];
     for (var sentence in sentences) {
       final sTrim = sentence.trim();
       if (sTrim.isEmpty) continue;
-      final firstCharIndex = sTrim.indexOf(RegExp(r'[A-Za-zÀ-Úà-ú]'));
+      final firstCharIndex = sTrim.indexOf(_alphaCharRegex);
       if (firstCharIndex == -1) {
         result.add(sTrim.toLowerCase());
       } else {
@@ -395,11 +485,177 @@ class BibleTextParser {
     return result.join(' ');
   }
 
+  /// Extrai e armazena em cache os tokens estruturados de um versículo (0ms em chamadas subsequentes)
+  static List<_ParsedVerseToken> _getVerseTokens(
+    String rawVerseText,
+    int verseNumber,
+    bool isStrongVersion,
+    String? subVersionFilter,
+  ) {
+    final cacheKey = '${rawVerseText.hashCode}_${verseNumber}_${isStrongVersion ? 1 : 0}_${subVersionFilter ?? ""}';
+    final cached = _tokenCache[cacheKey];
+    if (cached != null) return cached;
+
+    String text = rawVerseText;
+    if (subVersionFilter != null && subVersionFilter.isNotEmpty) {
+      final subRegex = RegExp('<($subVersionFilter)>(.*?)</\\1>', caseSensitive: false, dotAll: true);
+      final blockMatch = subRegex.firstMatch(text);
+      if (blockMatch != null) {
+        text = blockMatch.group(2)!;
+        text = text.replaceAll(_seloRegex, '');
+      }
+    }
+
+    text = text.replaceAll(_styleRegex, '');
+
+    final hasStrongsInText = isStrongVersion || _strongTagRegex.hasMatch(text);
+    final tokens = <_ParsedVerseToken>[];
+
+    if (isInterlinearText(text)) {
+      final words = parseInterlinearTokens(text);
+      for (final item in words) {
+        final textWithSpace = item.word + (item.needsSpace ? ' ' : '');
+        if (item.strongCode != null && item.strongCode!.isNotEmpty) {
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.strong,
+            text: textWithSpace,
+            codeOrType: item.strongCode!,
+          ));
+        } else {
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.plain,
+            text: textWithSpace,
+          ));
+        }
+      }
+    } else if (!hasStrongsInText) {
+      _extractRichFormattingTokens(text, verseNumber, tokens);
+    } else {
+      int lastEnd = 0;
+      for (final match in _tokenRegex.allMatches(text)) {
+        if (match.start > lastEnd) {
+          final rawSlice = text.substring(lastEnd, match.start);
+          _extractRichFormattingTokens(rawSlice, verseNumber, tokens);
+        }
+
+        final noteType = match.group(1) ?? match.group(3);
+        final noteContent = match.group(2) ?? match.group(4);
+        if (noteType != null && noteContent != null) {
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.footnote,
+            text: '',
+            codeOrType: noteType.toUpperCase(),
+            footnoteBody: cleanToPlainText(noteContent),
+            verseNumber: verseNumber,
+          ));
+        } else if (match.group(5) != null && match.group(6) != null) {
+          final word = _cleanWordPunctuation(match.group(5)!);
+          final tag = match.group(6)!.toUpperCase();
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.strong,
+            text: word,
+            codeOrType: tag,
+          ));
+        }
+        lastEnd = match.end;
+      }
+
+      if (lastEnd < text.length) {
+        final tail = text.substring(lastEnd);
+        _extractRichFormattingTokens(tail, verseNumber, tokens);
+      }
+    }
+
+    if (_tokenCache.length > 2500) {
+      _tokenCache.clear();
+    }
+    _tokenCache[cacheKey] = tokens;
+    return tokens;
+  }
+
+  static void _extractRichFormattingTokens(
+    String text,
+    int verseNumber,
+    List<_ParsedVerseToken> tokens,
+  ) {
+    if (text.isEmpty) return;
+    int lastEnd = 0;
+    for (final m in _formatRegex.allMatches(text)) {
+      if (m.start > lastEnd) {
+        final plainSlice = _sanitizeSlice(text.substring(lastEnd, m.start));
+        if (plainSlice.isNotEmpty) {
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.plain,
+            text: plainSlice,
+          ));
+        }
+      }
+
+      final noteType = m.group(1) ?? m.group(3);
+      final noteBody = m.group(2) ?? m.group(4);
+      if (noteType != null && noteBody != null) {
+        tokens.add(_ParsedVerseToken(
+          type: _ParsedTokenType.footnote,
+          text: '',
+          codeOrType: noteType.toUpperCase(),
+          footnoteBody: cleanToPlainText(noteBody),
+          verseNumber: verseNumber,
+        ));
+      } else if (m.group(5) != null && m.group(6) != null) {
+        final content = _sanitizeSlice(m.group(6)!);
+        if (content.isNotEmpty) {
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.italic,
+            text: content,
+          ));
+        }
+      } else if (m.group(7) != null && m.group(8) != null) {
+        final content = _sanitizeSlice(m.group(8)!);
+        if (content.isNotEmpty) {
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.bold,
+            text: content,
+          ));
+        }
+      } else if (m.group(9) != null) {
+        final content = _sanitizeSlice(m.group(9)!);
+        if (content.isNotEmpty) {
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.jesus,
+            text: content,
+          ));
+        }
+      } else if (m.group(10) != null) {
+        final content = _sanitizeSlice(m.group(10)!);
+        if (content.isNotEmpty) {
+          final prefix = tokens.isEmpty ? '' : '\n\n';
+          tokens.add(_ParsedVerseToken(
+            type: _ParsedTokenType.selo,
+            text: '$prefix$content: ',
+          ));
+        }
+      }
+      lastEnd = m.end;
+    }
+
+    if (lastEnd < text.length) {
+      final tail = _sanitizeSlice(text.substring(lastEnd));
+      if (tail.isNotEmpty) {
+        tokens.add(_ParsedVerseToken(
+          type: _ParsedTokenType.plain,
+          text: tail,
+        ));
+      }
+    }
+  }
+
   /// Constrói a lista de InlineSpans com suporte a:
   /// - Formatação itálica (<i>...</i>) e negrito (<b>...</b>)
   /// - Palavras de Jesus em destaque (<wj>...</wj> ou <jesus>)
   /// - Notas de rodapé interativas (<RF> / <CL>)
   /// - Strong's interativos (<WH1234> Palavra) se a versão possuir Strongs
+  ///
+  /// Otimizado com tokenização em cache (0ms em chamadas repetidas na Web).
   static List<InlineSpan> buildRichVerseSpans({
     required BuildContext context,
     required String rawVerseText,
@@ -413,123 +669,65 @@ class BibleTextParser {
     bool strongUnderline = true,
     bool strongBold = true,
   }) {
-    // Filtra pela sub-versão antes de tudo, isolando apenas a tradução selecionada
-    String text = rawVerseText;
-    if (subVersionFilter != null && subVersionFilter.isNotEmpty) {
-      final blockMatch = RegExp('<($subVersionFilter)>(.*?)</\\1>', caseSensitive: false, dotAll: true).firstMatch(text);
-      if (blockMatch != null) {
-        text = blockMatch.group(2)!;
-        text = text.replaceAll(RegExp(r'<SELO[A-Z0-9]+>[^<]+<\/selo[a-z0-9]+>', caseSensitive: false), '');
-      }
-    }
-
-    // 1. Extração preliminar de estilo (limpa tags style do MSG)
-    text = text.replaceAll(_styleRegex, '');
-
-    // Verifica se há marcações de Strong
-    final hasStrongsInText = isStrongVersion || _strongTagRegex.hasMatch(text);
-
-    final List<InlineSpan> spans = [];
-
-    // Garante que a cor do texto respeite contraste mínimo WCAG 2.1 (4.5:1)
     final effectiveTextColor = KeryxColorContrast.ensureReadableTextColor(textColor, context);
+    final tokens = _getVerseTokens(rawVerseText, verseNumber, isStrongVersion, subVersionFilter);
 
-    // Suporte prioritário a módulos interlineares (BHS Hebraico, LXX Grego, etc.) com Strong's integrados
-    if (isInterlinearText(text)) {
-      final interlinearSpans = _buildInterlinearSpans(
-        context: context,
-        text: text,
-        onStrongTap: onStrongTap,
-        textColor: effectiveTextColor,
-        strongHighlightColor: strongHighlightColor,
-        strongUnderline: strongUnderline,
-        strongBold: strongBold,
-      );
-      if (interlinearSpans.isNotEmpty) {
-        return interlinearSpans;
-      }
+    if (tokens.isEmpty) {
+      return [
+        TextSpan(
+          text: cleanToPlainText(rawVerseText, subVersionFilter: subVersionFilter),
+          style: TextStyle(color: effectiveTextColor),
+        )
+      ];
     }
 
-    // Se NÃO tem Strongs, fazemos o parsing de formatação rica (HTML, notas e itálico)
-    if (!hasStrongsInText) {
-      spans.addAll(_parseRichFormatting(
-        context: context,
-        text: text,
-        verseNumber: verseNumber,
-        onFootnoteTap: onFootnoteTap,
-        textColor: effectiveTextColor,
-      ));
-      return spans.isEmpty
-          ? [TextSpan(text: cleanToPlainText(text), style: TextStyle(color: effectiveTextColor))]
-          : spans;
-    }
-
-    // COM Strongs: parsing de tokens com vinculação palavra-código
-    // Regex que encontra notas ou palavras associadas a códigos Strong
-    final tokenRegex = RegExp(
-      r'(?:<(RF|CL|f|note)>(.*?)<\/(?:RF|CL|f|note)>|<(RF|CL)>(.*?)<(?:Rf|Cl)>)' // 1,2 ou 3,4: Nota
-      r'|(?:([^\s<>]+)\s*<(W?[HG]\d+)>?)', // 5, 6: Palavra antes da tag
-      caseSensitive: false,
-      dotAll: true,
-    );
-
-    int lastEnd = 0;
-
-    for (final match in tokenRegex.allMatches(text)) {
-      if (match.start > lastEnd) {
-        final rawSlice = text.substring(lastEnd, match.start);
-        spans.addAll(_parseRichFormatting(
-          context: context,
-          text: rawSlice,
-          verseNumber: verseNumber,
-          onFootnoteTap: onFootnoteTap,
-          textColor: effectiveTextColor,
-        ));
+    final spans = <InlineSpan>[];
+    for (final token in tokens) {
+      switch (token.type) {
+        case _ParsedTokenType.plain:
+          spans.add(TextSpan(
+            text: token.text,
+            style: TextStyle(color: effectiveTextColor),
+          ));
+        case _ParsedTokenType.italic:
+          spans.add(TextSpan(
+            text: token.text,
+            style: TextStyle(fontStyle: FontStyle.italic, color: effectiveTextColor),
+          ));
+        case _ParsedTokenType.bold:
+          spans.add(TextSpan(
+            text: token.text,
+            style: TextStyle(fontWeight: FontWeight.bold, color: effectiveTextColor),
+          ));
+        case _ParsedTokenType.jesus:
+          spans.add(TextSpan(
+            text: token.text,
+            style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w500),
+          ));
+        case _ParsedTokenType.selo:
+          spans.add(TextSpan(
+            text: token.text,
+            style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.kPrimaryGold),
+          ));
+        case _ParsedTokenType.footnote:
+          spans.add(_buildFootnoteBadge(
+            token.codeOrType!,
+            token.footnoteBody ?? '',
+            token.verseNumber,
+            onFootnoteTap,
+          ));
+        case _ParsedTokenType.strong:
+          spans.add(_buildStrongSpan(
+            context,
+            token.text,
+            token.codeOrType!,
+            onStrongTap,
+            textColor: effectiveTextColor,
+            strongHighlightColor: strongHighlightColor,
+            underline: strongUnderline,
+            bold: strongBold,
+          ));
       }
-
-      // 1. Nota de Rodapé
-      final noteType = match.group(1) ?? match.group(3);
-      final noteContent = match.group(2) ?? match.group(4);
-      if (noteType != null && noteContent != null) {
-        spans.add(_buildFootnoteBadge(
-          noteType.toUpperCase(),
-          cleanToPlainText(noteContent),
-          verseNumber,
-          onFootnoteTap,
-        ));
-      }
-      // 2. Palavra antes da tag Strong
-      else if (match.group(5) != null && match.group(6) != null) {
-        final word = _cleanWordPunctuation(match.group(5)!);
-        final tag = match.group(6)!.toUpperCase();
-        spans.add(_buildStrongSpan(
-          context,
-          word,
-          tag,
-          onStrongTap,
-          textColor: effectiveTextColor,
-          strongHighlightColor: strongHighlightColor,
-          underline: strongUnderline,
-          bold: strongBold,
-        ));
-      }
-
-      lastEnd = match.end;
-    }
-
-    if (lastEnd < text.length) {
-      final tail = text.substring(lastEnd);
-      spans.addAll(_parseRichFormatting(
-        context: context,
-        text: tail,
-        verseNumber: verseNumber,
-        onFootnoteTap: onFootnoteTap,
-        textColor: effectiveTextColor,
-      ));
-    }
-
-    if (spans.isEmpty) {
-      return [TextSpan(text: cleanToPlainText(text), style: TextStyle(color: effectiveTextColor))];
     }
 
     return spans;
@@ -537,160 +735,7 @@ class BibleTextParser {
 
   /// Limpa pontuações que grudaram na palavra junto com Strong
   static String _cleanWordPunctuation(String word) {
-    return word.replaceAll(_strongTagRegex, '').replaceAll(RegExp(r'<[^>]+>'), '');
-  }
-
-  /// Faz o parse de trechos de texto interpretando `<i>`, `<b>`, `<wj>` e notas
-  static List<InlineSpan> _parseRichFormatting({
-    required BuildContext context,
-    required String text,
-    required int verseNumber,
-    required void Function(String footnoteType, String content, int verseNumber) onFootnoteTap,
-    Color? textColor,
-  }) {
-    if (text.isEmpty) return [];
-
-    final spans = <InlineSpan>[];
-
-    // Regex para tags HTML visuais e notas
-    final formatRegex = RegExp(
-      r'(?:<(RF|CL|f|note)>(.*?)<\/(?:RF|CL|f|note)>|<(RF|CL)>(.*?)<(?:Rf|Cl)>)'
-      r'|<(i|em)>(.*?)<\/(?:i|em)>'
-      r'|<(b|strong)>(.*?)<\/(?:b|strong)>'
-      r'|<(?:wj|jesus|red)>(.*?)<\/(?:wj|jesus|red)>'
-      r'|<SELO[A-Z0-9]+>([^<]+)<\/selo[a-z0-9]+>',
-      caseSensitive: false,
-      dotAll: true,
-    );
-
-    int lastEnd = 0;
-
-    for (final m in formatRegex.allMatches(text)) {
-      if (m.start > lastEnd) {
-        final plainSlice = _sanitizeSlice(text.substring(lastEnd, m.start));
-        if (plainSlice.isNotEmpty) {
-          spans.add(TextSpan(
-            text: plainSlice,
-            style: textColor != null ? TextStyle(color: textColor) : null,
-          ));
-        }
-      }
-
-      // Nota de rodapé
-      final noteType = m.group(1) ?? m.group(3);
-      final noteBody = m.group(2) ?? m.group(4);
-      if (noteType != null && noteBody != null) {
-        spans.add(_buildFootnoteBadge(
-          noteType.toUpperCase(),
-          cleanToPlainText(noteBody),
-          verseNumber,
-          onFootnoteTap,
-        ));
-      }
-      // Itálico
-      else if (m.group(5) != null && m.group(6) != null) {
-        final content = _sanitizeSlice(m.group(6)!);
-        if (content.isNotEmpty) {
-          spans.add(TextSpan(
-            text: content,
-            style: TextStyle(
-              fontStyle: FontStyle.italic,
-              color: textColor,
-            ),
-          ));
-        }
-      }
-      // Negrito
-      else if (m.group(7) != null && m.group(8) != null) {
-        final content = _sanitizeSlice(m.group(8)!);
-        if (content.isNotEmpty) {
-          spans.add(TextSpan(
-            text: content,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ));
-        }
-      }
-      // Palavras de Jesus (Red Letter)
-      else if (m.group(9) != null) {
-        final content = _sanitizeSlice(m.group(9)!);
-        if (content.isNotEmpty) {
-          spans.add(TextSpan(
-            text: content,
-            style: const TextStyle(
-              color: Color(0xFFEF4444), // Vermelho elegante para palavras de Cristo
-              fontWeight: FontWeight.w500,
-            ),
-          ));
-        }
-      }
-      // Módulo Multi-traduções (ex: 5catolicas)
-      else if (m.group(10) != null) {
-        final content = _sanitizeSlice(m.group(10)!);
-        if (content.isNotEmpty) {
-          final prefix = spans.isEmpty ? '' : '\n\n';
-          spans.add(TextSpan(
-            text: '$prefix$content: ',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.kPrimaryGold,
-            ),
-          ));
-        }
-      }
-
-      lastEnd = m.end;
-    }
-
-    if (lastEnd < text.length) {
-      final tail = _sanitizeSlice(text.substring(lastEnd));
-      if (tail.isNotEmpty) {
-        spans.add(TextSpan(
-          text: tail,
-          style: textColor != null ? TextStyle(color: textColor) : null,
-        ));
-      }
-    }
-
-    return spans;
-  }
-
-  static List<InlineSpan> _buildInterlinearSpans({
-    required BuildContext context,
-    required String text,
-    required void Function(String strongCode, String word) onStrongTap,
-    Color? textColor,
-    int? strongHighlightColor,
-    bool strongUnderline = true,
-    bool strongBold = true,
-  }) {
-    final words = parseInterlinearTokens(text);
-    if (words.isEmpty) return [];
-
-    final spans = <InlineSpan>[];
-    for (final item in words) {
-      final textWithSpace = item.word + (item.needsSpace ? ' ' : '');
-      if (item.strongCode != null && item.strongCode!.isNotEmpty) {
-        spans.add(_buildStrongSpan(
-          context,
-          textWithSpace,
-          item.strongCode!,
-          onStrongTap,
-          textColor: textColor,
-          strongHighlightColor: strongHighlightColor,
-          underline: strongUnderline,
-          bold: strongBold,
-        ));
-      } else {
-        spans.add(TextSpan(
-          text: textWithSpace,
-          style: TextStyle(color: textColor),
-        ));
-      }
-    }
-    return spans;
+    return word.replaceAll(_strongTagRegex, '').replaceAll(_htmlTagRegex, '');
   }
 
   static String _sanitizeSlice(String slice) {
@@ -698,8 +743,8 @@ class BibleTextParser {
     var clean = slice;
     clean = clean.replaceAll(_strongTagRegex, '');
     clean = clean.replaceAll(_swordControlRegex, '');
-    clean = clean.replaceAll(RegExp(r'<[^>]+>'), '');
-    clean = clean.replaceAll(RegExp(r'[「」『』《》]'), '');
+    clean = clean.replaceAll(_htmlTagRegex, '');
+    clean = clean.replaceAll(_bracketsRegex, '');
     clean = unescapeHtml(clean);
     return clean;
   }

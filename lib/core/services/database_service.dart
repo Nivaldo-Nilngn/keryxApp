@@ -18,6 +18,12 @@ class DatabaseService {
 
   final Map<String, Database> _databases = {};
 
+  // Cache em memória de caminhos de bancos resolvidos (0ms no acesso subsequente)
+  final Map<String, String> _resolvedDbPaths = {};
+
+  // Versões que comprovadamente não existem localmente (evita dezenas de databaseExists repetidos)
+  final Set<String> _knownMissingVersions = {};
+
   // Cache de estrutura para comentários (evita redescobrir schema em cada clique)
   final Map<
     String,
@@ -59,9 +65,36 @@ class DatabaseService {
   /// Chame antes de excluir o arquivo e depois de baixar uma versão nova,
   /// senão o app continua usando a conexão antiga.
   /// Aceita o nome do arquivo ("BEACON.cmt.mybible") ou a chave da Bíblia ("NVI").
+  /// Invalida caches em memória para um banco/versão (ex: ao baixar nova versão na Loja)
+  void invalidateVersion(String versionOrFilename) {
+    final key = versionOrFilename.toUpperCase();
+    final base = _stripExt(versionOrFilename).toUpperCase();
+    _knownMissingVersions.remove(key);
+    _knownMissingVersions.remove(base);
+    _resolvedDbPaths.remove(key);
+    _resolvedDbPaths.remove(base);
+    _databases.remove(key);
+    _databases.remove(base);
+  }
+
+  /// Verifica de forma instantânea se uma versão já foi resolvida ou se está faltando
+  bool? isVersionKnownInstalled(String version) {
+    final key = version.toUpperCase();
+    if (_databases.containsKey(key) || _resolvedDbPaths.containsKey(key)) return true;
+    if (_knownMissingVersions.contains(key)) return false;
+    return null;
+  }
+
   Future<void> closeDatabase(String nameOrFilename) async {
     final target = nameOrFilename.toLowerCase();
     final targetBase = _stripExt(nameOrFilename).toLowerCase();
+    final targetUpper = nameOrFilename.toUpperCase();
+    final targetBaseUpper = targetBase.toUpperCase();
+
+    _knownMissingVersions.remove(targetUpper);
+    _knownMissingVersions.remove(targetBaseUpper);
+    _resolvedDbPaths.remove(targetUpper);
+    _resolvedDbPaths.remove(targetBaseUpper);
 
     final keys = _databases.keys.where((k) {
       final kl = k.toLowerCase();
@@ -86,6 +119,25 @@ class DatabaseService {
     final key = version.toUpperCase();
 
     if (_databases.containsKey(key)) return _databases[key]!;
+    if (_knownMissingVersions.contains(key)) {
+      throw Exception("Banco de dados da versão $version não encontrado localmente.");
+    }
+
+    if (_resolvedDbPaths.containsKey(key)) {
+      final cachedPath = _resolvedDbPaths[key]!;
+      try {
+        final db = kIsWeb
+            ? await databaseFactoryFfiWeb.openDatabase(
+                cachedPath,
+                options: OpenDatabaseOptions(readOnly: true),
+              )
+            : await openDatabase(cachedPath, readOnly: true);
+        _databases[key] = db;
+        return db;
+      } catch (_) {
+        _resolvedDbPaths.remove(key);
+      }
+    }
 
     final dbPath = !kIsWeb
         ? await getDatabasesPath()
@@ -136,10 +188,15 @@ class DatabaseService {
               for (final e in entities) {
                 if (e is io.File) {
                   final eName = basename(e.path).toUpperCase();
+                  final baseWithoutExt = _stripExt(eName);
                   if (eName == '$key.BBL.MYBIBLE' ||
                       eName == '$key.SQLITE' ||
                       eName == '$key.MYBIBLE' ||
-                      eName == '$key.DB') {
+                      eName == '$key.DB' ||
+                      baseWithoutExt == key ||
+                      baseWithoutExt.contains('($key)') ||
+                      baseWithoutExt.contains(key) ||
+                      key.contains(baseWithoutExt)) {
                     final length = await (e).length();
                     if (length > 0) {
                       path = e.path;
@@ -157,6 +214,10 @@ class DatabaseService {
     } else {
       // No web, verificamos se o banco existe no sistema de arquivos virtual do sqflite_ffi_web
       try {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('web_db_ready_$key') == true) {
+          exists = true;
+        } else {
         final factory = databaseFactoryFfiWeb;
         final possibleWebNames = <String>{
           '$key.sqlite',
@@ -181,6 +242,7 @@ class DatabaseService {
             final clean = raw.contains('/') ? raw.split('/').last : raw;
             final baseWithoutExt = _stripExt(clean).toUpperCase();
             if (baseWithoutExt == key ||
+                baseWithoutExt.contains('($key)') ||
                 key.contains(baseWithoutExt) ||
                 baseWithoutExt.contains(key)) {
               possibleWebNames.add(clean);
@@ -211,14 +273,16 @@ class DatabaseService {
           }
           if (exists) break;
         }
+        }
       } catch (e) {
         exists = false;
       }
     }
 
     if (!exists) {
-      final isBuiltIn = key == 'NVI' || key == 'ACF' || key == 'ARA_S';
+      final isBuiltIn = key == 'NVI' || key == 'ARA_S';
       if (!isBuiltIn) {
+        _knownMissingVersions.add(key);
         throw Exception("Banco de dados da versão $version não encontrado localmente.");
       }
 
@@ -260,6 +324,8 @@ class DatabaseService {
           // No Web, usamos o factory para escrever no IndexedDB virtual filesystem
           final factory = databaseFactoryFfiWeb;
           await factory.writeDatabaseBytes(path, Uint8List.fromList(bytes));
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('web_db_ready_$key', true);
         }
         print("Banco de dados $key copiado para o armazenamento local.");
       } catch (e) {
@@ -276,6 +342,8 @@ class DatabaseService {
           )
         : await openDatabase(path, readOnly: true);
     _databases[key] = db;
+    _resolvedDbPaths[key] = path;
+    _knownMissingVersions.remove(key);
     return db;
   }
 
@@ -312,7 +380,7 @@ class DatabaseService {
         _verseSchemas[key] = schema;
       }
 
-      final List<Map<String, dynamic>> maps;
+      List<Map<String, dynamic>> maps;
 
       if (schema == _VerseSchema.araS) {
         maps = await db.query(
@@ -333,6 +401,15 @@ class DatabaseService {
           whereArgs: [bookId, chapter, verse],
           limit: 1,
         );
+        if (maps.isEmpty && bookId <= 66) {
+          maps = await db.query(
+            'Bible',
+            columns: ['Scripture as text'],
+            where: 'Book = ? AND Chapter = ? AND Verse = ?',
+            whereArgs: [bookId * 10, chapter, verse],
+            limit: 1,
+          );
+        }
         if (maps.isNotEmpty) {
           return maps.first['text'] as String?;
         }
@@ -347,6 +424,15 @@ class DatabaseService {
           whereArgs: [bookId, chapter, verse],
           limit: 1,
         );
+        if (maps.isEmpty && bookId <= 66) {
+          maps = await db.query(
+            'verses',
+            columns: ['text'],
+            where: '$bookCol = ? AND chapter = ? AND verse = ?',
+            whereArgs: [bookId * 10, chapter, verse],
+            limit: 1,
+          );
+        }
         if (maps.isNotEmpty) {
           return maps.first['text'] as String?;
         }
@@ -1305,8 +1391,23 @@ class DatabaseService {
       exists = await io.File(destPath).exists();
     } else {
       try {
-        final factory = databaseFactoryFfiWeb;
-        exists = await factory.databaseExists(destPath);
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('web_db_ready_$_strongFilename') == true) {
+          exists = true;
+        } else {
+          final factory = databaseFactoryFfiWeb;
+          final candidates = [
+            _strongFilename,
+            destPath,
+            _strongFilename.startsWith('/') ? _strongFilename.substring(1) : '/$_strongFilename',
+          ];
+          for (final c in candidates) {
+            if (await factory.databaseExists(c)) {
+              exists = true;
+              break;
+            }
+          }
+        }
       } catch (e) {
         exists = false;
       }
@@ -1327,6 +1428,8 @@ class DatabaseService {
         } else {
           final factory = databaseFactoryFfiWeb;
           await factory.writeDatabaseBytes(destPath, Uint8List.fromList(bytes));
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('web_db_ready_$_strongFilename', true);
         }
         debugPrint('✅ $_strongFilename copiado para $destPath');
       } catch (e) {
@@ -1375,14 +1478,158 @@ class DatabaseService {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Referências Bíblicas Cruzadas e Thompson (referencias.db)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  static const _referencesKey = 'REFERENCIAS_DB';
+  static const _referencesAsset = 'assets/database/referencias.db';
+  static const _referencesFilename = 'referencias.db';
+
+  /// Abre ou copia o banco `referencias.db` dos assets (344k referências cruzadas + Thompson).
+  Future<Database> getReferencesDatabase() async {
+    _ensureWebFactory();
+    if (_databases.containsKey(_referencesKey)) return _databases[_referencesKey]!;
+
+    String destPath;
+    if (!kIsWeb) {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      destPath = join(appDocDir.path, _referencesFilename);
+    } else {
+      final dbPath = await databaseFactoryFfiWeb.getDatabasesPath();
+      destPath = join(dbPath, _referencesFilename);
+    }
+
+    bool exists = false;
+    if (!kIsWeb) {
+      exists = await io.File(destPath).exists();
+      if (exists) {
+        final length = await io.File(destPath).length();
+        if (length == 0) {
+          try {
+            await io.File(destPath).delete();
+          } catch (_) {}
+          exists = false;
+        }
+      }
+    } else {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('web_db_ready_$_referencesFilename') == true) {
+          exists = true;
+        } else {
+          final factory = databaseFactoryFfiWeb;
+          final candidates = [
+            _referencesFilename,
+            destPath,
+            _referencesFilename.startsWith('/') ? _referencesFilename.substring(1) : '/$_referencesFilename',
+          ];
+          for (final c in candidates) {
+            if (await factory.databaseExists(c)) {
+              exists = true;
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        exists = false;
+      }
+    }
+
+    if (!exists) {
+      debugPrint('📦 Copiando $_referencesFilename dos assets...');
+      try {
+        final data = await rootBundle.load(_referencesAsset);
+        final bytes = data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        );
+
+        if (!kIsWeb) {
+          await io.File(destPath).writeAsBytes(bytes, flush: true);
+        } else {
+          final factory = databaseFactoryFfiWeb;
+          await factory.writeDatabaseBytes(destPath, Uint8List.fromList(bytes));
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('web_db_ready_$_referencesFilename', true);
+        }
+        debugPrint('✅ $_referencesFilename copiado para $destPath');
+      } catch (e) {
+        debugPrint('Erro ao copiar referencias db: $e');
+      }
+    }
+
+    Database db;
+    if (!kIsWeb) {
+      db = await openDatabase(destPath, readOnly: true);
+    } else {
+      db = await databaseFactoryFfiWeb.openDatabase(
+        destPath,
+        options: OpenDatabaseOptions(readOnly: true),
+      );
+    }
+
+    _databases[_referencesKey] = db;
+    return db;
+  }
+
+  /// Busca referências cruzadas para um versículo (ordenadas por relevância / votos).
+  Future<List<Map<String, dynamic>>> getRawCrossReferences(
+    int book,
+    int chapter,
+    int verse, {
+    int limit = 50,
+  }) async {
+    try {
+      final db = await getReferencesDatabase();
+      return await db.query(
+        'cross_references',
+        where: 'from_b = ? AND from_c = ? AND from_v = ?',
+        whereArgs: [book, chapter, verse],
+        orderBy: 'votes DESC',
+        limit: limit,
+      );
+    } catch (e) {
+      debugPrint('❌ Erro ao buscar referências cruzadas: $e');
+      return [];
+    }
+  }
+
+  /// Busca cadeias temáticas da Bíblia Thompson para o versículo.
+  Future<List<Map<String, dynamic>>> getRawThompsonChains(
+    int book,
+    int chapter,
+    int verse,
+  ) async {
+    try {
+      final db = await getReferencesDatabase();
+      return await db.rawQuery(
+        '''
+        SELECT vt.topic_id, vt.topic_title, t.content AS chain_summary
+        FROM thompson_verse_topics vt
+        JOIN thompson_topics t ON vt.topic_id = t.topic_id
+        WHERE vt.book = ? AND vt.chapter = ? AND vt.verse = ?
+        ''',
+        [book, chapter, verse],
+      );
+    } catch (e) {
+      debugPrint('❌ Erro ao buscar temas Thompson: $e');
+      return [];
+    }
+  }
+
   /// Fecha todos os bancos de dados abertos
   Future<void> closeAll() async {
     for (var db in _databases.values) {
-      await db.close();
+      try {
+        await db.close();
+      } catch (_) {}
     }
     _databases.clear();
     _commentarySchemas.clear();
     _verseSchemas.clear();
     _commentaryHasMarker.clear();
+    _resolvedDbPaths.clear();
+    _knownMissingVersions.clear();
   }
 }

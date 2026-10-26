@@ -16,9 +16,11 @@ import 'package:keryx_app/features/home/view_model/notifications_provider.dart';
 // Import necessário para o AuthWrapper
 import 'package:keryx_app/features/store/view/store_screen.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
+import 'dart:convert';
 import 'package:keryx_app/features/access_control/service/access_control_service.dart';
 import 'package:keryx_app/features/access_control/view/user_management_screen.dart';
-import 'pwa_install_guide_modal.dart';
+import 'reset_data_modal.dart';
+import 'edit_profile_modal.dart';
 
 class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
@@ -159,6 +161,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
+                      constraints: const BoxConstraints(maxWidth: double.infinity),
                       builder: (context) => const NotificationsBottomSheet(),
                     );
                   },
@@ -265,7 +268,9 @@ class KeryxUserDropdown extends ConsumerWidget {
             child: _buildUserAvatar(context, user, ref),
           ),
           onSelected: (value) {
-            if (value == 'settings') {
+            if (value == 'edit_profile') {
+              showEditProfileModal(context, ref);
+            } else if (value == 'settings') {
               _showSettings(context, ref);
             } else if (value == 'access_management') {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const UserManagementScreen()));
@@ -273,10 +278,6 @@ class KeryxUserDropdown extends ConsumerWidget {
               _handleLogout(context, ref);
             } else if (value == 'login') {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-            } else if (value == 'theme') {
-              final currentMode = ref.read(themeModeProvider);
-              final newMode = currentMode == AppThemeMode.dark ? AppThemeMode.light : AppThemeMode.dark;
-              ref.read(themeModeProvider.notifier).setTheme(newMode);
             }
           },
           itemBuilder: (context) {
@@ -294,21 +295,7 @@ class KeryxUserDropdown extends ConsumerWidget {
                 ),
               ),
               const PopupMenuDivider(height: 1),
-              PopupMenuItem(
-                value: 'theme',
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final isDark = ref.watch(themeModeProvider) == AppThemeMode.dark;
-                    return Row(
-                      children: [
-                        Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onSurface, size: 20),
-                        const SizedBox(width: 12),
-                        Text(isDark ? 'Tema Claro' : 'Tema Escuro', style: GoogleFonts.manrope(color: Theme.of(context).colorScheme.onSurface)),
-                      ],
-                    );
-                  },
-                ),
-              ),
+              _buildThemeSelectorItem(context, ref),
             ] else ...[
               PopupMenuItem(
                 enabled: false,
@@ -377,6 +364,16 @@ class KeryxUserDropdown extends ConsumerWidget {
               ),
               const PopupMenuDivider(height: 1),
               PopupMenuItem(
+                value: 'edit_profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.manage_accounts_outlined, color: Theme.of(context).colorScheme.onSurface, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Editar Perfil', style: GoogleFonts.manrope(color: Theme.of(context).colorScheme.onSurface)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
                 value: 'settings',
                 child: Row(
                   children: [
@@ -403,21 +400,9 @@ class KeryxUserDropdown extends ConsumerWidget {
                     ],
                   ),
                 ),
-              PopupMenuItem(
-                value: 'theme',
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final isDark = ref.watch(themeModeProvider) == AppThemeMode.dark;
-                    return Row(
-                      children: [
-                        Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onSurface, size: 20),
-                        const SizedBox(width: 12),
-                        Text(isDark ? 'Tema Claro' : 'Tema Escuro', style: GoogleFonts.manrope(color: Theme.of(context).colorScheme.onSurface)),
-                      ],
-                    );
-                  },
-                ),
-              ),
+              const PopupMenuDivider(height: 1),
+              _buildThemeSelectorItem(context, ref),
+              const PopupMenuDivider(height: 1),
               PopupMenuItem(
                 value: 'logout',
                 child: Row(
@@ -461,15 +446,6 @@ class KeryxUserDropdown extends ConsumerWidget {
                                      user.photoURL ?? 
                                      (user.providerData.isNotEmpty ? user.providerData.first.photoURL : null);
 
-            // Sanitização para evitar erro 429 (Too Many Requests) do Google no Web
-            if (photoUrl != null && photoUrl.contains('googleusercontent.com')) {
-              photoUrl = photoUrl.replaceAll(RegExp(r'=s\d+(-c)?'), '=s256-c');
-            }
-
-            if (kIsWeb && photoUrl != null && photoUrl.startsWith('http') && !photoUrl.contains('wsrv.nl')) {
-              photoUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(photoUrl)}';
-            }
-
             return Container(
               width: 32,
               height: 32,
@@ -478,15 +454,7 @@ class KeryxUserDropdown extends ConsumerWidget {
                 border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5), width: 1.5),
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
-              child: (photoUrl != null)
-                ? ClipOval(
-                    child: Image.network(
-                      photoUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => _buildInitials(context, initial),
-                    ),
-                  )
-                : _buildInitials(context, initial),
+              child: buildAvatarImageWidget(context, photoUrl, initial, size: 32),
             );
           },
           loading: () => SizedBox(width: 32, height: 32, child: Center(child: CircleAvatar(radius: 16, backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest))),
@@ -496,16 +464,206 @@ class KeryxUserDropdown extends ConsumerWidget {
     );
   }
 
-  Widget _buildInitials(BuildContext context, String initial) {
+  static Widget buildAvatarImageWidget(BuildContext context, String? photoUrl, String initial, {double? size}) {
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return buildInitialsWidget(context, initial, size: size);
+    }
+
+    // Se for Base64 (data:image/...)
+    if (photoUrl.startsWith('data:image') || !photoUrl.startsWith('http')) {
+      try {
+        final cleanBase64 = photoUrl.contains(',') ? photoUrl.split(',').last : photoUrl;
+        final bytes = base64Decode(cleanBase64.trim());
+        return ClipOval(
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+            errorBuilder: (context, error, stackTrace) => buildInitialsWidget(context, initial, size: size),
+          ),
+        );
+      } catch (_) {
+        return buildInitialsWidget(context, initial, size: size);
+      }
+    }
+
+    // Se for URL HTTP/HTTPS
+    String resolvedUrl = photoUrl;
+    if (resolvedUrl.contains('googleusercontent.com')) {
+      resolvedUrl = resolvedUrl.replaceAll(RegExp(r'=s\d+(-c)?'), '=s256-c');
+    }
+    if (kIsWeb && resolvedUrl.startsWith('http') && !resolvedUrl.contains('wsrv.nl')) {
+      resolvedUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(resolvedUrl)}';
+    }
+
+    return ClipOval(
+      child: Image.network(
+        resolvedUrl,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        errorBuilder: (context, error, stackTrace) => buildInitialsWidget(context, initial, size: size),
+      ),
+    );
+  }
+
+  static Widget buildInitialsWidget(BuildContext context, String initial, {double? size}) {
     return Container(
       alignment: Alignment.center,
       child: Text(
         initial,
         style: GoogleFonts.outfit(
           color: Theme.of(context).colorScheme.primary,
-          fontSize: 14,
+          fontSize: size != null ? size * 0.45 : 14,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildThemeSelectorItem(BuildContext context, WidgetRef ref) {
+    return PopupMenuItem<String>(
+      enabled: false,
+      height: 94,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Consumer(
+        builder: (context, ref, _) {
+          final currentMode = ref.watch(themeModeProvider);
+          return SizedBox(
+            width: 240,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.palette_outlined,
+                        size: 13,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'TEMA VISUAL',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildMenuThemeButton(
+                      context: context,
+                      ref: ref,
+                      label: 'Claro',
+                      mode: AppThemeMode.light,
+                      current: currentMode,
+                      bgColor: const Color(0xFFF3F4F6),
+                      textColor: Colors.black87,
+                      icon: Icons.light_mode_rounded,
+                    ),
+                    _buildMenuThemeButton(
+                      context: context,
+                      ref: ref,
+                      label: 'Escuro',
+                      mode: AppThemeMode.dark,
+                      current: currentMode,
+                      bgColor: const Color(0xFF1E1E30),
+                      textColor: const Color(0xFFE2E0F9),
+                      icon: Icons.dark_mode_rounded,
+                    ),
+                    _buildMenuThemeButton(
+                      context: context,
+                      ref: ref,
+                      label: 'Sépia',
+                      mode: AppThemeMode.sepia,
+                      current: currentMode,
+                      bgColor: const Color(0xFFFDF0D5),
+                      textColor: const Color(0xFF5C4033),
+                      icon: Icons.auto_stories_rounded,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMenuThemeButton({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String label,
+    required AppThemeMode mode,
+    required AppThemeMode current,
+    required Color bgColor,
+    required Color textColor,
+    required IconData icon,
+  }) {
+    final isSelected = mode == current;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        ref.read(themeModeProvider.notifier).setTheme(mode);
+        Navigator.of(context).pop();
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+                width: isSelected ? 2.5 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+            ),
+            child: Center(
+              child: isSelected
+                  ? const Icon(Icons.check_circle_rounded, color: AppTheme.kPrimaryGold, size: 22)
+                  : Icon(icon, color: textColor.withValues(alpha: 0.7), size: 18),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: GoogleFonts.outfit(
+              color: isSelected ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+              fontSize: 11,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -515,6 +673,7 @@ class KeryxUserDropdown extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: const BoxConstraints(maxWidth: double.infinity),
       builder: (context) => const UnifiedSettingsSheet(),
     );
   }
@@ -626,27 +785,42 @@ class KeryxUserDropdown extends ConsumerWidget {
 }
 
 
-class UnifiedSettingsSheet extends ConsumerWidget {
+class UnifiedSettingsSheet extends ConsumerStatefulWidget {
   const UnifiedSettingsSheet({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UnifiedSettingsSheet> createState() => _UnifiedSettingsSheetState();
+}
+
+class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
+  bool _isSystemSettingsExpanded = true;
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(fontSettingsProvider);
-    final appThemeMode = ref.watch(themeModeProvider);
+    final authState = ref.watch(authStateProvider);
+    final user = authState.value;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Container(
+          width: double.infinity,
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
             border: Border(top: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1), width: 1)),
           ),
-          padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 36),
+          padding: EdgeInsets.fromLTRB(
+            isTablet ? 40 : 24,
+            16,
+            isTablet ? 40 : 24,
+            MediaQuery.of(context).viewInsets.bottom + 36,
+          ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.88,
+              maxHeight: MediaQuery.of(context).size.height * 0.90,
             ),
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -689,28 +863,351 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── Seção Minha Conta e Gerenciamento de Acessos ──
-                  _buildAccountAccessSection(context, ref),
+                  // 1. PERFIL DO USUÁRIO COM OPÇÃO DE EDITAR
+                  _buildUserProfileSection(context, user),
                   const SizedBox(height: 24),
 
-                  // ── Seção Instalar no iPhone / Celular (PWA) ──
-                  _buildPwaInstallSection(context),
-                  const SizedBox(height: 28),
+                  // 2. CONFIGURAÇÕES DO SISTEMA (FONTE E VOZ TTS - MINIMIZÁVEL)
+                  _buildSystemSettingsSection(context, settings),
+                  const SizedBox(height: 24),
 
-                  Text('TEMA VISUAL', style: _sectionTitleStyle(context)),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // 3. ARMAZENAMENTO E DADOS
+                  Text('ARMAZENAMENTO E DADOS', style: _sectionTitleStyle(context)),
+                  const SizedBox(height: 14),
+                  _buildDataResetSection(context, ref),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserProfileSection(BuildContext context, dynamic user) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    if (user == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: theme.colorScheme.onSurface.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              radius: 24,
+              backgroundColor: Colors.grey,
+              child: Icon(Icons.person, color: Colors.white),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Nenhum usuário conectado', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(
+                    'Faça login para sincronizar dados e personalizar seu perfil',
+                    style: GoogleFonts.manrope(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                  ),
+                ],
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.kPrimaryGold,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Entrar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isPrimaryAdmin = AccessControlService.isPrimaryAdmin(user.email);
+    final userData = ref.watch(userDataProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('CONTA E PERFIL', style: _sectionTitleStyle(context)),
+        const SizedBox(height: 12),
+        userData.when(
+          data: (data) {
+            String name = data?['name'] ?? user.displayName ?? '';
+            if (name.isEmpty && user.email != null) {
+              name = user.email!.split('@').first;
+            }
+            if (name.isEmpty) name = 'Usuário';
+
+            final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+            String? photoUrl = data?['photoUrl'] ?? user.photoURL ?? (user.providerData.isNotEmpty ? user.providerData.first.photoURL : null);
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [const Color(0xFF1E1E2E), const Color(0xFF151520)]
+                      : [Colors.white, const Color(0xFFF9FAFB)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Stack(
                     children: [
-                      _buildThemeCard(context, ref, 'Claro', AppThemeMode.light, appThemeMode, const Color(0xFFF3F4F6), Colors.black87),
-                      _buildThemeCard(context, ref, 'Escuro', AppThemeMode.dark, appThemeMode, const Color(0xFF1E293B), Theme.of(context).colorScheme.onSurface),
-                      _buildThemeCard(context, ref, 'Sépia', AppThemeMode.sepia, appThemeMode, const Color(0xFFFDF0D5), const Color(0xFF5C4033)),
-                      _buildThemeCard(context, ref, 'Papel', AppThemeMode.paper, appThemeMode, const Color(0xFFF4ECD8), Colors.black87),
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.kPrimaryGold, width: 2),
+                          color: theme.colorScheme.surfaceContainerHighest,
+                        ),
+                        child: KeryxUserDropdown.buildAvatarImageWidget(context, photoUrl, initial, size: 54),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: AppTheme.kPrimaryGold,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: theme.scaffoldBackgroundColor, width: 1.5),
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, size: 11, color: Colors.black),
+                        ),
+                      ),
                     ],
                   ),
-                  
-                  const SizedBox(height: 32),
-                  Text('TAMANHO DA FONTE', style: _sectionTitleStyle(context)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isPrimaryAdmin) ...[
+                              const SizedBox(width: 6),
+                              const Icon(Icons.verified, size: 15, color: AppTheme.kPrimaryGold),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          user.email ?? '',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (isPrimaryAdmin) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'ADMINISTRADOR PRINCIPAL',
+                              style: GoogleFonts.outfit(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.kPrimaryGold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.tonalIcon(
+                    onPressed: () {
+                      showEditProfileModal(context, ref);
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                      foregroundColor: AppTheme.kPrimaryGold,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.edit_rounded, size: 15),
+                    label: Text('Editar', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ],
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSystemSettingsSection(BuildContext context, FontSettings settings) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A28) : const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header / Toggle
+          InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: () {
+              setState(() {
+                _isSystemSettingsExpanded = !_isSystemSettingsExpanded;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.tune_rounded, color: AppTheme.kPrimaryGold, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Configurações do Sistema',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'FONTE & VOZ',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.kPrimaryGold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Fonte: ${settings.fontFamily} • ${settings.fontSize.toInt()}px • Voz TTS',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _isSystemSettingsExpanded ? 'Minimizar' : 'Personalizar',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.kPrimaryGold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _isSystemSettingsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: AppTheme.kPrimaryGold,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Se estiver expandido, exibe os controles de Fonte e TTS
+          if (_isSystemSettingsExpanded) ...[
+            Divider(height: 1, color: theme.colorScheme.onSurface.withValues(alpha: 0.08)),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('TAMANHO DA FONTE (${settings.fontSize.toInt()}px)', style: _sectionTitleStyle(context)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -737,10 +1234,10 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                       Icon(Icons.text_increase_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), size: 28),
                     ],
                   ),
-                  
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+
                   Text('ESTILO DE FONTE', style: _sectionTitleStyle(context)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   SizedBox(
                     height: 48,
                     child: ListView(
@@ -814,14 +1311,14 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                       )).toList(),
                     ),
                   ),
-                  
-                  const SizedBox(height: 32),
-                  
+                  const SizedBox(height: 24),
+
+                  // Card de Áudio e Voz TTS
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [const Color(0xFF4ADE80).withValues(alpha: 0.2), const Color(0xFF3B82F6).withValues(alpha: 0.2)],
+                        colors: [const Color(0xFF4ADE80).withValues(alpha: 0.15), const Color(0xFF3B82F6).withValues(alpha: 0.15)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -838,29 +1335,30 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                             context: context,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
+                            constraints: const BoxConstraints(maxWidth: double.infinity),
                             builder: (context) => const keryx_tts.TtsSettingsSheet(),
                           );
                         },
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(Icons.record_voice_over_rounded, color: Theme.of(context).colorScheme.onSurface, size: 24),
+                                child: Icon(Icons.record_voice_over_rounded, color: Theme.of(context).colorScheme.onSurface, size: 22),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Áudio e Leitura (TTS)', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 4),
-                                    Text('Configurar vozes e idioma da leitura', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 13)),
+                                    Text('Áudio e Leitura (TTS)', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 2),
+                                    Text('Configurar vozes, velocidade e idioma da leitura', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 12)),
                                   ],
                                 ),
                               ),
@@ -871,225 +1369,16 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ),
-        ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildAccountAccessSection(BuildContext context, WidgetRef ref) {
-    final authUser = ref.watch(authStateProvider).value;
-    final isAdm = AccessControlService.isPrimaryAdmin(authUser?.email);
-
-    if (isAdm) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.kPrimaryGold.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppTheme.kPrimaryGold.withValues(alpha: 0.25),
-            width: 1.2,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.shield_rounded, color: AppTheme.kPrimaryGold, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              'Administrador Principal',
-                              style: GoogleFonts.outfit(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Icon(Icons.verified, size: 14, color: AppTheme.kPrimaryGold),
-                        ],
-                      ),
-                      Text(
-                        AccessControlService.kPrimaryAdminEmail,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'AUTORIZADO',
-                    style: GoogleFonts.outfit(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF10B981),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Permissões: Acesso completo ao sistema de gerenciamento de usuários. Autorização automática permanente.',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                height: 1.4,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
-              ),
-            ),
-            const SizedBox(height: 14),
-            // Botão Gerenciamento de Acessos
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const UserManagementScreen()),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.manage_accounts_rounded, color: AppTheme.kPrimaryGold, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Gerenciamento de Acessos',
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                            Text(
-                              'Visualizar, aprovar e revogar acessos de usuários',
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (authUser != null) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-          ),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.person_outline_rounded, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    authUser.displayName ?? 'Usuário',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  Text(
-                    authUser.email ?? '',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                'AUTORIZADO',
-                style: GoogleFonts.outfit(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF10B981),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildPwaInstallSection(BuildContext context) {
+  Widget _buildDataResetSection(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -1098,19 +1387,19 @@ class UnifiedSettingsSheet extends ConsumerWidget {
         gradient: LinearGradient(
           colors: isDark
               ? [
-                  const Color(0xFF1B1B32),
-                  const Color(0xFF141426),
+                  const Color(0xFF3F1212),
+                  const Color(0xFF220A0A),
                 ]
               : [
-                  const Color(0xFFF8F9FE),
-                  const Color(0xFFFFFFFF),
+                  const Color(0xFFFEF2F2),
+                  const Color(0xFFFEE2E2),
                 ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
+          color: const Color(0xFFEF4444).withValues(alpha: 0.35),
           width: 1.2,
         ),
       ),
@@ -1120,7 +1409,7 @@ class UnifiedSettingsSheet extends ConsumerWidget {
           borderRadius: BorderRadius.circular(20),
           onTap: () {
             Navigator.pop(context);
-            showPwaInstallGuide(context);
+            showResetDataModal(context, ref);
           },
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -1130,13 +1419,13 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
-                    Icons.install_mobile_rounded,
-                    color: AppTheme.kPrimaryGold,
-                    size: 24,
+                    Icons.cleaning_services_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 22,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -1148,11 +1437,11 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              'Instalar App no iPhone / Celular',
+                              'Limpar Dados e Começar do Zero',
                               style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                                color: theme.colorScheme.onSurface,
+                                color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1161,15 +1450,15 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
+                              color: const Color(0xFFEF4444).withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'PWA',
+                              'RESET',
                               style: GoogleFonts.outfit(
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: FontWeight.w900,
-                                color: AppTheme.kPrimaryGold,
+                                color: const Color(0xFFEF4444),
                               ),
                             ),
                           ),
@@ -1177,7 +1466,7 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Adicione à Tela de Início para usar em tela cheia sem barras de navegador.',
+                        'Apagar bíblias, livros, notas, favoritos e caches acumulados.',
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
@@ -1189,7 +1478,7 @@ class UnifiedSettingsSheet extends ConsumerWidget {
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 14,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.6),
                 ),
               ],
             ),
@@ -1207,43 +1496,5 @@ class UnifiedSettingsSheet extends ConsumerWidget {
       letterSpacing: 1.2,
     );
   }
-
-  Widget _buildThemeCard(BuildContext context, WidgetRef ref, String label, AppThemeMode mode, AppThemeMode current, Color bgColor, Color textColor) {
-    final isSelected = mode == current;
-    return GestureDetector(
-      onTap: () => ref.read(themeModeProvider.notifier).setTheme(mode),
-      child: Column(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected ? AppTheme.kPrimaryGold : Colors.transparent,
-                width: 3,
-              ),
-              boxShadow: isSelected
-                  ? [BoxShadow(color: AppTheme.kPrimaryGold.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))]
-                  : [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4))],
-            ),
-            child: isSelected ? const Center(child: Icon(Icons.check_circle_rounded, color: AppTheme.kPrimaryGold, size: 28)) : null,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.outfit(
-              color: isSelected ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
 }
 

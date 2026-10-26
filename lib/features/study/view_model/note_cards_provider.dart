@@ -97,4 +97,20 @@ class NoteCardsNotifier extends StateNotifier<List<NoteCard>> {
     state = [...state]..[idx] = updated;
     await _col?.doc(id).update({'isPublic': updated.isPublic});
   }
+
+  /// Remove todos os documentos e anotações de estudo do usuário
+  Future<void> clearAll() async {
+    state = [];
+    if (_col == null) return;
+    try {
+      final snap = await _col!.where('authorId', isEqualTo: userId).get();
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Erro ao limpar noteCards no Firestore: $e');
+    }
+  }
 }

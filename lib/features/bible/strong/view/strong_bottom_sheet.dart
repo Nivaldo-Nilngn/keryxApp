@@ -10,33 +10,24 @@ import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:keryx_app/core/services/tts/tts_service.dart';
 import 'package:keryx_app/features/bible/model/bible_model.dart';
-
-
+import 'package:keryx_app/core/state/font_state.dart';
+import 'package:keryx_app/core/services/custom_font_loader.dart';
+import 'package:keryx_app/features/bible/reading/view/text_settings_bottom_sheet.dart';
 
 void showStrongBottomSheet(
   BuildContext context,
   String strongId,
   String wordClicked,
 ) {
-  if (ResponsiveLayout.isExpanded(context)) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          body: StrongBottomSheet(strongId: strongId, wordClicked: wordClicked),
-        ),
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => StrongBottomSheet(
+        strongId: strongId,
+        wordClicked: wordClicked,
       ),
-    );
-  } else {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) =>
-          StrongBottomSheet(strongId: strongId, wordClicked: wordClicked),
-    );
-  }
+    ),
+  );
 }
 
 class StrongBottomSheet extends ConsumerStatefulWidget {
@@ -159,12 +150,19 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
         .replaceAll(RegExp(r'<[^\>]+>'), '')
         .trim()
         .toUpperCase();
-    if (normalized.startsWith('SGE')) normalized = normalized.replaceFirst('SGE', 'G');
-    else if (normalized.startsWith('SHE')) normalized = normalized.replaceFirst('SHE', 'H');
-    else if (normalized.startsWith('WG')) normalized = normalized.replaceFirst('WG', 'G');
-    else if (normalized.startsWith('WH')) normalized = normalized.replaceFirst('WH', 'H');
-    else if (normalized.startsWith('SG')) normalized = normalized.replaceFirst('SG', 'G');
-    else if (normalized.startsWith('SH')) normalized = normalized.replaceFirst('SH', 'H');
+    if (normalized.startsWith('SGE')) {
+      normalized = normalized.replaceFirst('SGE', 'G');
+    } else if (normalized.startsWith('SHE')) {
+      normalized = normalized.replaceFirst('SHE', 'H');
+    } else if (normalized.startsWith('WG')) {
+      normalized = normalized.replaceFirst('WG', 'G');
+    } else if (normalized.startsWith('WH')) {
+      normalized = normalized.replaceFirst('WH', 'H');
+    } else if (normalized.startsWith('SG')) {
+      normalized = normalized.replaceFirst('SG', 'G');
+    } else if (normalized.startsWith('SH')) {
+      normalized = normalized.replaceFirst('SH', 'H');
+    }
 
     final baseMatch = RegExp(r'^([HG]\d+)').firstMatch(normalized);
     if (baseMatch != null) {
@@ -180,8 +178,49 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
         .trim();
   }
 
+  TextStyle _getLexiconTextStyle(
+    FontSettings fontSettings, {
+    double? fontSize,
+    Color? color,
+    FontWeight? fontWeight,
+    FontStyle? fontStyle,
+    double? height,
+  }) {
+    final size = fontSize ?? fontSettings.fontSize;
+    final family = fontSettings.fontFamily;
+    if (CustomFontLoader.loadedFontFamilies.contains(family)) {
+      return TextStyle(
+        fontFamily: family,
+        fontSize: size,
+        color: color ?? _textPrimary.withValues(alpha: 0.88),
+        fontWeight: fontWeight,
+        fontStyle: fontStyle,
+        height: height ?? 1.6,
+      );
+    }
+    try {
+      return GoogleFonts.getFont(
+        family,
+        fontSize: size,
+        color: color ?? _textPrimary.withValues(alpha: 0.88),
+        fontWeight: fontWeight,
+        fontStyle: fontStyle,
+        height: height ?? 1.6,
+      );
+    } catch (_) {
+      return GoogleFonts.merriweather(
+        fontSize: size,
+        color: color ?? _textPrimary.withValues(alpha: 0.88),
+        fontWeight: fontWeight,
+        fontStyle: fontStyle,
+        height: height ?? 1.6,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final fontSettings = ref.watch(fontSettingsProvider);
     final cleanId = _normalizeStrongId(widget.strongId);
     final dictionaryFallback = ref.watch(
       dictionaryProvider((dictId: 'STRONG (BR).dct.mybible', word: cleanId)),
@@ -192,11 +231,11 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
       return strongEntry.when(
         data: (entryMap) {
           if (entryMap != null) {
-            return _buildDictionaryTabMap(entryMap, cleanId, sc);
+            return _buildDictionaryTabMap(entryMap, cleanId, sc, fontSettings);
           } else {
             return dictionaryFallback.when(
               data: (def) => def != null && def.isNotEmpty
-                  ? _buildDictionaryTabFallback(def, sc)
+                  ? _buildDictionaryTabFallback(def, sc, fontSettings)
                   : _emptyState(),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => _emptyState(),
@@ -212,7 +251,7 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
       return strongEntry.when(
         data: (entryMap) {
           if (entryMap != null) {
-            return _buildConcordanceTabMap(entryMap, sc);
+            return _buildConcordanceTabMap(entryMap, sc, fontSettings);
           } else {
             return _emptyState();
           }
@@ -223,230 +262,146 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
     }
 
     final isExpanded = ResponsiveLayout.isExpanded(context);
+    final sc1 = ScrollController();
+    final sc2 = ScrollController();
 
-    if (isExpanded) {
-      final sc1 = ScrollController();
-      final sc2 = ScrollController();
-      return Container(
-        height: double.infinity,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: _surfaceBase,
+    return Scaffold(
+      backgroundColor: _surfaceBase,
+      appBar: AppBar(
+        backgroundColor: _surfaceBase,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: _textPrimary, size: 24),
+          onPressed: () => Navigator.pop(context),
+          tooltip: 'Voltar',
         ),
-        child: Column(
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.wordClicked,
-                          style: GoogleFonts.plusJakartaSans(
-                            color: _textPrimary,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'LÉXICO E CONCORDÂNCIA',
-                          style: GoogleFonts.outfit(
-                            color: _textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.close_rounded,
-                      color: _textPrimary,
-                      size: 28,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    style: IconButton.styleFrom(
-                      backgroundColor: _surfaceElevated,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
+            Text(
+              widget.wordClicked,
+              style: GoogleFonts.plusJakartaSans(
+                color: _textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            Container(height: 1, color: _textPrimary.withValues(alpha: 0.1)),
-            // Body
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text('DICIONÁRIO', style: GoogleFonts.outfit(color: _textPrimary, fontWeight: FontWeight.bold)),
-                        ),
-                        Expanded(child: buildTab1(sc1)),
-                      ],
-                    ),
-                  ),
-                  Container(width: 1, color: _textPrimary.withValues(alpha: 0.1)),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text('CONCORDÂNCIA', style: GoogleFonts.outfit(color: _textPrimary, fontWeight: FontWeight.bold)),
-                        ),
-                        Expanded(child: buildTab2(sc2)),
-                      ],
-                    ),
-                  ),
-                ],
+            Text(
+              'LÉXICO E CONCORDÂNCIA • $cleanId',
+              style: GoogleFonts.outfit(
+                color: _textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
               ),
             ),
           ],
         ),
-      );
-    }
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: _surfaceBase,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.tune_rounded, color: _textSecondary, size: 22),
+            tooltip: 'Configurações de Leitura & Strong',
+            onPressed: () => showTextSettingsBottomSheet(context, isStrongVersion: true),
+          ),
+          const SizedBox(width: 4),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: _surfaceElevated,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: _surfaceCard,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _textPrimary.withValues(alpha: 0.05)),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: _textPrimary,
+              unselectedLabelColor: _textSecondary,
+              labelStyle: GoogleFonts.outfit(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                letterSpacing: 0.5,
+              ),
+              unselectedLabelStyle: GoogleFonts.outfit(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              tabs: const [
+                Tab(text: 'DICIONÁRIO'),
+                Tab(text: 'CONCORDÂNCIA'),
+              ],
             ),
           ),
-          child: Column(
-            children: [
-              // Drag handle
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 4),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: _textPrimary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
-              // Header
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 48), // Espaçamento para centralizar o título
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Text(
-                            widget.wordClicked,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: _textPrimary,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+        ),
+      ),
+      body: isExpanded
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'DICIONÁRIO',
+                          style: GoogleFonts.outfit(
+                            color: _textPrimary,
+                            fontWeight: FontWeight.bold,
                           ),
-                          Text(
-                            'LÉXICO E CONCORDÂNCIA',
-                            style: GoogleFonts.outfit(
-                              color: _textSecondary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: _textPrimary,
-                        size: 28,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      style: IconButton.styleFrom(
-                        backgroundColor: _surfaceElevated,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Tabs
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: _surfaceElevated,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    color: _surfaceCard,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _textPrimary.withValues(alpha: 0.05)),
+                      Expanded(child: buildTab1(sc1)),
+                    ],
                   ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  labelColor: _textPrimary,
-                  unselectedLabelColor: _textSecondary,
-                  labelStyle: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    letterSpacing: 0.5,
-                  ),
-                  unselectedLabelStyle: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                  tabs: const [
-                    Tab(text: 'DICIONÁRIO'),
-                    Tab(text: 'CONCORDÂNCIA'),
-                  ],
                 ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    buildTab1(scrollController),
-                    buildTab2(scrollController),
-                  ],
+                Container(width: 1, color: _textPrimary.withValues(alpha: 0.1)),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'CONCORDÂNCIA',
+                          style: GoogleFonts.outfit(
+                            color: _textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: buildTab2(sc2)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            )
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                buildTab1(sc1),
+                buildTab2(sc2),
+              ],
+            ),
     );
   }
 
 
-  Widget _buildConcordanceTabMap(Map<String, dynamic> entry, ScrollController scrollController) {
+  Widget _buildConcordanceTabMap(
+    Map<String, dynamic> entry,
+    ScrollController scrollController,
+    FontSettings fontSettings,
+  ) {
     // Agora buscaremos a concordância viva (pesquisa direta no banco)
     return Consumer(
       builder: (context, ref, _) {
@@ -505,7 +460,6 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
                             onTap: () {
                               final bookNum = v['book_id'] as int;
                               final chapterNum = v['chapter'] as int;
-                              final verseNum = v['verse'] as int;
                               
                               final bookDetails = BibleMetadata.bookDetails[bookNum]!;
                               final book = BibleBook(
@@ -550,7 +504,7 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
                                         style: GoogleFonts.outfit(
                                           color: _textPrimary,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 14,
+                                          fontSize: (fontSettings.fontSize * 0.9).clamp(13.0, 18.0),
                                         ),
                                       ),
                                     ],
@@ -558,9 +512,10 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
                                   const SizedBox(height: 12),
                                   Text(
                                     cleanText,
-                                    style: GoogleFonts.merriweather(
-                                      color: _textPrimary.withValues(alpha: 0.85),
-                                      fontSize: 15,
+                                    style: _getLexiconTextStyle(
+                                      fontSettings,
+                                      fontSize: fontSettings.fontSize,
+                                      color: _textPrimary.withValues(alpha: 0.88),
                                       height: 1.6,
                                     ),
                                   ),
@@ -594,7 +549,12 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
   }
 
 
-  Widget _buildDictionaryTabMap(Map<String, dynamic> entry, String cleanId, ScrollController scrollController) {
+  Widget _buildDictionaryTabMap(
+    Map<String, dynamic> entry,
+    String cleanId,
+    ScrollController scrollController,
+    FontSettings fontSettings,
+  ) {
     final palavraOriginal = (entry['PALAVRA_ORIGINAL'] ?? '').toString();
     final pronuncia = (entry['PRONUNCIA'] ?? '').toString();
     final traducao = (entry['TRADUCAO'] ?? '').toString();
@@ -622,7 +582,14 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
                     style: GoogleFonts.notoSerif(
                       color: _textPrimary,
                       fontSize: 48,
-                      fontWeight: FontWeight.w300,
+                      fontWeight: FontWeight.w400,
+                    ).copyWith(
+                      fontFamilyFallback: const [
+                        'Noto Serif',
+                        'Times New Roman',
+                        'Georgia',
+                        'serif',
+                      ],
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -632,7 +599,7 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
                       pronuncia,
                       style: GoogleFonts.merriweather(
                         color: _textSecondary,
-                        fontSize: 16,
+                        fontSize: (fontSettings.fontSize * 1.05).clamp(14.0, 24.0),
                         fontStyle: FontStyle.italic,
                       ),
                       textAlign: TextAlign.center,
@@ -642,9 +609,6 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
                   // Botão de áudio
                   GestureDetector(
                     onTap: () {
-                      final toSpeak = pronuncia.isNotEmpty
-                          ? pronuncia
-                          : palavraOriginal;
                       if (pronuncia.isNotEmpty) {
                         _speakTranslit(pronuncia);
                       } else {
@@ -693,14 +657,26 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
                     'TRANSLITERAÇÃO',
                     pronuncia,
                     isHighlight: false,
+                    fontSize: (fontSettings.fontSize * 0.95).clamp(13.0, 20.0),
                   ),
                 )
               else
                 Expanded(
-                  child: _buildInfoCard('CÓDIGO', cleanId, isHighlight: true),
+                  child: _buildInfoCard(
+                    'CÓDIGO',
+                    cleanId,
+                    isHighlight: true,
+                    fontSize: (fontSettings.fontSize * 0.95).clamp(13.0, 20.0),
+                  ),
                 ),
               const SizedBox(width: 12),
-              Expanded(child: _buildInfoCard('CLASSE', classe)),
+              Expanded(
+                child: _buildInfoCard(
+                  'CLASSE',
+                  classe,
+                  fontSize: (fontSettings.fontSize * 0.95).clamp(13.0, 20.0),
+                ),
+              ),
             ],
           ),
 
@@ -712,6 +688,7 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
               traducao,
               isHighlight: true,
               fullWidth: true,
+              fontSize: (fontSettings.fontSize * 0.95).clamp(13.0, 20.0),
             ),
           ],
 
@@ -724,6 +701,7 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
               Icons.info_outline_rounded,
               significado,
               definicao,
+              fontSettings,
             ),
 
           // Origem
@@ -733,20 +711,30 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
               'ORIGEM DA PALAVRA',
               Icons.history_edu_rounded,
               origem,
+              fontSettings,
             ),
           ],
 
           // Notas/Anotação
           if (anotacao.isNotEmpty) ...[
             const SizedBox(height: 16),
-            _buildSimpleBox('NOTAS', Icons.auto_awesome_rounded, anotacao),
+            _buildSimpleBox(
+              'NOTAS',
+              Icons.auto_awesome_rounded,
+              anotacao,
+              fontSettings,
+            ),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildDictionaryTabFallback(String definition, ScrollController scrollController) {
+  Widget _buildDictionaryTabFallback(
+    String definition,
+    ScrollController scrollController,
+    FontSettings fontSettings,
+  ) {
     return SingleChildScrollView(
       controller: scrollController,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
@@ -760,10 +748,17 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
                   'CÓDIGO',
                   widget.strongId,
                   isHighlight: true,
+                  fontSize: (fontSettings.fontSize * 0.95).clamp(13.0, 20.0),
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(child: _buildInfoCard('FONTE', 'Web / IA')),
+              Expanded(
+                child: _buildInfoCard(
+                  'FONTE',
+                  'Web / IA',
+                  fontSize: (fontSettings.fontSize * 0.95).clamp(13.0, 20.0),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -772,6 +767,7 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
             Icons.info_outline_rounded,
             '',
             definition,
+            fontSettings,
           ),
         ],
       ),
@@ -783,7 +779,9 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
     String value, {
     bool isHighlight = false,
     bool fullWidth = false,
+    double? fontSize,
   }) {
+    final valueSize = fontSize ?? 15.0;
     return Container(
       width: fullWidth ? double.infinity : null,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -814,8 +812,8 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
           Text(
             value,
             style: GoogleFonts.outfit(
-              color: isHighlight ? _textPrimary : _textPrimary,
-              fontSize: 15,
+              color: _textPrimary,
+              fontSize: valueSize,
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
             ),
             maxLines: 2,
@@ -831,6 +829,7 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
     IconData icon,
     String significado,
     String definicao,
+    FontSettings fontSettings,
   ) {
     return Container(
       width: double.infinity,
@@ -881,7 +880,7 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
               significado,
               style: GoogleFonts.outfit(
                 color: _textPrimary,
-                fontSize: 16,
+                fontSize: (fontSettings.fontSize + 2).clamp(16.0, 28.0),
                 fontWeight: FontWeight.w600,
                 height: 1.5,
               ),
@@ -894,13 +893,13 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
           ],
 
           // Definição completa - linha por linha
-          if (definicao.isNotEmpty) ..._buildDefinitionLines(definicao),
+          if (definicao.isNotEmpty) ..._buildDefinitionLines(definicao, fontSettings),
         ],
       ),
     );
   }
 
-  List<Widget> _buildDefinitionLines(String definicao) {
+  List<Widget> _buildDefinitionLines(String definicao, FontSettings fontSettings) {
     // Separa por ponto e vírgula ou ponto final para criar linhas distintas
     final lines = definicao
         .split(RegExp(r'(?<=[.;:])\s+'))
@@ -913,18 +912,18 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
       return [
         Text(
           definicao,
-          style: GoogleFonts.merriweather(
-            color: _textPrimary.withValues(alpha: 0.82),
-            fontSize: 14,
+          style: _getLexiconTextStyle(
+            fontSettings,
+            fontSize: fontSettings.fontSize,
+            color: _textPrimary.withValues(alpha: 0.88),
             fontStyle: FontStyle.italic,
-            height: 1.8,
+            height: 1.7,
           ),
         ),
       ];
     }
 
     return lines.asMap().entries.map((e) {
-      final i = e.key;
       final line = e.value;
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -932,10 +931,10 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              margin: const EdgeInsets.only(top: 5, right: 10),
+              margin: const EdgeInsets.only(top: 7, right: 10),
               width: 6,
               height: 6,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.blueAccent,
                 shape: BoxShape.circle,
               ),
@@ -943,9 +942,10 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
             Expanded(
               child: Text(
                 line,
-                style: GoogleFonts.merriweather(
-                  color: _textPrimary.withValues(alpha: 0.82),
-                  fontSize: 14,
+                style: _getLexiconTextStyle(
+                  fontSettings,
+                  fontSize: fontSettings.fontSize,
+                  color: _textPrimary.withValues(alpha: 0.88),
                   fontStyle: FontStyle.italic,
                   height: 1.7,
                 ),
@@ -957,7 +957,12 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
     }).toList();
   }
 
-  Widget _buildSimpleBox(String title, IconData icon, String content) {
+  Widget _buildSimpleBox(
+    String title,
+    IconData icon,
+    String content,
+    FontSettings fontSettings,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -987,11 +992,12 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
           const SizedBox(height: 14),
           Text(
             content,
-            style: GoogleFonts.merriweather(
-              color: _textPrimary.withValues(alpha: 0.82),
-              fontSize: 14,
+            style: _getLexiconTextStyle(
+              fontSettings,
+              fontSize: fontSettings.fontSize,
+              color: _textPrimary.withValues(alpha: 0.88),
               fontStyle: FontStyle.italic,
-              height: 1.8,
+              height: 1.7,
             ),
           ),
         ],

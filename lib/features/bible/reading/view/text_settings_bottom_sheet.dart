@@ -9,6 +9,18 @@ import 'package:keryx_app/core/widgets/keryx_color_picker_dialog.dart';
 /// Modal bottom sheet para configurar tamanho de fonte, família tipográfica,
 /// cores do texto, cores do balão numérico e destaque Strong.
 /// O preview é fixo no topo e o conteúdo passa por baixo dele ao rolar.
+///
+/// Implementado seguindo as 10 Heurísticas de Usabilidade de Nielsen:
+/// 1. Visibilidade do status (Pill com cor ativa mesmo recolhido + live preview)
+/// 2. Correspondência com o mundo real (Metáforas claras de balão, texto e tipografia)
+/// 3. Controle e liberdade do usuário (Cards minimizáveis / expansíveis + Restaurar padrões)
+/// 4. Consistência e padrões (Cards com design unificado e tema Dark/Light)
+/// 5. Prevenção de erros (Validação automática de contraste WCAG 2.1)
+/// 6. Reconhecimento em vez de memorização (Amostras visuais de cores e fontes reais)
+/// 7. Flexibilidade e eficiência (Atalhos de tamanho rápido 14/16/19/24/28px + Minimizar listas)
+/// 8. Design estético e minimalista (Cores perfeitamente centralizadas, sem sobras na lateral)
+/// 9. Auxílio no reconhecimento e recuperação de erros (Confirmação ao restaurar padrões)
+/// 10. Ajuda e documentação (Legendas e tooltips explicativos em cada controle)
 void showTextSettingsBottomSheet(BuildContext context, {bool isStrongVersion = false}) {
   showModalBottomSheet(
     context: context,
@@ -19,13 +31,23 @@ void showTextSettingsBottomSheet(BuildContext context, {bool isStrongVersion = f
   );
 }
 
-class TextSettingsBottomSheet extends ConsumerWidget {
+class TextSettingsBottomSheet extends ConsumerStatefulWidget {
   final bool isStrongVersion;
 
   const TextSettingsBottomSheet({
     super.key,
     this.isStrongVersion = false,
   });
+
+  @override
+  ConsumerState<TextSettingsBottomSheet> createState() => _TextSettingsBottomSheetState();
+}
+
+class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomSheet> {
+  // Controle de expansão/recolhimento das paletas de cores (todas minimizadas por padrão)
+  bool _isBadgeColorsExpanded = false;
+  bool _isTextColorsExpanded = false;
+  bool _isStrongColorsExpanded = false;
 
   // Cores de balão numérico (círculos)
   static const List<Map<String, dynamic>> _badgeColorPresets = [
@@ -51,6 +73,43 @@ class TextSettingsBottomSheet extends ConsumerWidget {
     'Lato',
     'Open Sans',
   ];
+
+  // Presets rápidos de tamanho de fonte para eficiência de uso
+  static const List<Map<String, dynamic>> _fontSizePresets = [
+    {'label': 'Pequeno', 'size': 14.0},
+    {'label': 'Padrão', 'size': 16.0},
+    {'label': 'Médio', 'size': 19.0},
+    {'label': 'Grande', 'size': 24.0},
+    {'label': 'Extra', 'size': 28.0},
+  ];
+
+  String _getBadgeColorLabel(int? value) {
+    if (value == null) return 'Índigo';
+    final match = _badgeColorPresets.firstWhere(
+      (p) => p['value'] == value,
+      orElse: () => {'label': 'Personalizada'},
+    );
+    return match['label'] as String;
+  }
+
+  String _getTextColorLabel(int? value, List<Map<String, dynamic>> presets) {
+    if (value == null) return 'Auto';
+    final match = presets.firstWhere(
+      (p) => p['value'] == value,
+      orElse: () => {'label': 'Personalizada'},
+    );
+    return match['label'] as String;
+  }
+
+  String _getStrongColorLabel(FontSettings settings, List<Map<String, dynamic>> presets) {
+    if (settings.strongHighlightColor == 0) return 'Mesma cor';
+    if (settings.strongHighlightColor == null) return 'Padrão';
+    final match = presets.firstWhere(
+      (p) => p['value'] == settings.strongHighlightColor,
+      orElse: () => {'label': 'Personalizada'},
+    );
+    return match['label'] as String;
+  }
 
   TextStyle _getFontStyle(String fontName, {double? fontSize, FontWeight? fontWeight, Color? color}) {
     if (CustomFontLoader.loadedFontFamilies.contains(fontName)) {
@@ -96,8 +155,76 @@ class TextSettingsBottomSheet extends ConsumerWidget {
     );
   }
 
+  void _confirmReset(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF222234)
+            : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.restart_alt_rounded, color: Color(0xFF4F46E5), size: 20),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Restaurar Padrões?',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        content: Text(
+          'Todas as fontes, cores e tamanhos voltarão para as configurações padrão originais.',
+          style: GoogleFonts.outfit(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.outfit(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF4F46E5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              ref.read(fontSettingsProvider.notifier).resetToDefault();
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Configurações originais restauradas!'),
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            child: Text(
+              'Restaurar',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final fontSettings = ref.watch(fontSettingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF181824) : Colors.white;
@@ -127,7 +254,100 @@ class TextSettingsBottomSheet extends ConsumerWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final isTablet = screenWidth >= 600;
-    final horizontalPadding = isTablet ? 32.0 : 20.0;
+    final horizontalPadding = isTablet ? 32.0 : 18.0;
+
+    // Itens de cores do Balão Numérico
+    final badgeSwatches = <Widget>[
+      ..._badgeColorPresets.map((preset) {
+        final val = preset['value'] as int?;
+        final isSelected = fontSettings.badgeColor == val;
+        final color = preset['color'] as Color;
+
+        return _buildCircleSwatch(
+          context: context,
+          color: color,
+          isSelected: isSelected,
+          isTablet: isTablet,
+          tooltip: preset['label'] as String?,
+          onTap: () => ref.read(fontSettingsProvider.notifier).setBadgeColor(val),
+          child: Text(
+            '1',
+            style: GoogleFonts.outfit(
+              fontSize: isTablet ? 14 : 13,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+        );
+      }),
+      _buildCustomPickerCircle(
+        context: context,
+        isCustomSelected: isBadgeCustom,
+        activeCustomColor: isBadgeCustom ? badgeColor : null,
+        isTablet: isTablet,
+        tooltip: 'Outra cor de balão...',
+        onTap: () async {
+          final picked = await showKeryxColorPicker(
+            context: context,
+            initialColor: badgeColor,
+            title: 'Cor do Balão Numérico',
+          );
+          if (picked != null) {
+            ref.read(fontSettingsProvider.notifier).setBadgeColor(picked.toARGB32());
+          }
+        },
+      ),
+    ];
+
+    // Itens de cores do Texto da Bíblia
+    final textSwatches = <Widget>[
+      ...textColorPresets.map((preset) {
+        final val = preset['value'] as int?;
+        final isAuto = preset['isAuto'] == true;
+        final isSelected = fontSettings.textColor == val;
+        final color = isAuto
+            ? (isDark ? Colors.white : Colors.black87)
+            : (preset['color'] as Color);
+
+        return _buildCircleSwatch(
+          context: context,
+          color: color,
+          isSelected: isSelected,
+          isTablet: isTablet,
+          tooltip: preset['label'] as String?,
+          innerBorder: isAuto || color == Colors.white || color == const Color(0xFFF1F5F9) || color == const Color(0xFFFEF3C7)
+              ? Border.all(color: isDark ? Colors.white24 : Colors.black26, width: 1)
+              : null,
+          onTap: () => ref.read(fontSettingsProvider.notifier).setTextColor(val),
+          child: isAuto
+              ? Icon(
+                  Icons.brightness_auto_rounded,
+                  size: isTablet ? 18 : 16,
+                  color: isDark ? Colors.black : Colors.white,
+                )
+              : null,
+        );
+      }),
+      _buildCustomPickerCircle(
+        context: context,
+        isCustomSelected: isTextCustom,
+        activeCustomColor: isTextCustom ? verseTextColor : null,
+        isTablet: isTablet,
+        tooltip: 'Outra cor de texto...',
+        onTap: () async {
+          final picked = await showKeryxColorPicker(
+            context: context,
+            initialColor: verseTextColor,
+            title: 'Cor do Texto da Bíblia',
+            isTextColor: true,
+            referenceBackgroundColor: isDark ? const Color(0xFF0F0F1E) : Colors.white,
+          );
+          if (picked != null) {
+            ref.read(fontSettingsProvider.notifier).setTextColor(picked.toARGB32());
+          }
+        },
+      ),
+    ];
 
     return Container(
       width: double.infinity,
@@ -163,9 +383,9 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
-            // Cabeçalho da modal
+            // Cabeçalho da modal com Botão Restaurar e Fechar
             Padding(
               padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               child: Row(
@@ -173,10 +393,19 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                      ),
                       borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.tune_rounded, color: Color(0xFF4F46E5), size: 20),
+                    child: const Icon(Icons.tune_rounded, color: Colors.white, size: 18),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -184,36 +413,43 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isStrongVersion ? 'Configurações de Leitura & Strong' : 'Configurações de Leitura',
+                          widget.isStrongVersion ? 'Configurações de Leitura & Strong' : 'Configurações de Leitura',
                           style: GoogleFonts.outfit(
-                            fontSize: 16,
+                            fontSize: 15.5,
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         Text(
-                          isStrongVersion ? 'Ajuste fontes, cores e destaque Strong' : 'Ajuste fontes, cores de texto e balões',
+                          widget.isStrongVersion ? 'Ajuste fontes, cores e destaque Strong' : 'Ajuste fontes, cores de texto e balões',
                           style: GoogleFonts.outfit(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
                     ),
                   ),
+                  // Botão rápido para restaurar padrões no topo (Heurística #3 e #9)
                   IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    icon: const Icon(Icons.restart_alt_rounded, size: 21),
+                    tooltip: 'Restaurar padrões originais',
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                    onPressed: () => _confirmReset(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 22),
+                    tooltip: 'Fechar',
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
             // ==========================================
             // PREVIEW FIXO NO TOPO (NÃO ROLA!)
-            // O conteúdo abaixo rola por baixo dele
             // ==========================================
             Container(
               decoration: BoxDecoration(
@@ -227,9 +463,9 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                   ),
                 ],
               ),
-              padding: EdgeInsets.fromLTRB(horizontalPadding, 0, horizontalPadding, 14),
+              padding: EdgeInsets.fromLTRB(horizontalPadding, 0, horizontalPadding, 12),
               child: Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
                   color: cardBg,
                   borderRadius: BorderRadius.circular(16),
@@ -248,15 +484,15 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                     Row(
                       children: [
                         Icon(
-                          isStrongVersion ? Icons.auto_awesome : Icons.remove_red_eye_outlined,
-                          size: 14,
+                          widget.isStrongVersion ? Icons.auto_awesome : Icons.remove_red_eye_outlined,
+                          size: 13,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          isStrongVersion ? 'PRÉVIA • BÍBLIA STRONG' : 'PRÉVIA • TEXTO NORMAL',
+                          widget.isStrongVersion ? 'PRÉVIA • BÍBLIA STRONG' : 'PRÉVIA • TEXTO NORMAL',
                           style: GoogleFonts.outfit(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.8,
                             color: Theme.of(context).colorScheme.primary,
@@ -264,7 +500,7 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                         ),
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
@@ -278,10 +514,10 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        if (fontSettings.splitPage) ...[
+                        if (isTablet && fontSettings.splitPage) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: const Color(0xFF10B981).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
@@ -293,12 +529,12 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.vertical_split_rounded, size: 10, color: Color(0xFF10B981)),
+                                const Icon(Icons.vertical_split_rounded, size: 9, color: Color(0xFF10B981)),
                                 const SizedBox(width: 3),
                                 Text(
                                   '2 Colunas',
                                   style: GoogleFonts.outfit(
-                                    fontSize: 10,
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.bold,
                                     color: const Color(0xFF10B981),
                                   ),
@@ -309,7 +545,7 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     RichText(
                       text: TextSpan(
                         style: _getFontStyle(
@@ -323,8 +559,7 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                             alignment: PlaceholderAlignment.middle,
                             child: _buildPreviewBadge(badgeColor, '1'),
                           ),
-                          if (isStrongVersion) ...[
-                            // Preview com termos Strong destacados
+                          if (widget.isStrongVersion) ...[
                             const TextSpan(text: 'No '),
                             TextSpan(
                               text: 'princípio',
@@ -352,237 +587,188 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                             ),
                             const TextSpan(text: '.'),
                           ] else ...[
-                            // Preview para Bíblia Comum (sem Strong - Texto limpo e uniforme)
                             const TextSpan(text: 'No princípio, criou Deus os céus e a terra.'),
                           ],
                         ],
                       ),
                     ),
-                    if (isStrongVersion) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isSameColorAsText
-                                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
-                                  : const Color(0xFF10B981).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(
-                                color: isSameColorAsText
-                                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)
-                                    : const Color(0xFF10B981).withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isSameColorAsText ? Icons.format_color_text_rounded : Icons.palette_outlined,
-                                  size: 11,
-                                  color: isSameColorAsText
-                                      ? Theme.of(context).colorScheme.primary
-                                      : const Color(0xFF10B981),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  isSameColorAsText ? 'Texto Uniforme (Mesma cor)' : 'Destaque Colorido Ativo',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSameColorAsText
-                                        ? Theme.of(context).colorScheme.primary
-                                        : const Color(0xFF10B981),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
                 ),
               ),
             ),
 
             // ==========================================
-            // CONTEÚDO SCROLLÁVEL QUE PASSA POR BAIXO
+            // CONTEÚDO SCROLLÁVEL
             // ==========================================
             Expanded(
               child: ListView(
-                padding: EdgeInsets.fromLTRB(horizontalPadding, 16, horizontalPadding, 24),
+                padding: EdgeInsets.fromLTRB(horizontalPadding, 14, horizontalPadding, 24),
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  // 1 & 2: Cor do Balão Numérico & Cor do Texto (No tablet em 2 colunas, no mobile empilhado)
-                  // Cada um com 10 opções divididas em 2 linhas de 5 e 5
-                  ...(() {
-                    final badgeSwatches = <Widget>[
-                      ..._badgeColorPresets.map((preset) {
-                        final val = preset['value'] as int?;
-                        final isSelected = fontSettings.badgeColor == val;
-                        final color = preset['color'] as Color;
-
-                        return _buildCircleSwatch(
-                          context: context,
-                          color: color,
-                          isSelected: isSelected,
-                          isTablet: isTablet,
-                          onTap: () => ref.read(fontSettingsProvider.notifier).setBadgeColor(val),
-                          child: Text(
-                            '1',
-                            style: GoogleFonts.outfit(
-                              fontSize: isTablet ? 14 : 13,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
+                  // Barra de Controle de Cores com Botão Minimizar / Expandir Todas
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.palette_outlined,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'CORES E CONTRASTE',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        const Spacer(),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              final anyExpanded = _isBadgeColorsExpanded ||
+                                  _isTextColorsExpanded ||
+                                  (widget.isStrongVersion && _isStrongColorsExpanded);
+                              final target = !anyExpanded;
+                              _isBadgeColorsExpanded = target;
+                              _isTextColorsExpanded = target;
+                              _isStrongColorsExpanded = target;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  (_isBadgeColorsExpanded || _isTextColorsExpanded)
+                                      ? Icons.unfold_less_rounded
+                                      : Icons.unfold_more_rounded,
+                                  size: 13,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  (_isBadgeColorsExpanded || _isTextColorsExpanded)
+                                      ? 'Recolher Cores'
+                                      : 'Expandir Cores',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      }),
-                      _buildCustomPickerCircle(
-                        context: context,
-                        isCustomSelected: isBadgeCustom,
-                        activeCustomColor: isBadgeCustom ? badgeColor : null,
-                        isTablet: isTablet,
-                        onTap: () async {
-                          final picked = await showKeryxColorPicker(
-                            context: context,
-                            initialColor: badgeColor,
-                            title: 'Cor do Balão Numérico',
-                          );
-                          if (picked != null) {
-                            ref.read(fontSettingsProvider.notifier).setBadgeColor(picked.toARGB32());
-                          }
-                        },
-                      ),
-                    ];
-
-                    final textSwatches = <Widget>[
-                      ...textColorPresets.map((preset) {
-                        final val = preset['value'] as int?;
-                        final isAuto = preset['isAuto'] == true;
-                        final isSelected = fontSettings.textColor == val;
-                        final color = isAuto
-                            ? (isDark ? Colors.white : Colors.black87)
-                            : (preset['color'] as Color);
-
-                        return _buildCircleSwatch(
-                          context: context,
-                          color: color,
-                          isSelected: isSelected,
-                          isTablet: isTablet,
-                          innerBorder: isAuto || color == Colors.white || color == const Color(0xFFF1F5F9) || color == const Color(0xFFFEF3C7)
-                              ? Border.all(color: isDark ? Colors.white24 : Colors.black26, width: 1)
-                              : null,
-                          onTap: () => ref.read(fontSettingsProvider.notifier).setTextColor(val),
-                          child: isAuto
-                              ? Icon(
-                                  Icons.brightness_auto_rounded,
-                                  size: isTablet ? 18 : 16,
-                                  color: isDark ? Colors.black : Colors.white,
-                                )
-                              : null,
-                        );
-                      }),
-                      _buildCustomPickerCircle(
-                        context: context,
-                        isCustomSelected: isTextCustom,
-                        activeCustomColor: isTextCustom ? verseTextColor : null,
-                        isTablet: isTablet,
-                        onTap: () async {
-                          final picked = await showKeryxColorPicker(
-                            context: context,
-                            initialColor: verseTextColor,
-                            title: 'Cor do Texto da Bíblia',
-                            isTextColor: true,
-                            referenceBackgroundColor: isDark ? const Color(0xFF0F0F1E) : Colors.white,
-                          );
-                          if (picked != null) {
-                            ref.read(fontSettingsProvider.notifier).setTextColor(picked.toARGB32());
-                          }
-                        },
-                      ),
-                    ];
-
-                    if (isTablet) {
-                      return [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSectionHeader(
-                                    context,
-                                    title: 'COR DO BALÃO NUMÉRICO',
-                                    subtitle: 'Círculo indicador do versículo',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildSwatchGrid5x2(badgeSwatches, isTablet: true),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 28),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSectionHeader(
-                                    context,
-                                    title: 'COR DO TEXTO DA BÍBLIA (GERAL)',
-                                    subtitle: isDark
-                                        ? 'Cores claras de alto contraste para o modo escuro'
-                                        : 'Cores escuras de alto contraste para o modo claro',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildSwatchGrid5x2(textSwatches, isTablet: true),
-                                ],
-                              ),
-                            ),
-                          ],
                         ),
-                      ];
-                    } else {
-                      return [
-                        _buildSectionHeader(
-                          context,
-                          title: 'COR DO BALÃO NUMÉRICO',
-                          subtitle: 'Círculo indicador do versículo',
-                        ),
-                        const SizedBox(height: 10),
-                        _buildSwatchGrid5x2(badgeSwatches, isTablet: false),
-                        const SizedBox(height: 22),
-                        _buildSectionHeader(
-                          context,
-                          title: 'COR DO TEXTO DA BÍBLIA (GERAL)',
-                          subtitle: isDark
-                              ? 'Cores claras de alto contraste para o modo escuro'
-                              : 'Cores escuras de alto contraste para o modo claro',
-                        ),
-                        const SizedBox(height: 10),
-                        _buildSwatchGrid5x2(textSwatches, isTablet: false),
-                      ];
-                    }
-                  })(),
-
-                  // 3. SE FOR BÍBLIA STRONG: Exibe a seção Strong. SE NÃO FOR, FICA OCULTO!
-                  if (isStrongVersion) ...[
-                    const SizedBox(height: 22),
-                    _buildSectionHeader(
-                      context,
-                      title: 'PALAVRAS COM DICIONÁRIO STRONG',
-                      subtitle: isSameColorAsText
-                          ? 'Texto uniforme (sem destaque colorido), mantendo o toque no Strong'
-                          : 'Destaque visual ativo para termos com chave hebraica/grega',
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                  ),
 
-                    // Linha única com todas as opções de cores Strong (incluindo Mesma cor do texto e sem cores repetidas)
+                  // Cards de Cores (No tablet lado a lado, no celular empilhados)
+                  if (isTablet) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildCollapsibleSectionCard(
+                            context: context,
+                            icon: Icons.tag_rounded,
+                            title: 'COR DO BALÃO NUMÉRICO',
+                            subtitle: 'Marcador do número do versículo',
+                            isExpanded: _isBadgeColorsExpanded,
+                            onToggle: () => setState(() => _isBadgeColorsExpanded = !_isBadgeColorsExpanded),
+                            activeStatusWidget: _buildColorStatusPill(
+                              context: context,
+                              color: badgeColor,
+                              label: _getBadgeColorLabel(fontSettings.badgeColor),
+                            ),
+                            expandedContent: _buildCenteredSwatchGrid(badgeSwatches, isTablet: true),
+                            isDark: isDark,
+                            cardBg: cardBg,
+                            borderColor: borderColor,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _buildCollapsibleSectionCard(
+                            context: context,
+                            icon: Icons.format_color_text_rounded,
+                            title: 'COR DO TEXTO DA BÍBLIA',
+                            subtitle: isDark ? 'Modo Escuro (alto contraste)' : 'Modo Claro (alto contraste)',
+                            isExpanded: _isTextColorsExpanded,
+                            onToggle: () => setState(() => _isTextColorsExpanded = !_isTextColorsExpanded),
+                            activeStatusWidget: _buildColorStatusPill(
+                              context: context,
+                              color: verseTextColor,
+                              label: _getTextColorLabel(fontSettings.textColor, textColorPresets),
+                              border: Border.all(color: isDark ? Colors.white30 : Colors.black26),
+                            ),
+                            expandedContent: _buildCenteredSwatchGrid(textSwatches, isTablet: true),
+                            isDark: isDark,
+                            cardBg: cardBg,
+                            borderColor: borderColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    // Celular: Card do Balão Numérico
+                    _buildCollapsibleSectionCard(
+                      context: context,
+                      icon: Icons.tag_rounded,
+                      title: 'COR DO BALÃO NUMÉRICO',
+                      subtitle: 'Marcador do número do versículo',
+                      isExpanded: _isBadgeColorsExpanded,
+                      onToggle: () => setState(() => _isBadgeColorsExpanded = !_isBadgeColorsExpanded),
+                      activeStatusWidget: _buildColorStatusPill(
+                        context: context,
+                        color: badgeColor,
+                        label: _getBadgeColorLabel(fontSettings.badgeColor),
+                      ),
+                      expandedContent: _buildCenteredSwatchGrid(badgeSwatches, isTablet: false),
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      borderColor: borderColor,
+                    ),
+
+                    // Celular: Card da Cor do Texto
+                    _buildCollapsibleSectionCard(
+                      context: context,
+                      icon: Icons.format_color_text_rounded,
+                      title: 'COR DO TEXTO DA BÍBLIA',
+                      subtitle: isDark ? 'Modo Escuro (alto contraste)' : 'Modo Claro (alto contraste)',
+                      isExpanded: _isTextColorsExpanded,
+                      onToggle: () => setState(() => _isTextColorsExpanded = !_isTextColorsExpanded),
+                      activeStatusWidget: _buildColorStatusPill(
+                        context: context,
+                        color: verseTextColor,
+                        label: _getTextColorLabel(fontSettings.textColor, textColorPresets),
+                        border: Border.all(color: isDark ? Colors.white30 : Colors.black26),
+                      ),
+                      expandedContent: _buildCenteredSwatchGrid(textSwatches, isTablet: false),
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      borderColor: borderColor,
+                    ),
+                  ],
+
+                  // Seção Bíblia Strong (Se ativa)
+                  if (widget.isStrongVersion) ...[
                     ...(() {
                       final strongSwatches = <Widget>[
-                        // 1. Mesma cor do texto (Sem destaque colorido)
                         _buildCircleSwatch(
                           context: context,
                           color: isDark ? const Color(0xFF222234) : const Color(0xFFE2E8F0),
@@ -604,7 +790,6 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                                 : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
                           ),
                         ),
-                        // 2. Presets Strong (Padrão e cores sem repetição)
                         ...strongColorPresets.map((preset) {
                           final val = preset['value'] as int?;
                           final isAuto = preset['isAuto'] == true;
@@ -627,7 +812,6 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                                 : null,
                           );
                         }),
-                        // 3. Custom color picker
                         _buildCustomPickerCircle(
                           context: context,
                           isCustomSelected: isStrongCustom,
@@ -652,46 +836,55 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                         ),
                       ];
 
+                      final strongActiveColor = isSameColorAsText
+                          ? verseTextColor
+                          : (fontSettings.strongHighlightColor != null
+                              ? Color(fontSettings.strongHighlightColor!)
+                              : (isDark ? const Color(0xFF34D399) : const Color(0xFF059669)));
+
                       return [
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: strongSwatches,
+                        _buildCollapsibleSectionCard(
+                          context: context,
+                          icon: Icons.auto_awesome_rounded,
+                          title: 'PALAVRAS COM DICIONÁRIO STRONG',
+                          subtitle: isSameColorAsText
+                              ? 'Texto uniforme (toque no Strong ativo)'
+                              : 'Destaque visual ativo para hebraico/grego',
+                          isExpanded: _isStrongColorsExpanded,
+                          onToggle: () => setState(() => _isStrongColorsExpanded = !_isStrongColorsExpanded),
+                          activeStatusWidget: _buildColorStatusPill(
+                            context: context,
+                            color: strongActiveColor,
+                            label: _getStrongColorLabel(fontSettings, strongColorPresets),
                           ),
-                        ),
-                      ];
-                    })(),
-
-                    const SizedBox(height: 16),
-
-                    // Switches de Sublinhado e Negrito para Strong
-                    Material(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: borderColor),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: isTablet
-                            ? Row(
-                                children: [
-                                  Expanded(
-                                    child: SwitchListTile(
+                          expandedContent: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildCenteredSwatchGrid(strongSwatches, isTablet: isTablet),
+                              const SizedBox(height: 12),
+                              // Opções de sublinhado e negrito
+                              Material(
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(color: borderColor),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  children: [
+                                    SwitchListTile(
                                       dense: true,
                                       title: Text(
                                         'Sublinhar termos com Strong',
                                         style: GoogleFonts.outfit(
-                                          fontSize: 13,
+                                          fontSize: 12.5,
                                           fontWeight: FontWeight.w600,
                                           color: Theme.of(context).colorScheme.onSurface,
                                         ),
                                       ),
                                       subtitle: Text(
                                         'Exibe linha sutil para indicar termo clicável',
-                                        style: GoogleFonts.outfit(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                                        style: GoogleFonts.outfit(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
                                       ),
                                       activeThumbColor: Theme.of(context).colorScheme.primary,
                                       value: fontSettings.strongUnderline,
@@ -699,22 +892,20 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                                         ref.read(fontSettingsProvider.notifier).setStrongUnderline(val);
                                       },
                                     ),
-                                  ),
-                                  Container(width: 1, height: 48, color: borderColor),
-                                  Expanded(
-                                    child: SwitchListTile(
+                                    Divider(height: 1, color: borderColor),
+                                    SwitchListTile(
                                       dense: true,
                                       title: Text(
                                         'Negrito nos termos com Strong',
                                         style: GoogleFonts.outfit(
-                                          fontSize: 13,
+                                          fontSize: 12.5,
                                           fontWeight: FontWeight.w600,
                                           color: Theme.of(context).colorScheme.onSurface,
                                         ),
                                       ),
                                       subtitle: Text(
-                                        'Aumenta o peso tipográfico das palavras Strong',
-                                        style: GoogleFonts.outfit(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                                        'Aumenta o peso tipográfico das palavras com Strong',
+                                        style: GoogleFonts.outfit(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
                                       ),
                                       activeThumbColor: Theme.of(context).colorScheme.primary,
                                       value: fontSettings.strongBold,
@@ -722,294 +913,56 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                                         ref.read(fontSettingsProvider.notifier).setStrongBold(val);
                                       },
                                     ),
-                                  ),
-                                ],
-                              )
-                            : Column(
-                                children: [
-                                  SwitchListTile(
-                                    dense: true,
-                                    title: Text(
-                                      'Sublinhar termos com Strong',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(context).colorScheme.onSurface,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      'Exibe linha sutil para indicar termo clicável',
-                                      style: GoogleFonts.outfit(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-                                    ),
-                                    activeThumbColor: Theme.of(context).colorScheme.primary,
-                                    value: fontSettings.strongUnderline,
-                                    onChanged: (val) {
-                                      ref.read(fontSettingsProvider.notifier).setStrongUnderline(val);
-                                    },
-                                  ),
-                                  Divider(height: 1, color: borderColor),
-                                  SwitchListTile(
-                                    dense: true,
-                                    title: Text(
-                                      'Negrito nos termos com Strong',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(context).colorScheme.onSurface,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      'Aumenta o peso tipográfico das palavras Strong',
-                                      style: GoogleFonts.outfit(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-                                    ),
-                                    activeThumbColor: Theme.of(context).colorScheme.primary,
-                                    value: fontSettings.strongBold,
-                                    onChanged: (val) {
-                                      ref.read(fontSettingsProvider.notifier).setStrongBold(val);
-                                    },
-                                  ),
-                                ],
-                              ),
-                      ),
-                  ],
-
-                  const SizedBox(height: 22),
-
-                  // 4. Tamanho do Texto
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildSectionHeader(
-                        context,
-                        title: 'TAMANHO DO TEXTO',
-                        subtitle: 'Escala de leitura dos versículos',
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${fontSettings.fontSize.toInt()} px',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_rounded, size: 20),
-                          onPressed: fontSettings.fontSize > 12
-                              ? () => ref.read(fontSettingsProvider.notifier).setFontSize(fontSettings.fontSize - 1)
-                              : null,
-                        ),
-                        Expanded(
-                          child: SliderTheme(
-                            data: SliderThemeData(
-                              trackHeight: 4,
-                              activeTrackColor: Theme.of(context).colorScheme.primary,
-                              inactiveTrackColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
-                              thumbColor: Theme.of(context).colorScheme.primary,
-                              overlayColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                            ),
-                            child: Slider(
-                              value: fontSettings.fontSize,
-                              min: 12,
-                              max: 36,
-                              divisions: 24,
-                              onChanged: (val) {
-                                ref.read(fontSettingsProvider.notifier).setFontSize(val);
-                              },
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_rounded, size: 20),
-                          onPressed: fontSettings.fontSize < 36
-                              ? () => ref.read(fontSettingsProvider.notifier).setFontSize(fontSettings.fontSize + 1)
-                              : null,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  // 5. Família da Fonte
-                  _buildSectionHeader(
-                    context,
-                    title: 'FAMÍLIA DA FONTE',
-                    subtitle: 'Selecione ou importe tipografias personalizadas',
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 48,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      children: [
-                        ..._popularFonts,
-                        ...CustomFontLoader.loadedFontFamilies.where((f) => !_popularFonts.contains(f)),
-                        '+ Importar',
-                      ].map((family) {
-                        if (family == '+ Importar') {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: InkWell(
-                              onTap: () async {
-                                final newFont = await CustomFontLoader.importCustomFont();
-                                if (newFont != null) {
-                                  ref.read(fontSettingsProvider.notifier).setFontFamily(newFont);
-                                }
-                              },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.add_circle_outline_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Importar',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(context).colorScheme.primary,
-                                      ),
-                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-                          );
-                        }
-
-                        final isSelected = fontSettings.fontFamily == family;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: InkWell(
-                            onTap: () {
-                              ref.read(fontSettingsProvider.notifier).setFontFamily(family);
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Theme.of(context).colorScheme.primary
-                                    : cardBg,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.primary
-                                      : borderColor,
-                                  width: isSelected ? 1.5 : 1,
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                family,
-                                style: _getFontStyle(
-                                  family,
-                                  fontSize: 13,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
+                            ],
                           ),
-                        );
-                      }).toList(),
-                    ),
+                          isDark: isDark,
+                          cardBg: cardBg,
+                          borderColor: borderColor,
+                        ),
+                      ];
+                    })(),
+                  ],
+
+                  const SizedBox(height: 4),
+
+                  // Card de Tamanho do Texto (Com Slider e Presets Rápidos)
+                  _buildFontSizeCard(
+                    context: context,
+                    fontSettings: fontSettings,
+                    isDark: isDark,
+                    cardBg: cardBg,
+                    borderColor: borderColor,
                   ),
 
-                  const SizedBox(height: 22),
-
-                  // 6. Layout de Leitura (Dividir página em dois)
-                  _buildSectionHeader(
-                    context,
-                    title: 'LAYOUT DE LEITURA',
-                    subtitle: 'Organização das colunas na tela',
+                  // Card de Família da Fonte
+                  _buildFontFamilyCard(
+                    context: context,
+                    fontSettings: fontSettings,
+                    isDark: isDark,
+                    cardBg: cardBg,
+                    borderColor: borderColor,
                   ),
-                  const SizedBox(height: 10),
-                  Material(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: BorderSide(color: borderColor),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: SwitchListTile(
-                        dense: true,
-                        secondary: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.vertical_split_rounded,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 20,
-                          ),
-                        ),
-                        title: Text(
-                          'Dividir página em dois',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Exibe o texto bíblico em duas colunas lado a lado',
-                          style: GoogleFonts.outfit(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
-                        activeThumbColor: Theme.of(context).colorScheme.primary,
-                        value: fontSettings.splitPage,
-                        onChanged: (val) {
-                          ref.read(fontSettingsProvider.notifier).setSplitPage(val);
-                        },
-                      ),
-                    ),
 
-                  const SizedBox(height: 28),
+                  // Card de Layout de Leitura (Dividir em 2 Colunas) - Ocultado no modo celular
+                  if (isTablet) ...[
+                    _buildLayoutCard(
+                      context: context,
+                      fontSettings: fontSettings,
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      borderColor: borderColor,
+                    ),
+                  ],
 
-                  // 7. Botão de Restaurar Padrões
+                  const SizedBox(height: 16),
+
+                  // Botão de Restaurar Padrões no Rodapé
                   Center(
                     child: TextButton.icon(
-                      onPressed: () {
-                        ref.read(fontSettingsProvider.notifier).resetToDefault();
-                      },
+                      onPressed: () => _confirmReset(context),
                       icon: const Icon(Icons.refresh_rounded, size: 16),
                       label: Text(
                         'Restaurar configurações originais',
@@ -1020,7 +973,7 @@ class TextSettingsBottomSheet extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  SizedBox(height: 28 + MediaQuery.of(context).padding.bottom),
+                  SizedBox(height: 24 + MediaQuery.of(context).padding.bottom),
                 ],
               ),
             ),
@@ -1030,28 +983,198 @@ class TextSettingsBottomSheet extends ConsumerWidget {
     );
   }
 
-  // Grid de swatches 5 e 5 (total 10)
-  Widget _buildSwatchGrid5x2(List<Widget> items, {bool isTablet = false}) {
-    final row1 = items.take(5).toList();
-    final row2 = items.skip(5).take(5).toList();
+  /// Card expansível/minimizável para categorias de cores
+  Widget _buildCollapsibleSectionCard({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+    required Widget activeStatusWidget,
+    required Widget expandedContent,
+    required bool isDark,
+    required Color cardBg,
+    required Color borderColor,
+  }) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: row1,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isExpanded ? primaryColor.withValues(alpha: 0.35) : borderColor,
+          width: isExpanded ? 1.4 : 1.0,
         ),
-        SizedBox(height: isTablet ? 12 : 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: row2,
-        ),
-      ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: isExpanded ? 8 : 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header clicável para expandir/minimizar
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: primaryColor, size: 17),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.4,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  activeStatusWidget,
+                  const SizedBox(width: 4),
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Divider(
+                    height: 12,
+                    thickness: 1,
+                    color: borderColor.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  expandedContent,
+                ],
+              ),
+            ),
+            secondChild: const SizedBox.shrink(),
+            crossFadeState: isExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            duration: const Duration(milliseconds: 200),
+          ),
+        ],
+      ),
     );
   }
 
-  // Swatch circular ultra-limpo
+  /// Chip compacto exibindo a cor ativa atual mesmo com o card minimizado
+  Widget _buildColorStatusPill({
+    required BuildContext context,
+    required Color color,
+    required String label,
+    Border? border,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withValues(alpha: 0.35),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 11,
+            height: 11,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: border,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.4),
+                  blurRadius: 3,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 85),
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Grid de swatches perfeitamente centralizado em telas de qualquer largura
+  Widget _buildCenteredSwatchGrid(List<Widget> items, {bool isTablet = false}) {
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        runAlignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: isTablet ? 12.0 : 9.0,
+        runSpacing: isTablet ? 12.0 : 9.0,
+        children: items,
+      ),
+    );
+  }
+
+  /// Swatch circular individual sem padding unilateral (evita desalinhamento)
   Widget _buildCircleSwatch({
     required BuildContext context,
     required Color color,
@@ -1063,50 +1186,55 @@ class TextSettingsBottomSheet extends ConsumerWidget {
     String? tooltip,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ringColor = isDark && color.computeLuminance() < 0.1
-        ? Colors.white
-        : color;
-    final circleSize = isTablet ? 46.0 : 42.0;
+    final ringColor = isDark && color.computeLuminance() < 0.1 ? Colors.white : color;
+    final circleSize = isTablet ? 44.0 : 40.0;
 
-    final swatch = Padding(
-      padding: EdgeInsets.only(right: isTablet ? 12 : 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(circleSize / 2),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          width: circleSize,
-          height: circleSize,
-          padding: const EdgeInsets.all(3),
+    final swatch = InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(circleSize / 2),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: circleSize,
+        height: circleSize,
+        padding: const EdgeInsets.all(2.5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected ? ringColor : Colors.transparent,
+            width: isSelected ? 2.4 : 0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: ringColor.withValues(alpha: 0.45),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
+        ),
+        child: Container(
           decoration: BoxDecoration(
+            color: color,
             shape: BoxShape.circle,
-            border: Border.all(
-              color: isSelected ? ringColor : Colors.transparent,
-              width: 2.2,
-            ),
+            border: innerBorder,
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.25),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: innerBorder,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.35),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: child ?? (isSelected
-                ? Icon(
-                    Icons.check,
-                    size: isTablet ? 18 : 16,
-                    color: color.computeLuminance() > 0.55 ? Colors.black : Colors.white,
-                  )
-                : null),
-          ),
+          alignment: Alignment.center,
+          child: child ??
+              (isSelected
+                  ? Icon(
+                      Icons.check_rounded,
+                      size: isTablet ? 18 : 16,
+                      color: color.computeLuminance() > 0.55 ? Colors.black : Colors.white,
+                    )
+                  : null),
         ),
       ),
     );
@@ -1114,14 +1242,14 @@ class TextSettingsBottomSheet extends ConsumerWidget {
     if (tooltip != null && tooltip.isNotEmpty) {
       return Tooltip(
         message: tooltip,
-        waitDuration: const Duration(milliseconds: 250),
+        waitDuration: const Duration(milliseconds: 200),
         child: swatch,
       );
     }
     return swatch;
   }
 
-  // Botão circular de paleta (+ Outra cor)
+  /// Botão circular de paleta (+ Outra cor personalizada)
   Widget _buildCustomPickerCircle({
     required BuildContext context,
     required bool isCustomSelected,
@@ -1130,61 +1258,60 @@ class TextSettingsBottomSheet extends ConsumerWidget {
     bool isTablet = false,
     String? tooltip,
   }) {
-    final circleSize = isTablet ? 46.0 : 42.0;
+    final circleSize = isTablet ? 44.0 : 40.0;
+    final primary = Theme.of(context).colorScheme.primary;
     final borderColor = isCustomSelected
-        ? (activeCustomColor ?? Theme.of(context).colorScheme.primary)
-        : Theme.of(context).colorScheme.primary.withValues(alpha: 0.5);
+        ? (activeCustomColor ?? primary)
+        : primary.withValues(alpha: 0.6);
 
-    final picker = Padding(
-      padding: EdgeInsets.only(right: isTablet ? 12 : 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(circleSize / 2),
-        child: Container(
-          width: circleSize,
-          height: circleSize,
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: borderColor,
-              width: isCustomSelected ? 2.2 : 1.2,
-            ),
+    final picker = InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(circleSize / 2),
+      child: Container(
+        width: circleSize,
+        height: circleSize,
+        padding: const EdgeInsets.all(2.5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: borderColor,
+            width: isCustomSelected ? 2.4 : 1.2,
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isCustomSelected ? activeCustomColor : null,
-              gradient: isCustomSelected
-                  ? null
-                  : const SweepGradient(
-                      colors: [
-                        Color(0xFFEF4444),
-                        Color(0xFFF59E0B),
-                        Color(0xFF10B981),
-                        Color(0xFF0284C7),
-                        Color(0xFF8B5CF6),
-                        Color(0xFFEC4899),
-                        Color(0xFFEF4444),
-                      ],
-                    ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                if (isCustomSelected && activeCustomColor != null)
+          boxShadow: isCustomSelected && activeCustomColor != null
+              ? [
                   BoxShadow(
-                    color: activeCustomColor.withValues(alpha: 0.4),
-                    blurRadius: 6,
-                    offset: const Offset(0, 1),
+                    color: activeCustomColor.withValues(alpha: 0.45),
+                    blurRadius: 8,
+                    spreadRadius: 1,
                   ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.colorize_rounded,
-              size: isTablet ? 18 : 16,
-              color: isCustomSelected && activeCustomColor != null
-                  ? (activeCustomColor.computeLuminance() > 0.55 ? Colors.black : Colors.white)
-                  : Colors.white,
-            ),
+                ]
+              : null,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isCustomSelected ? activeCustomColor : null,
+            gradient: isCustomSelected
+                ? null
+                : const SweepGradient(
+                    colors: [
+                      Color(0xFFEF4444),
+                      Color(0xFFF59E0B),
+                      Color(0xFF10B981),
+                      Color(0xFF0284C7),
+                      Color(0xFF8B5CF6),
+                      Color(0xFFEC4899),
+                      Color(0xFFEF4444),
+                    ],
+                  ),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.colorize_rounded,
+            size: isTablet ? 17 : 15,
+            color: isCustomSelected && activeCustomColor != null
+                ? (activeCustomColor.computeLuminance() > 0.55 ? Colors.black : Colors.white)
+                : Colors.white,
           ),
         ),
       ),
@@ -1193,45 +1320,445 @@ class TextSettingsBottomSheet extends ConsumerWidget {
     if (tooltip != null && tooltip.isNotEmpty) {
       return Tooltip(
         message: tooltip,
-        waitDuration: const Duration(milliseconds: 250),
+        waitDuration: const Duration(milliseconds: 200),
         child: picker,
       );
     }
     return picker;
   }
 
-  Widget _buildSectionHeader(BuildContext context, {required String title, String? subtitle}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.8,
-            color: Theme.of(context).colorScheme.primary,
+  /// Card de Tamanho do Texto com Slider e Botões de Preset Rápido (14, 16, 19, 24, 28)
+  Widget _buildFontSizeCard({
+    required BuildContext context,
+    required FontSettings fontSettings,
+    required bool isDark,
+    required Color cardBg,
+    required Color borderColor,
+  }) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-        ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: GoogleFonts.outfit(
-              fontSize: 11,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.format_size_rounded, color: primaryColor, size: 17),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TAMANHO DO TEXTO',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.4,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'Escala dos versículos e Léxico Strong',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${fontSettings.fontSize.toInt()} px',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline_rounded, size: 22),
+                tooltip: 'Diminuir fonte',
+                onPressed: fontSettings.fontSize > 12
+                    ? () => ref.read(fontSettingsProvider.notifier).setFontSize(fontSettings.fontSize - 1)
+                    : null,
+              ),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderThemeData(
+                    trackHeight: 4,
+                    activeTrackColor: primaryColor,
+                    inactiveTrackColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+                    thumbColor: primaryColor,
+                    overlayColor: primaryColor.withValues(alpha: 0.15),
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                  ),
+                  child: Slider(
+                    value: fontSettings.fontSize,
+                    min: 12,
+                    max: 36,
+                    divisions: 24,
+                    onChanged: (val) {
+                      ref.read(fontSettingsProvider.notifier).setFontSize(val);
+                    },
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 22),
+                tooltip: 'Aumentar fonte',
+                onPressed: fontSettings.fontSize < 36
+                    ? () => ref.read(fontSettingsProvider.notifier).setFontSize(fontSettings.fontSize + 1)
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Presets rápidos em botões (Heurística #7)
+          Row(
+            children: _fontSizePresets.map((preset) {
+              final size = preset['size'] as double;
+              final label = preset['label'] as String;
+              final isCurrent = (fontSettings.fontSize - size).abs() < 0.5;
+
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                  child: InkWell(
+                    onTap: () => ref.read(fontSettingsProvider.notifier).setFontSize(size),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isCurrent
+                            ? primaryColor.withValues(alpha: 0.16)
+                            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isCurrent ? primaryColor : borderColor,
+                          width: isCurrent ? 1.2 : 0.8,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${size.toInt()}px',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11,
+                              fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                              color: isCurrent ? primaryColor : Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          Text(
+                            label,
+                            style: GoogleFonts.outfit(
+                              fontSize: 9,
+                              color: isCurrent
+                                  ? primaryColor
+                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Card de Família da Fonte
+  Widget _buildFontFamilyCard({
+    required BuildContext context,
+    required FontSettings fontSettings,
+    required bool isDark,
+    required Color cardBg,
+    required Color borderColor,
+  }) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.font_download_rounded, color: primaryColor, size: 17),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'FAMÍLIA DA FONTE',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.4,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'Selecione ou importe tipografias personalizadas',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  fontSettings.fontFamily,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 46,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              children: [
+                ..._popularFonts,
+                ...CustomFontLoader.loadedFontFamilies.where((f) => !_popularFonts.contains(f)),
+                '+ Importar',
+              ].map((family) {
+                if (family == '+ Importar') {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () async {
+                        final newFont = await CustomFontLoader.importCustomFont();
+                        if (newFont != null) {
+                          ref.read(fontSettingsProvider.notifier).setFontFamily(newFont);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: primaryColor.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.add_circle_outline_rounded, size: 16, color: primaryColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Importar',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                final isSelected = fontSettings.fontFamily == family;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () {
+                      ref.read(fontSettingsProvider.notifier).setFontFamily(family);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? primaryColor
+                            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? primaryColor : borderColor,
+                          width: isSelected ? 1.5 : 1.0,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: primaryColor.withValues(alpha: 0.35),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        family,
+                        style: _getFontStyle(
+                          family,
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
-      ],
+      ),
+    );
+  }
+
+  /// Card de Layout de Leitura (2 Colunas)
+  Widget _buildLayoutCard({
+    required BuildContext context,
+    required FontSettings fontSettings,
+    required bool isDark,
+    required Color cardBg,
+    required Color borderColor,
+  }) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: cardBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: SwitchListTile(
+          dense: true,
+          secondary: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.vertical_split_rounded,
+              color: primaryColor,
+              size: 18,
+            ),
+          ),
+          title: Text(
+            'Dividir página em dois (2 colunas)',
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          subtitle: Text(
+            'Exibe o texto bíblico lado a lado, estilo Bíblia impressa',
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+            ),
+          ),
+          activeThumbColor: primaryColor,
+          value: fontSettings.splitPage,
+          onChanged: (val) {
+            ref.read(fontSettingsProvider.notifier).setSplitPage(val);
+          },
+        ),
+      ),
     );
   }
 
   Widget _buildPreviewBadge(Color badgeColor, String number) {
     return Container(
       margin: const EdgeInsets.only(right: 8),
-      width: 26,
-      height: 26,
+      width: 25,
+      height: 25,
       decoration: BoxDecoration(
         color: badgeColor,
         shape: BoxShape.circle,

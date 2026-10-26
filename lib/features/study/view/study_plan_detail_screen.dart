@@ -282,7 +282,6 @@ class _LessonTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: Colors.white.withValues(alpha: isLocked ? 0.01 : 0.05),
-        borderRadius: BorderRadius.circular(16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(

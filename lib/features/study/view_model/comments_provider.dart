@@ -73,8 +73,17 @@ class CommentsService {
       ..remove(userId)
       ..remove(null); // Just in case any is null
 
+    final safePostTitle = annotation.title.trim().isNotEmpty
+        ? annotation.title.trim()
+        : 'Publicação da Comunidade';
+
     for (final targetId in targets) {
       if (targetId == null) continue;
+
+      final isReply = targetId == replyTo?.authorId;
+      final notifTitle = isReply
+          ? 'Nova resposta de ${userName ?? 'Alguém'}'
+          : 'Novo comentário de ${userName ?? 'Alguém'}';
 
       final notifRef = db
           .collection('users')
@@ -82,13 +91,17 @@ class CommentsService {
           .collection('notifications')
           .doc();
       batch.set(notifRef, {
-        'type': targetId == replyTo?.authorId ? 'reply' : 'comment',
+        'type': isReply ? 'reply' : 'comment',
+        'title': notifTitle,
+        'body': text,
+        'message': text,
+        'postTitle': safePostTitle,
         'annotationId': annotation.id,
         'commentId': commentRef.id,
         'fromUserId': userId,
-        'fromUserName': userName ?? 'Anônimo',
-        'body': text,
+        'fromUserName': userName ?? 'Alguém',
         'read': false,
+        'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }

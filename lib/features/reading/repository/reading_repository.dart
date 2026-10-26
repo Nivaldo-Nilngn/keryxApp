@@ -220,4 +220,19 @@ class ReadingRepository {
 
     await batch.commit();
   }
+
+  /// Remove todo o progresso e histórico de leitura de todos os livros
+  Future<void> clearAllReadingHistory(String uid) async {
+    final historyRef = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('reading_history');
+
+    final snapshot = await historyRef.get();
+    final batch = _firestore.batch();
+    for (var doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
 }

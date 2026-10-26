@@ -29,6 +29,7 @@ import 'package:keryx_app/features/study/view/dictionary_screen.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/study/view/study_hub_panel.dart';
+import 'package:keryx_app/features/study/view/cross_references_view.dart';
 import 'package:keryx_app/features/study/view/annotations_screen.dart'
     as keryx_annotations;
 import 'package:keryx_app/features/study/view/favorites_screen.dart'
@@ -57,6 +58,14 @@ class ReadingScreen extends ConsumerStatefulWidget {
 }
 
 class _ReadingScreenState extends ConsumerState<ReadingScreen> {
+  static final RegExp _embeddedVerseNumberRegex = RegExp(
+    r'^\s*(?:<[^>]+>\s*)*[\(\[]?(\d+(?:[-|,]\d+)?)[\)\]]?(?:<[^>]+>\s*)*\s+',
+  );
+  static final RegExp _tagRegex = RegExp(r'<[^>]+>');
+  static final RegExp _leadingDigitsRegex = RegExp(r'^(\d+)\s+(.*)$', dotAll: true);
+  static final RegExp _parensRegex = RegExp(r'\(([A-Za-z0-9_\-]+)\)');
+  static final RegExp _punctuationRegex = RegExp(r'[.,;]');
+
   final ScrollController _scrollController = ScrollController();
   final Map<int, GlobalKey> _verseKeys = {};
   late int _currentChapter;
@@ -74,6 +83,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   int _lastTrackedVerse = 1;
   String? _selectedSubVersion;
   int? _targetVerseToScroll;
+  bool _hasPrefetchedNext = false;
 
   bool get _isReadingChapter {
     // Apenas lemos o estado sem escutar para não quebrar nos helpers (o build já escuta)
@@ -88,6 +98,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     super.initState();
     _currentChapter = widget.initialChapter;
     _currentBook = widget.book;
+    _scrollController.addListener(_onScroll);
     _updateLastRead();
     if (widget.openChapterSelector) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -96,8 +107,27 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     }
   }
 
+  void _onScroll() {
+    if (!_hasPrefetchedNext && _scrollController.hasClients) {
+      final pos = _scrollController.position;
+      if (pos.maxScrollExtent > 0 && pos.pixels >= pos.maxScrollExtent * 0.5) {
+        _hasPrefetchedNext = true;
+        if (_currentChapter < _currentBook.chapters) {
+          final effectiveVersion = _selectedSubVersion ?? ref.read(selectedVersionProvider) ?? BibleService.defaultVersion;
+          ref.read(bibleServiceProvider).getChapter(
+            effectiveVersion,
+            _currentBook.id.toString(),
+            _currentChapter + 1,
+            isPrefetch: true,
+          );
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _sessionDebounceTimer?.cancel();
     _scrollDebouncer?.cancel();
     _scrollController.dispose();
@@ -119,7 +149,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       if (_lastRecordedSessionKey == sessionKey) return;
 
       _sessionDebounceTimer?.cancel();
-      _sessionDebounceTimer = Timer(const Duration(seconds: 2), () async {
+      _sessionDebounceTimer = Timer(const Duration(seconds: 20), () async {
         if (!mounted || _isRecordingSession) return;
 
         final authUser = ref.read(authStateProvider).value;
@@ -142,7 +172,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             uid: authUser.uid,
             todayDateString: todayStr,
             yesterdayDateString: yesterdayStr,
-            durationSeconds: 60, // Arbitrário
+            durationSeconds: 60,
             chaptersRead: [
               ChapterRead(
                 book: _currentBook.abbrev.toUpperCase(),
@@ -155,7 +185,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             debugPrint('Erro ao salvar histórico de leitura: $e');
           }
         } finally {
-          _isRecordingSession = false;
+          if (mounted) {
+            _isRecordingSession = false;
+          }
         }
       });
     });
@@ -177,6 +209,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
     setState(() {
       _currentChapter = next;
+      _hasPrefetchedNext = false;
       ref.read(readingSelectionProvider.notifier).clearSelection();
       _showTheology = false;
     });
@@ -265,6 +298,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       setState(() {
         _currentBook = result.book;
         _currentChapter = result.chapter;
+        _hasPrefetchedNext = false;
         if (result.verse != null) {
           _targetVerseToScroll = result.verse;
         }
@@ -312,7 +346,6 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ttsState = ref.watch(ttsPlayerProvider);
     final fontSettings = ref.watch(fontSettingsProvider);
     final version = ref.watch(selectedVersionProvider);
     final asyncChapter = ref.watch(
@@ -331,6 +364,16 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final hasSelection = selectedVerses.isNotEmpty;
     final isNavbarVisible = ref.watch(navbarVisibleProvider) && !hasSelection;
     final highlightVerseSetting = ref.watch(keryx_tts.highlightVerseProvider);
+
+    // Seletor fino de áudio: a tela inteira só rebuilda quando o número do versículo ativo mudar
+    final activeAudioVerseNumber = ref.watch(ttsPlayerProvider.select((s) {
+      final isCurrentChapterAudio = highlightVerseSetting &&
+          s.isPlaying &&
+          s.verses.isNotEmpty &&
+          s.bookId == _currentBook.id.toString() &&
+          s.chapter == _currentChapter;
+      return isCurrentChapterAudio ? (s.currentVerseIndex + 1) : null;
+    }));
 
     // Auto-scroll para acompanhar a leitura em áudio
     final autoScroll = ref.watch(keryx_tts.autoScrollProvider);
@@ -449,14 +492,13 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                               chapter,
                             ),
                             const SizedBox(height: 24),
-                            if (fontSettings.splitPage)
+                            if (fontSettings.splitPage && MediaQuery.of(context).size.width >= 600)
                               _buildTwoColumnVerses(
                                 verses: chapter.verses,
                                 version: version,
                                 effectiveSubVersion: effectiveSubVersion,
                                 fontSettings: fontSettings,
-                                ttsState: ttsState,
-                                highlightVerseSetting: highlightVerseSetting,
+                                activeAudioVerseNumber: activeAudioVerseNumber,
                                 selectedVerses: selectedVerses,
                                 highlights: highlights,
                                 favorites: favorites,
@@ -468,8 +510,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                                   version: version,
                                   effectiveSubVersion: effectiveSubVersion,
                                   fontSettings: fontSettings,
-                                  ttsState: ttsState,
-                                  highlightVerseSetting: highlightVerseSetting,
+                                  activeAudioVerseNumber: activeAudioVerseNumber,
                                   selectedVerses: selectedVerses,
                                   highlights: highlights,
                                   favorites: favorites,
@@ -574,7 +615,83 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 );
 }
 
-  void _showComparisonSheet(BibleVerse verse) {
+  String _formatVerseRange(List<int> sorted) {
+    if (sorted.isEmpty) return '1';
+    if (sorted.length == 1) return '${sorted.first}';
+    bool consecutive = true;
+    for (int i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i + 1] != sorted[i] + 1) {
+        consecutive = false;
+        break;
+      }
+    }
+    return consecutive
+        ? '${sorted.first}-${sorted.last}'
+        : sorted.join(', ');
+  }
+
+  Widget _buildComparisonVerseText(String text, BuildContext context) {
+    final clean = text.trim();
+    if (!clean.contains('\n\n')) {
+      return Text(
+        BibleTextParser.cleanToPlainText(clean),
+        style: GoogleFonts.outfit(
+          fontSize: 15,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
+          height: 1.5,
+          fontWeight: FontWeight.w400,
+        ),
+      );
+    }
+
+    final paragraphs = clean.split('\n\n');
+    final spans = <InlineSpan>[];
+    for (int pIdx = 0; pIdx < paragraphs.length; pIdx++) {
+      final p = paragraphs[pIdx].trim();
+      final match = _leadingDigitsRegex.firstMatch(p);
+      if (match != null) {
+        final num = match.group(1)!;
+        final content = BibleTextParser.cleanToPlainText(match.group(2)!);
+        spans.add(TextSpan(
+          text: '$num ',
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.kPrimaryGold,
+          ),
+        ));
+        spans.add(TextSpan(
+          text: content,
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
+            height: 1.5,
+            fontWeight: FontWeight.w400,
+          ),
+        ));
+      } else {
+        spans.add(TextSpan(
+          text: BibleTextParser.cleanToPlainText(p),
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
+            height: 1.5,
+            fontWeight: FontWeight.w400,
+          ),
+        ));
+      }
+      if (pIdx < paragraphs.length - 1) {
+        spans.add(const TextSpan(text: '\n\n'));
+      }
+    }
+
+    return Text.rich(TextSpan(children: spans));
+  }
+
+  void _showComparisonSheet(List<int> selectedVerseNumbers) {
+    final sortedVerses = selectedVerseNumbers.toList()..sort();
+    final verseRangeText = _formatVerseRange(sortedVerses);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -633,7 +750,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${_currentBook.name} $_currentChapter:${verse.number}',
+                          '${_currentBook.name} $_currentChapter:$verseRangeText',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.outfit(
                             fontSize: 22,
@@ -671,51 +788,70 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               child: Consumer(
                 builder: (context, ref, _) {
                   final storeState = ref.watch(downloadedStorePackagesProvider);
-                  final localVersions = BibleService.availableVersions.where((
-                    v,
-                  ) {
-                    return storeState.isDownloaded('$v.sqlite') ||
-                        storeState.isDownloaded('$v.mybible') ||
-                        storeState.isDownloaded('$v.bbl.mybible') ||
-                        storeState.isDownloaded('$v.db') ||
-                        v == 'NVI' ||
-                        v == 'ACF' ||
-                        v == 'ARA_S';
-                  }).toList();
+                  final isVersionDownloadedLocally = (String v) {
+                    if (v == 'NVI' || v == 'ARA_S') return true;
+                    if (storeState.isDownloaded('$v.sqlite') || 
+                        storeState.isDownloaded('$v.mybible') || 
+                        storeState.isDownloaded('$v.bbl.mybible') || 
+                        storeState.isDownloaded('$v.db')) {
+                      return true;
+                    }
+                    return storeState.availablePackages.any((p) =>
+                        p.category == StoreCategory.bibles &&
+                        storeState.isDownloaded(p.filename) &&
+                        (p.filename.toUpperCase().contains(v.toUpperCase())));
+                  };
 
-                  final downloadedBibles = storeState.availablePackages.where(
+                  final localVersions = <String>[];
+                  for (final v in BibleService.availableVersions) {
+                    if (isVersionDownloadedLocally(v)) {
+                      localVersions.add(v);
+                    }
+                  }
+                  for (final v in ['NVI', 'ARA_S']) {
+                    if (!localVersions.contains(v)) {
+                      localVersions.add(v);
+                    }
+                  }
+
+                  final userBibles = storeState.availablePackages.where(
                     (p) =>
                         p.category == StoreCategory.bibles &&
                         storeState.isDownloaded(p.filename),
                   );
 
-                  for (var bible in downloadedBibles) {
-                    String key = bible.filename.split('/').last;
-                    if (key.contains('ARA+STRONG - ATUALIZADA + STRONG'))
+                  for (var bible in userBibles) {
+                    String rawFilename = bible.filename.split('/').last;
+                    if (rawFilename.contains('ARA+STRONG - ATUALIZADA + STRONG')) {
                       continue; // Skip to avoid duplicate with ARA_S
-
-                    if (key.toLowerCase().endsWith('.sqlite')) {
-                      key = key.substring(0, key.length - 7);
-                    } else if (key.toLowerCase().endsWith('.bbl.mybible')) {
-                      key = key.substring(0, key.length - 12);
-                    } else if (key.toLowerCase().endsWith('.mybible')) {
-                      key = key.substring(0, key.length - 8);
-                    } else if (key.toLowerCase().endsWith('.db')) {
-                      key = key.substring(0, key.length - 3);
                     }
 
-                    final existingKey = BibleService.availableVersions
-                        .firstWhere(
-                          (k) => k.toUpperCase() == key.toUpperCase(),
-                          orElse: () => '',
-                        );
+                    // Tenta extrair a sigla entre parênteses, ex: "Almeida Revista e Atualizada (ARA).bbl.mybible" -> "ARA"
+                    final match = _parensRegex.firstMatch(rawFilename);
+                    String key;
+                    if (match != null && match.group(1) != null) {
+                      key = match.group(1)!.trim().toUpperCase();
+                      if (key == 'ARA-S') key = 'ARA_S';
+                    } else {
+                      String stripped = rawFilename;
+                      for (final ext in ['.bbl.mybible', '.mybible', '.sqlite', '.db']) {
+                        if (stripped.toLowerCase().endsWith(ext)) {
+                          stripped = stripped.substring(0, stripped.length - ext.length);
+                          break;
+                        }
+                      }
+                      key = stripped.trim().toUpperCase();
+                    }
 
-                    key = existingKey.isNotEmpty
-                        ? existingKey
-                        : key.toUpperCase();
+                    final existingKey = BibleMetadata.versionNames.keys.cast<String?>().firstWhere(
+                      (k) => k?.toUpperCase() == key.toUpperCase(),
+                      orElse: () => null,
+                    );
 
-                    if (!localVersions.contains(key)) {
-                      localVersions.add(key);
+                    final finalKey = existingKey ?? key;
+
+                    if (!localVersions.contains(finalKey)) {
+                      localVersions.add(finalKey);
                     }
                   }
 
@@ -723,7 +859,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                     compareVersesProvider((
                       bookId: _currentBook.id.toString(),
                       chapter: _currentChapter,
-                      verse: verse.number,
+                      versesStr: sortedVerses.join(','),
                       versionsStr: localVersions.join(','),
                     )),
                   );
@@ -734,9 +870,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                       itemCount: results.length,
                       itemBuilder: (context, i) {
                         final item = results[i];
-                        String text = (item['text'] as String);
-
-                        // O texto já é limpo nativamente no BibleService (tags HTML, Strong's, etc.)
+                        final text = (item['text'] as String);
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 20),
@@ -776,16 +910,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                text,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 15,
-                                  color: Theme.of(context).colorScheme.onSurface
-                                      .withValues(alpha: 0.9),
-                                  height: 1.5,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
+                              _buildComparisonVerseText(text, context),
                               const SizedBox(height: 16),
                               Align(
                                 alignment: Alignment.centerRight,
@@ -829,7 +954,14 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                                     ),
                                   ),
                                   child: Text(
-                                    item['version'] as String,
+                                    () {
+                                      final v = item['version'] as String;
+                                      final match = _parensRegex.firstMatch(v);
+                                      if (match != null && match.group(1) != null) {
+                                        return match.group(1)!.toUpperCase();
+                                      }
+                                      return v;
+                                    }(),
                                     style: GoogleFonts.outfit(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -882,19 +1014,22 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final firstVerse = chapter.verses.firstWhere(
       (v) => v.number == firstVerseNum,
     );
-    final firstVerseKey =
-        "${_currentBook.name}_${_currentChapter}_$firstVerseNum";
 
     final actions = <({IconData icon, String label, VoidCallback onTap})>[
       (
         icon: Icons.auto_awesome,
         label: 'Estudar',
-        onTap: () => _showCommentarySheet(),
+        onTap: () => _showCommentarySheet(initialTab: 0),
+      ),
+      (
+        icon: Icons.alt_route_rounded,
+        label: 'Referências',
+        onTap: () => _showCrossReferencesSheet(firstVerse),
       ),
       (
         icon: Icons.layers_outlined,
         label: 'Comparar',
-        onTap: () => _showComparisonSheet(firstVerse),
+        onTap: () => _showComparisonSheet(versesText),
       ),
       (
         icon: Icons.favorite_border_rounded,
@@ -904,9 +1039,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             final key = "${_currentBook.name}_${_currentChapter}_$num";
             ref.read(favoritesProvider.notifier).toggleFavorite(key);
           }
-          setState(
-            () => ref.read(readingSelectionProvider.notifier).clearSelection(),
-          );
+          ref.read(readingSelectionProvider.notifier).clearSelection();
         },
       ),
       (
@@ -917,7 +1050,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       (
         icon: Icons.edit_note,
         label: 'Anotar',
-        onTap: () => _showNotesSheet(firstVerse, firstVerseKey),
+        onTap: () => _showCommentarySheet(initialTab: 1),
       ),
       (
         icon: Icons.copy,
@@ -990,11 +1123,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                           size: 20,
                         ),
                         onPressed: () {
-                          setState(
-                            () => ref
-                                .read(readingSelectionProvider.notifier)
-                                .clearSelection(),
-                          );
+                          ref
+                              .read(readingSelectionProvider.notifier)
+                              .clearSelection();
                         },
                         visualDensity: VisualDensity.compact,
                       ),
@@ -1133,11 +1264,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                             .read(highlightsProvider.notifier)
                             .toggleHighlight(key, c);
                       }
-                      setState(() {
-                        ref
-                            .read(readingSelectionProvider.notifier)
-                            .clearSelection();
-                      });
+                      ref
+                          .read(readingSelectionProvider.notifier)
+                          .clearSelection();
                       Navigator.pop(context);
                     },
                     child: Container(
@@ -1169,11 +1298,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                             .toggleHighlight(key, current);
                       }
                     }
-                    setState(() {
-                      ref
-                          .read(readingSelectionProvider.notifier)
-                          .clearSelection();
-                    });
+                    ref
+                        .read(readingSelectionProvider.notifier)
+                        .clearSelection();
                     Navigator.pop(context);
                   },
                   icon: Icon(
@@ -1192,13 +1319,161 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     );
   }
 
-  void _showCommentarySheet() {
+  void _navigateToVerse(int targetBookId, int targetChapter, int targetVerse) {
+    final details = BibleMetadata.bookDetails[targetBookId] ?? {
+      "abbrev": "gn",
+      "group": "Pentateuco",
+      "author": "Moisés",
+      "chapters": 50,
+    };
+    final newBook = BibleBook(
+      id: targetBookId,
+      name: BibleMetadata.getBookName(targetBookId),
+      abbrev: details['abbrev'] ?? 'gn',
+      author: details['author'] ?? '',
+      group: details['group'] ?? '',
+      chapters: details['chapters'] ?? 1,
+    );
+    setState(() {
+      _currentBook = newBook;
+      _currentChapter = targetChapter;
+      _hasPrefetchedNext = false;
+    });
+    ref.read(readingSelectionProvider.notifier).clearSelection();
+  }
+
+  void _showCrossReferencesSheet(BibleVerse verse) {
+    final bookIdInt = BibleMetadata.findBookId(_currentBook.abbrev);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       constraints: const BoxConstraints(maxWidth: double.infinity),
       backgroundColor: Colors.transparent,
-      builder: (context) => const StudyHubPanel(),
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.86,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle de arraste
+              Container(
+                width: 42,
+                height: 4,
+                margin: const EdgeInsets.only(top: 14, bottom: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              // Cabeçalho dedicado de Referências Cruzadas
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.alt_route_rounded,
+                        color: AppTheme.kPrimaryGold,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'REFERÊNCIAS CRUZADAS',
+                            style: GoogleFonts.outfit(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2.2,
+                              color: isDark ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${_currentBook.name} $_currentChapter:${verse.number}',
+                            style: GoogleFonts.outfit(
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Fechar',
+                      icon: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Divider(
+                height: 16,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
+
+              // Conteúdo: CrossReferencesView
+              Expanded(
+                child: CrossReferencesView(
+                  bookId: bookIdInt,
+                  bookName: _currentBook.name,
+                  chapter: _currentChapter,
+                  verse: verse.number,
+                  onNavigateToVerse: (targetBookId, targetChapter, targetVerse) {
+                    Navigator.pop(context);
+                    _navigateToVerse(targetBookId, targetChapter, targetVerse);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCommentarySheet({int initialTab = 0}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: double.infinity),
+      backgroundColor: Colors.transparent,
+      builder: (context) => StudyHubPanel(
+        initialTab: initialTab,
+        onNavigateToVerse: (targetBookId, targetChapter, targetVerse) {
+          Navigator.pop(context);
+          _navigateToVerse(targetBookId, targetChapter, targetVerse);
+        },
+      ),
     );
   }
 
@@ -1713,21 +1988,15 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     required String version,
     required String? effectiveSubVersion,
     required FontSettings fontSettings,
-    required TTSPlaybackState ttsState,
-    required bool highlightVerseSetting,
+    required int? activeAudioVerseNumber,
     required Set<int> selectedVerses,
     required Map<String, int> highlights,
     required Set<String> favorites,
     bool isTwoColumn = false,
   }) {
     _verseKeys[verse.number] ??= GlobalKey();
-    final isAudioActiveInChapter = highlightVerseSetting &&
-        ttsState.isPlaying &&
-        ttsState.verses.isNotEmpty &&
-        ttsState.bookId == _currentBook.id.toString() &&
-        ttsState.chapter == _currentChapter;
-    final isAudioHighlighted = isAudioActiveInChapter &&
-        ttsState.currentVerseIndex == (verse.number - 1);
+    final isAudioActiveInChapter = activeAudioVerseNumber != null;
+    final isAudioHighlighted = activeAudioVerseNumber == verse.number;
     final shouldDimVerse = isAudioActiveInChapter && !isAudioHighlighted;
 
     final isSelected = selectedVerses.contains(verse.number);
@@ -1735,182 +2004,181 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final highlightColorVal = highlights[verseKey];
     final isFavorited = favorites.contains(verseKey);
 
-    return Stack(
+    return RepaintBoundary(
       key: _verseKeys[verse.number],
-      children: [
-        GestureDetector(
-          onTap: () => setState(() {
-            ref
-                .read(readingSelectionProvider.notifier)
-                .toggleVerse(verse.number);
-            if (ref
-                .read(readingSelectionProvider)
-                .selectedVerses
-                .isEmpty) {
-              _showTheology = false;
-            }
-          }),
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 300),
-            opacity: shouldDimVerse ? 0.3 : 1.0,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: EdgeInsets.symmetric(
-                vertical: isTwoColumn ? 2 : 4,
-              ),
-              padding: EdgeInsets.symmetric(
-                horizontal: isTwoColumn ? 6 : 8,
-                vertical: isTwoColumn ? 8 : 12,
-              ),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.white.withValues(alpha: 0.05)
-                    : isAudioHighlighted
-                        ? const Color(0xFF4ADE80).withValues(alpha: 0.15)
-                        : (highlightColorVal != null
-                            ? Color(highlightColorVal).withValues(alpha: 0.15)
-                            : Colors.transparent),
-                borderRadius: BorderRadius.circular(16),
-                border: isSelected
-                    ? Border.all(
-                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
-                      )
-                    : isAudioHighlighted
-                        ? Border.all(
-                            color: const Color(0xFF4ADE80).withValues(alpha: 0.4),
-                          )
-                        : (highlightColorVal != null
-                            ? Border.all(
-                                color: Color(highlightColorVal).withValues(alpha: 0.3),
-                              )
-                            : Border.all(color: Colors.transparent)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (verse.title != null && verse.title!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: 12.0,
-                        top: 8.0,
-                      ),
-                      child: Text(
-                        verse.title!,
-                        style: GoogleFonts.outfit(
-                          fontSize: isTwoColumn ? 16 : 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.kPrimaryGold,
-                          letterSpacing: 0.5,
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () {
+              ref
+                  .read(readingSelectionProvider.notifier)
+                  .toggleVerse(verse.number);
+              if (ref
+                  .read(readingSelectionProvider)
+                  .selectedVerses
+                  .isEmpty) {
+                _showTheology = false;
+              }
+            },
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              opacity: shouldDimVerse ? 0.3 : 1.0,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: EdgeInsets.symmetric(
+                  vertical: isTwoColumn ? 2 : 4,
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTwoColumn ? 6 : 8,
+                  vertical: isTwoColumn ? 8 : 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : isAudioHighlighted
+                          ? const Color(0xFF4ADE80).withValues(alpha: 0.15)
+                          : (highlightColorVal != null
+                              ? Color(highlightColorVal).withValues(alpha: 0.15)
+                              : Colors.transparent),
+                  borderRadius: BorderRadius.circular(16),
+                  border: isSelected
+                      ? Border.all(
+                          color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
+                        )
+                      : isAudioHighlighted
+                          ? Border.all(
+                              color: const Color(0xFF4ADE80).withValues(alpha: 0.4),
+                            )
+                          : (highlightColorVal != null
+                              ? Border.all(
+                                  color: Color(highlightColorVal).withValues(alpha: 0.3),
+                                )
+                              : Border.all(color: Colors.transparent)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (verse.title != null && verse.title!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: 12.0,
+                          top: 8.0,
+                        ),
+                        child: Text(
+                          verse.title!,
+                          style: GoogleFonts.outfit(
+                            fontSize: isTwoColumn ? 16 : 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.kPrimaryGold,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
-                    ),
 
-                  // Logic to handle embedded verse numbers (e.g. (1-2))
-                  ...(() {
-                    String verseText = verse.text;
-                    String displayNumber = verse.displayVerse;
+                    // Logic to handle embedded verse numbers (e.g. (1-2))
+                    ...(() {
+                      String verseText = verse.text;
+                      String displayNumber = verse.displayVerse;
 
-                    final regex = RegExp(
-                      r'^\s*(?:<[^>]+>\s*)*[\(\[]?(\d+(?:[-|,]\d+)?)[\)\]]?(?:<[^>]+>\s*)*\s+',
-                    );
-                    final match = regex.firstMatch(verseText);
-                    if (match != null) {
-                      displayNumber = match.group(1)!;
-                      verseText = verseText.replaceFirst(match.group(0)!, '');
-                    }
+                      final match = _embeddedVerseNumberRegex.firstMatch(verseText);
+                      if (match != null) {
+                        displayNumber = match.group(1)!;
+                        verseText = verseText.replaceFirst(match.group(0)!, '');
+                      }
 
-                    final verseToRender = verse.copyWith(text: verseText);
+                      final verseToRender = verse.copyWith(text: verseText);
 
-                    final badgeBgColor = fontSettings.badgeColor != null
-                        ? Color(fontSettings.badgeColor!)
-                        : const Color(0xFF4F46E5);
+                      final badgeBgColor = fontSettings.badgeColor != null
+                          ? Color(fontSettings.badgeColor!)
+                          : const Color(0xFF4F46E5);
 
-                    final badgeSize = isTwoColumn ? 28.0 : 32.0;
-                    final badgeMargin = isTwoColumn ? 8.0 : 12.0;
-                    final badgeFontSize = isTwoColumn
-                        ? (displayNumber.length > 2 ? 10.0 : 12.0)
-                        : (displayNumber.length > 2 ? 12.0 : 14.0);
+                      final badgeSize = isTwoColumn ? 28.0 : 32.0;
+                      final badgeMargin = isTwoColumn ? 8.0 : 12.0;
+                      final badgeFontSize = isTwoColumn
+                          ? (displayNumber.length > 2 ? 10.0 : 12.0)
+                          : (displayNumber.length > 2 ? 12.0 : 14.0);
 
-                    final isRtl = BibleTextParser.isRtlText(verseToRender.text);
+                      final isRtl = BibleTextParser.isRtlText(verseToRender.text);
 
-                    return [
-                      RichText(
-                        textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
-                        textAlign: isRtl ? TextAlign.right : TextAlign.left,
-                        text: TextSpan(
-                          style: _getFontStyle(
-                            fontSettings.fontFamily,
-                            fontSize: fontSettings.fontSize,
-                            height: 1.6,
-                            color: KeryxColorContrast.ensureReadableTextColor(
-                              fontSettings.textColor != null
-                                  ? Color(fontSettings.textColor!)
-                                  : null,
-                              context,
+                      return [
+                        RichText(
+                          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+                          textAlign: isRtl ? TextAlign.right : TextAlign.left,
+                          text: TextSpan(
+                            style: _getFontStyle(
+                              fontSettings.fontFamily,
+                              fontSize: fontSettings.fontSize,
+                              height: 1.6,
+                              color: KeryxColorContrast.ensureReadableTextColor(
+                                fontSettings.textColor != null
+                                    ? Color(fontSettings.textColor!)
+                                    : null,
+                                context,
+                              ),
                             ),
-                          ),
-                          children: [
-                            WidgetSpan(
-                              alignment: PlaceholderAlignment.middle,
-                              child: Container(
-                                margin: EdgeInsets.only(
-                                  right: isRtl ? 0 : badgeMargin,
-                                  left: isRtl ? badgeMargin : 0,
-                                ),
-                                width: badgeSize,
-                                height: badgeSize,
-                                decoration: BoxDecoration(
-                                  color: badgeBgColor,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: badgeBgColor.withValues(alpha: 0.4),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
+                            children: [
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Container(
+                                  margin: EdgeInsets.only(
+                                    right: isRtl ? 0 : badgeMargin,
+                                    left: isRtl ? badgeMargin : 0,
+                                  ),
+                                  width: badgeSize,
+                                  height: badgeSize,
+                                  decoration: BoxDecoration(
+                                    color: badgeBgColor,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: badgeBgColor.withValues(alpha: 0.4),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    displayNumber,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: badgeFontSize,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
                                     ),
-                                  ],
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  displayNumber,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: badgeFontSize,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
                                   ),
                                 ),
                               ),
-                            ),
-                            ..._buildVerseSpans(
-                              verseToRender,
-                              version,
-                              effectiveSubVersion,
-                              fontSettings,
-                            ),
-                          ],
+                              ..._buildVerseSpans(
+                                verseToRender,
+                                version,
+                                effectiveSubVersion,
+                                fontSettings,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ];
-                  })(),
+                      ];
+                    })(),
 
-                  if (_activeStrongVerse == verse.number && _activeStrong != null)
-                    _buildFootnoteBox(_activeStrong!),
-                ],
+                    if (_activeStrongVerse == verse.number && _activeStrong != null)
+                      _buildFootnoteBox(_activeStrong!),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        if (isFavorited)
-          Positioned(
-            top: isTwoColumn ? 8 : 12,
-            right: isTwoColumn ? 8 : 12,
-            child: Icon(
-              Icons.favorite_rounded,
-              color: Colors.redAccent.withValues(alpha: 0.8),
-              size: 14,
+          if (isFavorited)
+            Positioned(
+              top: isTwoColumn ? 8 : 12,
+              right: isTwoColumn ? 8 : 12,
+              child: Icon(
+                Icons.favorite_rounded,
+                color: Colors.redAccent.withValues(alpha: 0.8),
+                size: 14,
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1919,8 +2187,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     required String version,
     required String? effectiveSubVersion,
     required FontSettings fontSettings,
-    required TTSPlaybackState ttsState,
-    required bool highlightVerseSetting,
+    required int? activeAudioVerseNumber,
     required Set<int> selectedVerses,
     required Map<String, int> highlights,
     required Set<String> favorites,
@@ -1950,8 +2217,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                   version: version,
                   effectiveSubVersion: effectiveSubVersion,
                   fontSettings: fontSettings,
-                  ttsState: ttsState,
-                  highlightVerseSetting: highlightVerseSetting,
+                  activeAudioVerseNumber: activeAudioVerseNumber,
                   selectedVerses: selectedVerses,
                   highlights: highlights,
                   favorites: favorites,
@@ -1971,8 +2237,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                   version: version,
                   effectiveSubVersion: effectiveSubVersion,
                   fontSettings: fontSettings,
-                  ttsState: ttsState,
-                  highlightVerseSetting: highlightVerseSetting,
+                  activeAudioVerseNumber: activeAudioVerseNumber,
                   selectedVerses: selectedVerses,
                   highlights: highlights,
                   favorites: favorites,
@@ -2068,7 +2333,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   Widget _buildFootnoteBox(String noteContent) {
     return _buildGlassCard(
       title: _activeStrongWord ?? 'Nota',
-      content: noteContent.replaceAll(RegExp(r'<[^>]+>'), ''),
+      content: noteContent.replaceAll(_tagRegex, ''),
       onClose: () => setState(() {
         _activeStrong = null;
         _activeStrongWord = null;
@@ -2144,7 +2409,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                         if (!title.contains('Nota'))
                           Text(
                             _activeStrongWord?.replaceAll(
-                                  RegExp(r'[.,;]'),
+                                  _punctuationRegex,
                                   '',
                                 ) ??
                                 '',
@@ -2282,19 +2547,21 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   }
 
   Widget _buildAudioController(BibleChapter chapter) {
-    final ttsState = ref.watch(ttsPlayerProvider);
-    final isCurrentChapterAudio = ttsState.bookId == _currentBook.id.toString() &&
-        ttsState.chapter == _currentChapter &&
-        ttsState.verses.isNotEmpty;
+    return Consumer(
+      builder: (context, ref, child) {
+        final ttsState = ref.watch(ttsPlayerProvider);
+        final isCurrentChapterAudio = ttsState.bookId == _currentBook.id.toString() &&
+            ttsState.chapter == _currentChapter &&
+            ttsState.verses.isNotEmpty;
 
-    final isLight = Theme.of(context).brightness == Brightness.light;
-    // Se não for o capítulo atual de áudio, forçamos o isPlaying para falso visualmente
-    final isPlaying = isCurrentChapterAudio && ttsState.isPlaying;
+        final isLight = Theme.of(context).brightness == Brightness.light;
+        // Se não for o capítulo atual de áudio, forçamos o isPlaying para falso visualmente
+        final isPlaying = isCurrentChapterAudio && ttsState.isPlaying;
 
-    return Container(
-      width: double.infinity,
-      color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        return Container(
+          width: double.infinity,
+          color: Colors.transparent,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Row(
         children: [
           // Play/Pause Button
@@ -2441,6 +2708,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
           ),
         ],
       ),
+    );
+      },
     );
   }
 

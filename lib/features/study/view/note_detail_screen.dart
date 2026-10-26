@@ -20,6 +20,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_quill_to_pdf/flutter_quill_to_pdf.dart';
 import 'package:keryx_app/core/utils/bible_text_parser.dart';
+import 'package:keryx_app/features/study/widgets/word_mobile_theme.dart';
+import 'package:keryx_app/features/study/widgets/word_mobile_toolbar.dart';
+import 'package:keryx_app/features/study/widgets/word_tablet_ribbon.dart';
 
 class ShapeEmbedBuilder extends quill.EmbedBuilder {
   @override
@@ -75,7 +78,13 @@ class ShapeEmbedBuilder extends quill.EmbedBuilder {
 class NoteDetailScreen extends ConsumerStatefulWidget {
   final NoteCard note;
   final bool isCommunity;
-  const NoteDetailScreen({super.key, required this.note, this.isCommunity = false});
+  final bool forceMobileView;
+  const NoteDetailScreen({
+    super.key,
+    required this.note,
+    this.isCommunity = false,
+    this.forceMobileView = false,
+  });
 
   @override
   ConsumerState<NoteDetailScreen> createState() => _NoteDetailScreenState();
@@ -95,11 +104,8 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   bool _isGeneratingPdf = false;
   Color _quoteColor = const Color(0xFFF9A826); // Amarelo vibrante padrão
   bool _isPublic = false;
-  bool _isEditing = false;
+  bool _isEditing = true;
   bool _showBars = true;
-  bool _isLandscapeMode = false;
-  bool _ignoreFocusChange = false;
-
   static const _gold = AppTheme.kPrimaryGold;
   bool _showFormattingBar = false; // controla o painel expandido de formatação
   
@@ -225,33 +231,6 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     );
   }
 
-  int get _currentFontSize {
-    final attrs = _quillController.getSelectionStyle().attributes;
-    if (attrs.containsKey('size')) {
-      final val = attrs['size']?.value;
-      if (val is String) {
-        return int.tryParse(val) ?? 16;
-      } else if (val is int) {
-        return val;
-      } else if (val is double) {
-        return val.toInt();
-      }
-    }
-    return 16;
-  }
-
-  void _updateFontSize(int delta) {
-    _ignoreFocusChange = true;
-    int current = _currentFontSize;
-    int next = current + delta;
-    if (next < 8) next = 8;
-    if (next > 96) next = 96;
-    _quillController.formatSelection(quill.SizeAttribute(next.toString()));
-    SystemChannels.textInput.invokeMethod('TextInput.hide');
-    setState(() {});
-    Future.microtask(() => _ignoreFocusChange = false);
-  }
-
   Future<void> _save() async {
     if (_titleCtrl.text.trim().isEmpty ||
         _titleCtrl.text.trim() == 'Nova Nota' ||
@@ -284,26 +263,6 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     if (mounted) {
       Navigator.pop(context, updated);
     }
-  }
-
-  void _saveQuietly() {
-    final title = _titleCtrl.text.trim();
-    final finalTitle = (title.isEmpty || title == 'Nova Nota') ? 'Sem título' : title;
-    
-    final jsonContent = jsonEncode(_quillController.document.toDelta().toJson());
-    
-    // Only save if there are actual changes
-    if (_note.title == finalTitle && _note.body == jsonContent) {
-      return;
-    }
-
-    final updated = _note.copyWith(
-      title: finalTitle,
-      body: jsonContent,
-      isPublic: _isPublic,
-    );
-    
-    ref.read(noteCardsProvider.notifier).save(updated);
   }
 
   Future<void> _generateAndSharePdf() async {
@@ -385,23 +344,6 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     }
   }
 
-  void _insertShape(String shapeType) {
-    final index = _quillController.selection.baseOffset;
-    final length = _quillController.selection.extentOffset - index;
-
-    _quillController.replaceText(
-      index,
-      length,
-      quill.BlockEmbed.custom(quill.CustomBlockEmbed('shape', shapeType)),
-      null,
-    );
-    _quillController.replaceText(index + 1, 0, '\n', null);
-    _quillController.updateSelection(
-      TextSelection.collapsed(offset: index + 2),
-      quill.ChangeSource.local,
-    );
-  }
-
   Future<void> _showAiAssistant() async {
     final tc = TextEditingController();
     final query = await showDialog<String>(
@@ -477,6 +419,102 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     }
   }
 
+  void _insertSermonOutline() {
+    const sermonText = '\nESBOÇO DE SERMÃO\n\n'
+        'Título: \n'
+        'Texto Base: \n'
+        'Tema: \n\n'
+        'I. INTRODUÇÃO\n'
+        '• Gancho e conexão com os ouvintes\n'
+        '• Contexto histórico e literário da passagem\n\n'
+        'II. PONTOS PRINCIPAIS\n'
+        '1. Exposição Bíblica\n'
+        '2. Ilustração Prática\n'
+        '3. Desafio Pessoal e Aplicação\n\n'
+        'III. CONCLUSÃO E APELO\n'
+        '• Recapitulação do tema\n'
+        '• Oração e compromisso de fé\n\n';
+
+    final index = _quillController.selection.baseOffset;
+    _quillController.replaceText(index, 0, sermonText, null);
+    _quillController.formatText(index + 1, 'ESBOÇO DE SERMÃO'.length, quill.Attribute.bold);
+    _quillController.formatText(index + 1, 'ESBOÇO DE SERMÃO'.length, quill.Attribute.h2);
+    _quillController.updateSelection(
+      TextSelection.collapsed(offset: index + sermonText.length),
+      quill.ChangeSource.local,
+    );
+  }
+
+  void _insertDivider() {
+    final index = _quillController.selection.baseOffset;
+    const dividerText = '\n────────────────────────────────────────\n\n';
+    _quillController.replaceText(index, 0, dividerText, null);
+    _quillController.updateSelection(
+      TextSelection.collapsed(offset: index + dividerText.length),
+      quill.ChangeSource.local,
+    );
+  }
+
+  void _insertDateTime() {
+    final index = _quillController.selection.baseOffset;
+    final now = DateTime.now();
+    final formatted = '📅 ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} às ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    _quillController.replaceText(index, 0, '$formatted\n\n', null);
+    _quillController.updateSelection(
+      TextSelection.collapsed(offset: index + formatted.length + 2),
+      quill.ChangeSource.local,
+    );
+  }
+
+  Future<void> _changePageColor(Color color) async {
+    final updated = _note.copyWith(pageColor: color.toARGB32());
+    await ref.read(noteCardsProvider.notifier).save(updated);
+    if (mounted) {
+      setState(() {
+        _note = updated;
+      });
+    }
+  }
+
+  Future<void> _quickSave() async {
+    final title = _titleCtrl.text.trim();
+    final finalTitle = (title.isEmpty || title == 'Nova Nota' || title == 'Novo Tópico') ? 'Sem título' : title;
+    final jsonContent = jsonEncode(_quillController.document.toDelta().toJson());
+    final updated = _note.copyWith(
+      title: finalTitle,
+      body: jsonContent,
+      isPublic: _isPublic,
+    );
+    setState(() => _saving = true);
+    await ref.read(noteCardsProvider.notifier).save(updated);
+    if (mounted) {
+      setState(() {
+        _note = updated;
+        _saving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text('Documento salvo!', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          backgroundColor: const Color(0xFF107C41),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _shareNote() {
+    final text = _quillController.getPlainText();
+    final title = _titleCtrl.text.trim().isNotEmpty ? _titleCtrl.text.trim() : 'Estudo Bíblico';
+    Share.share(text, subject: title);
+  }
+
   Future<void> _insertBibleVerse() async {
     // 1. Escolher Livro e Capítulo
     final result =
@@ -487,8 +525,9 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
           isScrollControlled: true,
           constraints: const BoxConstraints(maxWidth: double.infinity),
           backgroundColor: Colors.transparent,
-          builder: (context) => const BibleSelectorBottomSheet(
-            initialStage: SelectorStage.versions,
+          builder: (context) => BibleSelectorBottomSheet(
+            initialStage: SelectorStage.books,
+            fullSelection: true,
           ),
         );
 
@@ -514,17 +553,21 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     }
 
     if (chapterData == null || !mounted) return;
+    final currentChapter = chapterData;
 
-    // 2. Escolher os Versículos
-    final selectedVerses = await showModalBottomSheet<List<BibleVerse>>(
-      context: context,
-      isScrollControlled: true,
-          constraints: const BoxConstraints(maxWidth: double.infinity),
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _VerseSelectorSheet(chapter: chapterData!),
-    );
+    // 2. Definir os Versículos (específico ou capítulo inteiro)
+    List<BibleVerse>? selectedVerses;
+    if (result.verse != null) {
+      final v = currentChapter.verses.firstWhere(
+        (verse) => verse.number == result.verse,
+        orElse: () => currentChapter.verses.first,
+      );
+      selectedVerses = [v];
+    } else {
+      selectedVerses = currentChapter.verses;
+    }
 
-    if (selectedVerses != null && selectedVerses.isNotEmpty) {
+    if (selectedVerses.isNotEmpty) {
       // Ordena pelos números
       selectedVerses.sort((a, b) => a.number.compareTo(b.number));
 
@@ -562,488 +605,36 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     }
   }
 
-  void _showCustomColorPicker({
-    required bool isBackground,
-    bool isPage = false,
-    bool isQuoteBox = false,
-  }) {
-    SystemChannels.textInput.invokeMethod('TextInput.hide'); // Hide keyboard
-    final List<Color> textColors = [
-      Colors.black, Colors.white, Colors.grey, Colors.red, Colors.pink, Colors.orange,
-      Colors.yellow, Colors.lightGreenAccent, Colors.green, Colors.cyan, Colors.blue, Colors.purple,
-    ];
-    final List<Color?> highlightColors = [
-      null, // Transparent (Slash)
-      const Color(0xFFF0E68C), const Color(0xFF90EE90), const Color(0xFFE0FFFF), const Color(0xFFFFB6C1), const Color(0xFF87CEFA),
-      const Color(0xFFF08080), const Color(0xFF6A5ACD), const Color(0xFF48D1CC), const Color(0xFF3CB371), const Color(0xFFBA55D3), const Color(0xFFA0522D),
-      const Color(0xFFBDB76B), Colors.grey.shade300, Colors.grey.shade400, Colors.grey.shade700,
-    ];
 
-    showDialog(
+
+  Future<void> _insertDictionaryWord() async {
+    final result = await showModalBottomSheet<(String, String)>(
       context: context,
-      barrierColor: Colors.transparent, // Floating feel
-      builder: (ctx) {
-        return Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 80),
-            child: Material(
-              color: const Color(0xFF1E1E24), // Dark background matching the screenshot
-              borderRadius: BorderRadius.circular(12),
-              elevation: 8,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                child: SizedBox(
-                  width: 320, // Fixed width for the grid
-                  child: Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    alignment: WrapAlignment.center,
-                    children: (isBackground ? highlightColors : textColors).map((color) {
-                      final isSelected = false; // Add state logic if needed
-                      return GestureDetector(
-                        onTap: () {
-                          if (isPage) {
-                            setState(() {
-                              _note = _note.copyWith(pageColor: color?.value ?? 0xFFFFFFFF);
-                            });
-                            _save();
-                          } else if (isQuoteBox) {
-                            setState(() {
-                              _quoteColor = color ?? Colors.grey.shade200;
-                            });
-                          } else if (isBackground) {
-                            if (color == null) {
-                              _quillController.formatSelection(quill.BackgroundAttribute('#00000000'));
-                            } else {
-                              final hex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
-                              _quillController.formatSelection(quill.BackgroundAttribute(hex));
-                            }
-                          } else {
-                            if (color != null) {
-                              final hex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
-                              _quillController.formatSelection(quill.ColorAttribute(hex));
-                            }
-                          }
-                          Navigator.pop(ctx);
-                        },
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: color ?? Colors.transparent,
-                            shape: BoxShape.circle,
-                            border: color == null ? Border.all(color: Colors.blue, width: 1.5) : null,
-                          ),
-                          child: color == null
-                              ? const Icon(Icons.block, color: Colors.blue, size: 24)
-                              : (isSelected ? const Icon(Icons.check, color: Colors.white, size: 16) : (isBackground ? Icon(Icons.grid_4x4, color: Colors.black.withValues(alpha: 0.1), size: 30) : null)),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showAlignmentMenu() {
-    showDialog(
-      context: context,
-      barrierColor: Colors.transparent,
-      builder: (ctx) {
-        Widget buildBtn(IconData icon, quill.Attribute attribute) {
-          final isSelected = _quillController.getSelectionStyle().attributes[quill.Attribute.align.key]?.value == attribute.value;
-          return IconButton(
-            icon: Icon(icon, color: isSelected ? const Color(0xFF1E90FF) : Colors.white70),
-            onPressed: () {
-              _quillController.formatSelection(attribute);
-              Navigator.pop(ctx);
-            },
-          );
-        }
-
-        return Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 85),
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E24),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 2),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    buildBtn(Icons.format_align_left, quill.Attribute.leftAlignment),
-                    buildBtn(Icons.format_align_center, quill.Attribute.centerAlignment),
-                    buildBtn(Icons.format_align_right, quill.Attribute.rightAlignment),
-                    buildBtn(Icons.format_align_justify, quill.Attribute.justifyAlignment),
-                    IconButton(
-                      icon: const Icon(Icons.format_indent_decrease, color: Colors.white70),
-                      onPressed: () {
-                        _quillController.indentSelection(false);
-                        Navigator.pop(ctx);
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.format_indent_increase, color: Colors.white70),
-                      onPressed: () {
-                        _quillController.indentSelection(true);
-                        Navigator.pop(ctx);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCustomFontSizePicker() {
-    SystemChannels.textInput.invokeMethod('TextInput.hide'); // Hide keyboard
-    final List<num> fontSizes = [5, 5.5, 6.5, 7.5, 8, 9, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E1E24), // Dark background matching the screenshot
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _editorFocus.requestFocus();
-                        SystemChannels.textInput.invokeMethod('TextInput.show');
-                      },
-                      child: Icon(Icons.keyboard_alt_outlined, color: Colors.white.withValues(alpha: 0.7)),
-                    ),
-                    const Text(
-                      'Tamanho da fonte',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                    InkWell(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Icon(Icons.keyboard_arrow_down, color: Colors.white.withValues(alpha: 0.7)),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: fontSizes.length,
-                  itemBuilder: (context, index) {
-                    final size = fontSizes[index];
-                    return InkWell(
-                      onTap: () {
-                        _quillController.formatSelection(
-                          quill.SizeAttribute(size.toString()),
-                        );
-                        Navigator.pop(ctx);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        child: Center(
-                          child: Text(
-                            size.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      constraints: const BoxConstraints(maxWidth: double.infinity),
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _DictionarySearchSheet(),
     );
+    if (result != null && mounted) {
+      final index = _quillController.selection.baseOffset;
+      final refText = '📚 Dicionário: ${result.$1}';
+      final text = result.$2;
+      final fullText = '\n$refText\n$text\n\n';
+      
+      _quillController.replaceText(index, 0, fullText, null);
+      _quillController.formatText(index + 1, refText.length, quill.Attribute.bold);
+      _quillController.formatText(
+        index + 1 + refText.length, 
+        fullText.length - refText.length - 1, 
+        quill.Attribute.clone(quill.Attribute.bold, null),
+      );
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: index + fullText.length),
+        quill.ChangeSource.local,
+      );
+    }
   }
 
-  void _showCustomFontPicker() {
-    SystemChannels.textInput.invokeMethod('TextInput.hide'); // Hide keyboard
-    final fonts = [
-      'Padrão',
-      ...CustomFontLoader.googleFonts,
-      ...CustomFontLoader.loadedFontFamilies.where((f) => !CustomFontLoader.googleFonts.contains(f)),
-      '+ Importar Fonte',
-    ];
-    final currentFont = _quillController.getSelectionStyle().attributes[quill.Attribute.font.key]?.value ?? 'Padrão';
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E1E24), // Dark background matching the screenshot
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.75,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _editorFocus.requestFocus();
-                        SystemChannels.textInput.invokeMethod('TextInput.show');
-                      },
-                      child: Icon(Icons.keyboard_alt_outlined, color: Colors.white.withValues(alpha: 0.7)),
-                    ),
-                    const Text(
-                      'Fonte',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                    InkWell(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Icon(Icons.keyboard_arrow_down, color: Colors.white.withValues(alpha: 0.7)),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Fonte atual',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A30),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    currentFont,
-                    style: const TextStyle(color: Color(0xFF1E90FF), fontSize: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Todas as fontes',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: fonts.length,
-                  itemBuilder: (context, index) {
-                    final font = fonts[index];
-                    return InkWell(
-                      onTap: () async {
-                        if (font == '+ Importar Fonte') {
-                          final newFont = await CustomFontLoader.importCustomFont();
-                          if (newFont != null) {
-                            _quillController.formatSelection(
-                              quill.FontAttribute(newFont),
-                            );
-                            if (ctx.mounted) Navigator.pop(ctx);
-                          }
-                          return;
-                        }
-                        
-                        if (font == 'Padrão') {
-                          _quillController.formatSelection(
-                            quill.Attribute.clone(
-                              const quill.FontAttribute(''),
-                              null,
-                            ),
-                          );
-                        } else {
-                          _quillController.formatSelection(
-                            quill.FontAttribute(font),
-                          );
-                        }
-                        Navigator.pop(ctx);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              font,
-                              style: font == '+ Importar Fonte' 
-                                ? const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
-                                : (CustomFontLoader.loadedFontFamilies.contains(font) || font == 'Padrão'
-                                  ? TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontFamily: font == 'Padrão' ? null : font,
-                                    )
-                                  : GoogleFonts.getFont(font, color: Colors.white, fontSize: 16)),
-                            ),
-                            ],
-                          ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-
-  void _showInsertMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final isLight = Theme.of(context).brightness == Brightness.light;
-        final primaryIconColor = isLight ? Theme.of(context).colorScheme.primary : _gold;
-
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Inserir Elemento',
-                  style: GoogleFonts.outfit(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.auto_awesome, color: primaryIconColor),
-                title: Text(
-                  'Assistente IA',
-                  style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface),
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showAiAssistant();
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.menu_book, color: primaryIconColor),
-                title: Text(
-                  'Versículo Bíblico',
-                  style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface),
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _insertBibleVerse();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.translate, color: Colors.blue),
-                title: Text(
-                  'Léxico / Dicionário',
-                  style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface),
-                ),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final result = await showModalBottomSheet<(String, String)>(
-                    context: context,
-                    isScrollControlled: true,
-          constraints: const BoxConstraints(maxWidth: double.infinity),
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => const _DictionarySearchSheet(),
-                  );
-                  if (result != null && mounted) {
-                    final index = _quillController.selection.baseOffset;
-                    final refText = '📚 Dicionário: ${result.$1}';
-                    final text = result.$2;
-                    final fullText = '\n$refText\n$text\n\n';
-                    
-                    _quillController.replaceText(index, 0, fullText, null);
-                    _quillController.formatText(index + 1, refText.length, quill.Attribute.bold);
-                    _quillController.formatText(
-                      index + 1 + refText.length, 
-                      fullText.length - refText.length - 1, 
-                      quill.Attribute.clone(quill.Attribute.bold, null)
-                    );
-                    _quillController.updateSelection(
-                      TextSelection.collapsed(offset: index + fullText.length),
-                      quill.ChangeSource.local,
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildQuickColorBtn(Color color, bool isBackground) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: InkWell(
-        onTap: () {
-          final hex = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
-          if (isBackground) {
-            _quillController.formatSelection(quill.BackgroundAttribute(hex));
-          } else {
-            _quillController.formatSelection(quill.ColorAttribute(hex));
-          }
-        },
-        child: Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: color,
-            shape: isBackground ? BoxShape.rectangle : BoxShape.circle,
-            borderRadius: isBackground ? BorderRadius.circular(8) : null,
-            border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildPrintView() {
     return Container(
@@ -1291,23 +882,27 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
       },
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: (!_showBars && !_isEditing && !ResponsiveLayout.isExpanded(context)) ? null : AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+        appBar: AppBar(
+          backgroundColor: WordMobileTheme.primaryBlue,
+          elevation: 1,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            tooltip: 'Voltar',
+            onPressed: () => Navigator.maybePop(context),
+          ),
           title: TextField(
             controller: _titleCtrl,
             focusNode: _titleFocus,
-            textAlign: TextAlign.center,
+            textAlign: TextAlign.start,
             style: GoogleFonts.outfit(
-              color: Theme.of(context).colorScheme.onSurface,
+              color: Colors.white,
               fontSize: 17,
               fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
-              hintText: 'Título da nota...',
+              hintText: 'Documento...',
               hintStyle: GoogleFonts.outfit(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
               ),
@@ -1316,52 +911,125 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
               contentPadding: EdgeInsets.zero,
             ),
           ),
-          centerTitle: true,
           actions: [
-            if (ResponsiveLayout.isExpanded(context))
-              Row(
-                children: [
-                  Icon(Icons.zoom_out, size: 20, color: Theme.of(context).colorScheme.onSurface),
-                  SizedBox(
-                    width: 150,
-                    child: Slider(
-                      value: _zoomLevel,
-                      min: 0.5,
-                      max: 3.0,
-                      activeColor: _gold,
-                      inactiveColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
-                      onChanged: (val) {
-                        setState(() {
-                          _zoomLevel = val;
-                        });
-                      },
-                    ),
-                  ),
-                  Icon(Icons.zoom_in, size: 20, color: Theme.of(context).colorScheme.onSurface),
-                  const SizedBox(width: 16),
-                ],
+            if (!ResponsiveLayout.isCompact(context)) ...[
+              // Tablet / Desktop: Ações limpas da barra superior (estilo Office / Word)
+              IconButton(
+                icon: Icon(
+                  _saving ? Icons.hourglass_top_rounded : Icons.save_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                tooltip: 'Salvar Documento',
+                onPressed: _quickSave,
               ),
+              IconButton(
+                icon: Icon(
+                  Icons.undo_rounded,
+                  color: _quillController.hasUndo ? Colors.white : Colors.white38,
+                  size: 22,
+                ),
+                onPressed: () {
+                  if (_quillController.hasUndo) {
+                    _quillController.undo();
+                  }
+                },
+                tooltip: 'Desfazer',
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.redo_rounded,
+                  color: _quillController.hasRedo ? Colors.white : Colors.white38,
+                  size: 22,
+                ),
+                onPressed: () {
+                  if (_quillController.hasRedo) {
+                    _quillController.redo();
+                  }
+                },
+                tooltip: 'Refazer',
+              ),
+              IconButton(
+                icon: const Icon(Icons.search_rounded, color: Colors.white),
+                tooltip: 'Pesquisar',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => quill.QuillToolbarSearchDialog(
+                      controller: _quillController,
+                      dialogTheme: quill.QuillDialogTheme(
+                        dialogBackgroundColor: Theme.of(context).cardColor,
+                      ),
+                      searchBarAlignment: Alignment.topCenter,
+                    ),
+                  );
+                },
+              ),
+            ] else ...[
+              // Celular (Compact): Controles móveis com suporte a alternar edição/leitura
+              IconButton(
+                icon: Icon(
+                  _isEditing ? Icons.edit_note_rounded : Icons.edit_outlined,
+                  color: Colors.white,
+                ),
+                tooltip: _isEditing ? 'Modo de Edição Ativo' : 'Habilitar Edição',
+                onPressed: () {
+                  setState(() {
+                    _isEditing = !_isEditing;
+                    _quillController.readOnly = !_isEditing;
+                  });
+                  if (_isEditing) _editorFocus.requestFocus();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.search_rounded, color: Colors.white),
+                tooltip: 'Pesquisar',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => quill.QuillToolbarSearchDialog(
+                      controller: _quillController,
+                      dialogTheme: quill.QuillDialogTheme(
+                        dialogBackgroundColor: Theme.of(context).cardColor,
+                      ),
+                      searchBarAlignment: Alignment.topCenter,
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: Icon(
+                  _isMobileView ? Icons.phone_android_rounded : Icons.description_outlined,
+                  color: Colors.white,
+                ),
+                tooltip: _isMobileView ? 'Layout Móvel (Reflow)' : 'Layout de Impressão (A4)',
+                onPressed: () {
+                  setState(() {
+                    _isMobileView = !_isMobileView;
+                    ref.read(sharedPreferencesProvider).setBool('note_is_mobile_view', _isMobileView);
+                  });
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.undo_rounded, color: Colors.white, size: 22),
+                onPressed: () {
+                  if (_quillController.hasUndo) {
+                    _quillController.undo();
+                  }
+                },
+                tooltip: 'Desfazer',
+              ),
+              IconButton(
+                icon: const Icon(Icons.redo_rounded, color: Colors.white, size: 22),
+                onPressed: () {
+                  if (_quillController.hasRedo) {
+                    _quillController.redo();
+                  }
+                },
+                tooltip: 'Refazer',
+              ),
+            ],
 
-            IconButton(
-              icon: const Icon(Icons.undo, size: 22),
-              onPressed: () {
-                if (_quillController.hasUndo) {
-                  _quillController.undo();
-                }
-              },
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-              tooltip: 'Desfazer',
-            ),
-            IconButton(
-              icon: const Icon(Icons.redo, size: 22),
-              onPressed: () {
-                if (_quillController.hasRedo) {
-                  _quillController.redo();
-                }
-              },
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-              tooltip: 'Refazer',
-            ),
             if (_saving || _isGeneratingPdf)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1371,36 +1039,94 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: _gold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               )
             else
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onSurface),
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
                 onSelected: (value) {
                   if (value == 'pdf') _generateAndSharePdf();
                   if (value == 'save') _save();
+                  if (value == 'verse') _insertBibleVerse();
+                  if (value == 'dictionary') _insertDictionaryWord();
+                  if (value == 'ai') _showAiAssistant();
+                  if (value == 'sermon') _insertSermonOutline();
                 },
                 itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'pdf',
-                    child: Row(
-                      children: [
-                        Icon(Icons.picture_as_pdf, color: Theme.of(context).colorScheme.onSurface),
-                        const SizedBox(width: 8),
-                        const Text('Gerar PDF'),
-                      ],
-                    ),
-                  ),
                   PopupMenuItem(
                     value: 'save',
                     child: Row(
                       children: [
-                        const Icon(Icons.save_rounded, color: _gold),
+                        const Icon(Icons.save_rounded, color: WordMobileTheme.primaryBlue),
                         const SizedBox(width: 8),
-                        Text('Salvar', style: GoogleFonts.outfit(color: _gold, fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text('Salvar Documento',
+                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: WordMobileTheme.primaryBlue),
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'pdf',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Exportar como PDF', style: GoogleFonts.outfit(), overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'verse',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_stories_rounded, color: WordMobileTheme.primaryBlue),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Inserir Versículo Bíblico', style: GoogleFonts.outfit(), overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'dictionary',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.book_rounded, color: Color(0xFF0078D4)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Inserir Termo do Dicionário', style: GoogleFonts.outfit(), overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'sermon',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.record_voice_over_outlined, color: Color(0xFFD83B01)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Inserir Esboço de Sermão', style: GoogleFonts.outfit(), overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'ai',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, color: Color(0xFF8E8CD8)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Assistente Copilot IA', style: GoogleFonts.outfit(), overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                   ),
@@ -1411,110 +1137,28 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              // ── Modo Tablet/Expandido: toolbar completa no topo ──────────────
-              if (ResponsiveLayout.isExpanded(context))
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    border: Border(
-                      bottom: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05)),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.add_circle, color: _gold),
-                                    onPressed: _showInsertMenu,
-                                    tooltip: 'Inserir...',
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.format_size, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-                                    onPressed: _showCustomFontSizePicker,
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.font_download, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-                                    onPressed: _showCustomFontPicker,
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.format_color_text, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-                                    onPressed: () => _showCustomColorPicker(isBackground: false),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.format_color_fill, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-                                    onPressed: () => _showCustomColorPicker(isBackground: true),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.format_paint, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-                                    onPressed: () => _showCustomColorPicker(isBackground: false, isPage: true),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.format_quote, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-                                    onPressed: () => _showCustomColorPicker(isBackground: false, isQuoteBox: true),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
-                        child: SingleChildScrollView(
-                          child: Theme(
-                            data: Theme.of(context),
-                            child: Listener(
-                              onPointerUp: (_) {
-                                Future.delayed(const Duration(milliseconds: 100), () {
-                                  if (mounted) {
-                                    SystemChannels.textInput.invokeMethod('TextInput.hide');
-                                    FocusScope.of(context).unfocus();
-                                  }
-                                });
-                              },
-                              child: quill.QuillSimpleToolbar(
-                                controller: _quillController,
-                                config: quill.QuillSimpleToolbarConfig(
-                                  multiRowsDisplay: true,
-                                  showFontFamily: false,
-                                  showFontSize: false,
-                                  showSearchButton: false,
-                                  showInlineCode: false,
-                                  showSubscript: false,
-                                  showSuperscript: false,
-                                  showColorButton: false,
-                                  showBackgroundColorButton: false,
-                                  showAlignmentButtons: true,
-                                  showLeftAlignment: true,
-                                  showCenterAlignment: true,
-                                  showRightAlignment: true,
-                                  showJustifyAlignment: true,
-                                  showListNumbers: true,
-                                  showListBullets: true,
-                                  showListCheck: true,
-                                  showCodeBlock: false,
-                                  showQuote: true,
-                                  showIndent: true,
-                                  showLink: true,
-                                  showUndo: true,
-                                  showRedo: true,
-                                  showDirection: false,
-                                  showDividers: true,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              // ── Faixa de Opções (Ribbon Toolbar) Nativa para Tablets ──
+              if (!ResponsiveLayout.isCompact(context))
+                WordTabletRibbonBar(
+                  controller: _quillController,
+                  onInsertBibleVerse: _insertBibleVerse,
+                  onOpenAiAssistant: _showAiAssistant,
+                  onInsertSermonOutline: _insertSermonOutline,
+                  onInsertQuoteBox: () => _insertCustomText('💬 CITAÇÃO', 'Insira seu texto em destaque aqui...', '', isQuote: true),
+                  onInsertDivider: _insertDivider,
+                  onInsertDateTime: _insertDateTime,
+                  onToggleViewMode: () => setState(() {
+                    _isMobileView = !_isMobileView;
+                    ref.read(sharedPreferencesProvider).setBool('note_is_mobile_view', _isMobileView);
+                  }),
+                  isMobileView: _isMobileView,
+                  currentZoom: _zoomLevel,
+                  onZoomChanged: (z) => setState(() => _zoomLevel = z),
+                  onChangePageColor: _changePageColor,
+                  onExportPdf: _generateAndSharePdf,
+                  onShare: _shareNote,
+                  onQuickSave: _quickSave,
+                  isSaving: _saving,
                 ),
 
               // ── Documento (modo celular ou print) ─────────────────────────────
@@ -1526,471 +1170,106 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                 ),
               ),
 
-              // ── Modo Celular: painel de formatação expandido (slide up) ────────
-              if (!ResponsiveLayout.isExpanded(context) && _showFormattingBar && MediaQuery.of(context).viewInsets.bottom < 60)
+              // ── Modo Word Mobile: Lower Ribbon Expandido (replaces keyboard) ──
+              if (ResponsiveLayout.isCompact(context) && _showFormattingBar)
+                WordMobileLowerRibbon(
+                  controller: _quillController,
+                  onClose: () => setState(() => _showFormattingBar = false),
+                  onInsertBibleVerse: _insertBibleVerse,
+                  onOpenAiAssistant: _showAiAssistant,
+                  onInsertSermonOutline: _insertSermonOutline,
+                  onInsertQuoteBox: () => _insertCustomText('💬 CITAÇÃO', 'Insira seu texto em destaque aqui...', '', isQuote: true),
+                  onToggleViewMode: () => setState(() {
+                    _isMobileView = !_isMobileView;
+                    ref.read(sharedPreferencesProvider).setBool('note_is_mobile_view', _isMobileView);
+                  }),
+                  isMobileView: _isMobileView,
+                  currentZoom: _zoomLevel,
+                  onZoomChanged: (z) => setState(() => _zoomLevel = z),
+                ),
+
+              // ── Modo Word Mobile: Barra de Ações Rápidas (docked sobre o teclado) ──
+              if (ResponsiveLayout.isCompact(context) && _isEditing && !_showFormattingBar)
+                WordMobileQuickToolbar(
+                  controller: _quillController,
+                  isRibbonOpen: _showFormattingBar,
+                  onToggleRibbon: () {
+                    setState(() {
+                      _showFormattingBar = true;
+                    });
+                    SystemChannels.textInput.invokeMethod('TextInput.hide');
+                    FocusScope.of(context).unfocus();
+                  },
+                  onInsertBibleVerse: _insertBibleVerse,
+                  onOpenAiAssistant: _showAiAssistant,
+                  onSelectFontColor: (c) {
+                    final hex = '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+                    _quillController.formatSelection(quill.ColorAttribute(hex));
+                  },
+                  onSelectHighlight: (c) {
+                    if (c == null) {
+                      _quillController.formatSelection(quill.BackgroundAttribute('#00000000'));
+                    } else {
+                      final hex = '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+                      _quillController.formatSelection(quill.BackgroundAttribute(hex));
+                    }
+                  },
+                ),
+
+              // ── Modo Leitura (Reading mode footer bar) ──
+              if (ResponsiveLayout.isCompact(context) && !_isEditing && !_showFormattingBar)
                 Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E1E24), // Dark background from screenshot
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    border: Border(
+                      top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+                    ),
                   ),
-                  child: SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          // Cabecalho (Teclado, Busca, Fechar)
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.keyboard_alt_outlined, color: Colors.white70),
-                                onPressed: () {
-                                  setState(() {
-                                    _showFormattingBar = false;
-                                    _isEditing = true;
-                                    _quillController.readOnly = false;
-                                  });
-                                  _editorFocus.requestFocus();
-                                  SystemChannels.textInput.invokeMethod('TextInput.show');
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.search, color: Colors.white70),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (ctx) => quill.QuillToolbarSearchDialog(
-                                      controller: _quillController,
-                                      dialogTheme: quill.QuillDialogTheme(
-                                        dialogBackgroundColor: Theme.of(context).cardColor,
-                                      ),
-                                      searchBarAlignment: Alignment.topCenter,
-                                    ),
-                                  );
-                                },
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                icon: const Icon(Icons.close, color: Colors.white70),
-                                onPressed: () => setState(() {
-                                  _showFormattingBar = false;
-                                  _quillController.readOnly = !_isEditing;
-                                }),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Tamanho e Formato
-                          Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Tamanho', style: TextStyle(fontSize: 12, color: Colors.white54)),
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF2A2A30),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                        children: [
-                                          InkWell(
-                                            onTap: () => _updateFontSize(-1),
-                                            child: const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.remove, size: 20, color: Colors.white)),
-                                          ),
-                                          InkWell(
-                                            onTap: _showCustomFontSizePicker,
-                                            child: Text('$_currentFontSize', style: const TextStyle(color: Colors.white, fontSize: 16)),
-                                          ),
-                                          InkWell(
-                                            onTap: () => _updateFontSize(1),
-                                            child: const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.add, size: 20, color: Colors.white)),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Formato', style: TextStyle(fontSize: 12, color: Colors.white54)),
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF2A2A30),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                        children: [
-                                          _FormatToggleBtn(icon: Icons.format_bold, attribute: quill.Attribute.bold, controller: _quillController, iconSize: 22, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), onPressed: () { _ignoreFocusChange = true; Future.microtask(() => _ignoreFocusChange = false); }),
-                                          _FormatToggleBtn(icon: Icons.format_italic, attribute: quill.Attribute.italic, controller: _quillController, iconSize: 22, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), onPressed: () { _ignoreFocusChange = true; Future.microtask(() => _ignoreFocusChange = false); }),
-                                          _FormatToggleBtn(icon: Icons.format_strikethrough, attribute: quill.Attribute.strikeThrough, controller: _quillController, iconSize: 22, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), onPressed: () { _ignoreFocusChange = true; Future.microtask(() => _ignoreFocusChange = false); }),
-                                          _FormatToggleBtn(icon: Icons.format_underline, attribute: quill.Attribute.underline, controller: _quillController, iconSize: 22, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), onPressed: () { _ignoreFocusChange = true; Future.microtask(() => _ignoreFocusChange = false); }),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          
-                          // Fonte
-                          const Text('Fonte', style: TextStyle(fontSize: 12, color: Colors.white54)),
-                          const SizedBox(height: 6),
-                          InkWell(
-                            onTap: _showCustomFontPicker,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2A2A30),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Center(
-                                child: Text('Arial', style: TextStyle(color: Colors.white, fontSize: 14)),
-                              ),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                             ),
+                            icon: const Icon(Icons.edit_note_rounded, color: WordMobileTheme.primaryBlue, size: 20),
+                            label: Text('Editar', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: WordMobileTheme.primaryBlue, fontSize: 13)),
+                            onPressed: () {
+                              setState(() {
+                                _isEditing = true;
+                                _quillController.readOnly = false;
+                              });
+                              _editorFocus.requestFocus();
+                            },
                           ),
-                          const SizedBox(height: 12),
-
-                          // Cor do texto
-                          const Text('Cor do texto', style: TextStyle(fontSize: 12, color: Colors.white54)),
-                          const SizedBox(height: 6),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Container(
-                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                               decoration: BoxDecoration(
-                                 color: const Color(0xFF2A2A30),
-                                 borderRadius: BorderRadius.circular(12),
-                               ),
-                               child: Row(
-                                 children: [
-                                   _buildQuickColorBtn(Colors.black, false),
-                                   _buildQuickColorBtn(Colors.white, false),
-                                   _buildQuickColorBtn(Colors.grey, false),
-                                   _buildQuickColorBtn(Colors.red, false),
-                                   _buildQuickColorBtn(Colors.pink, false),
-                                   _buildQuickColorBtn(Colors.orange, false),
-                                   _buildQuickColorBtn(Colors.yellow, false),
-                                   _buildQuickColorBtn(Colors.green, false),
-                                   _buildQuickColorBtn(Colors.blue, false),
-                                   _buildQuickColorBtn(Colors.purple, false),
-                                 ],
-                               ),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                             ),
+                            icon: Icon(_isMobileView ? Icons.description_outlined : Icons.phone_android_rounded, size: 20),
+                            label: Text(_isMobileView ? 'A4' : 'Móvel', style: GoogleFonts.outfit(fontSize: 13)),
+                            onPressed: () {
+                              setState(() {
+                                _isMobileView = !_isMobileView;
+                                ref.read(sharedPreferencesProvider).setBool('note_is_mobile_view', _isMobileView);
+                              });
+                            },
                           ),
-                          const SizedBox(height: 12),
-
-                          // Destacar
-                          const Text('Destacar', style: TextStyle(fontSize: 12, color: Colors.white54)),
-                          const SizedBox(height: 6),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Container(
-                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                               decoration: BoxDecoration(
-                                 color: const Color(0xFF2A2A30),
-                                 borderRadius: BorderRadius.circular(12),
-                               ),
-                               child: Row(
-                                 children: [
-                                   Padding(
-                                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                                     child: InkWell(
-                                       onTap: () {
-                                         _quillController.formatSelection(quill.BackgroundAttribute(''));
-                                       },
-                                       child: Container(
-                                         width: 24,
-                                         height: 24,
-                                         decoration: BoxDecoration(
-                                           color: Colors.transparent,
-                                           shape: BoxShape.circle,
-                                           border: Border.all(color: Colors.white54),
-                                         ),
-                                         child: const Icon(Icons.do_not_disturb_alt, size: 14, color: Colors.white54),
-                                       ),
-                                     ),
-                                   ),
-                                   _buildQuickColorBtn(Colors.yellow.withValues(alpha: 0.5), true),
-                                   _buildQuickColorBtn(Colors.green.withValues(alpha: 0.5), true),
-                                   _buildQuickColorBtn(Colors.cyan.withValues(alpha: 0.5), true),
-                                   _buildQuickColorBtn(Colors.pink.withValues(alpha: 0.5), true),
-                                   _buildQuickColorBtn(Colors.indigo.withValues(alpha: 0.5), true),
-                                   _buildQuickColorBtn(Colors.red.withValues(alpha: 0.5), true),
-                                   _buildQuickColorBtn(Colors.grey.withValues(alpha: 0.5), true),
-                                 ],
-                               ),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Parágrafo
-                          const Text('Parágrafo', style: TextStyle(fontSize: 12, color: Colors.white54)),
-                          const SizedBox(height: 6),
-                          Container(
-                             height: 44,
-                             decoration: BoxDecoration(
-                               color: const Color(0xFF2A2A30),
-                               borderRadius: BorderRadius.circular(12),
-                             ),
-                             child: Row(
-                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                               children: [
-                                 _FormatToggleBtn(icon: Icons.format_align_left, attribute: quill.Attribute.leftAlignment, controller: _quillController, isAlign: true, iconSize: 22, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), onPressed: () { _ignoreFocusChange = true; Future.microtask(() => _ignoreFocusChange = false); }),
-                                 _FormatToggleBtn(icon: Icons.format_align_center, attribute: quill.Attribute.centerAlignment, controller: _quillController, isAlign: true, iconSize: 22, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), onPressed: () { _ignoreFocusChange = true; Future.microtask(() => _ignoreFocusChange = false); }),
-                                 _FormatToggleBtn(icon: Icons.format_align_right, attribute: quill.Attribute.rightAlignment, controller: _quillController, isAlign: true, iconSize: 22, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), onPressed: () { _ignoreFocusChange = true; Future.microtask(() => _ignoreFocusChange = false); }),
-                                 _FormatToggleBtn(icon: Icons.format_align_justify, attribute: quill.Attribute.justifyAlignment, controller: _quillController, isAlign: true, iconSize: 22, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), onPressed: () { _ignoreFocusChange = true; Future.microtask(() => _ignoreFocusChange = false); }),
-                                 IconButton(
-                                   icon: const Icon(Icons.format_indent_decrease),
-                                   color: Colors.white,
-                                   onPressed: () { _ignoreFocusChange = true; _quillController.indentSelection(false); Future.microtask(() => _ignoreFocusChange = false); },
-                                 ),
-                                 IconButton(
-                                   icon: const Icon(Icons.format_indent_increase),
-                                   color: Colors.white,
-                                   onPressed: () { _ignoreFocusChange = true; _quillController.indentSelection(true); Future.microtask(() => _ignoreFocusChange = false); },
-                                 ),
-                               ],
-                             ),
+                            icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 20),
+                            label: Text('Exportar PDF', style: GoogleFonts.outfit(fontSize: 13)),
+                            onPressed: _generateAndSharePdf,
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ),
-
-              // ── Barra inferior compacta (estilo doc editor) ────────────────────
-              if (!ResponsiveLayout.isExpanded(context) && (_showBars || _isEditing) && !(_showFormattingBar && MediaQuery.of(context).viewInsets.bottom < 60))
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E1E24), // Dark background matching the screenshot
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), // Taller bar
-                      child: _isEditing
-                          ? Row(
-                              children: [
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(width: 8),
-                                        _FormatBtn(
-                                          onTap: () {
-                                            final isPanelVisible = _showFormattingBar;
-                                            setState(() {
-                                              _showFormattingBar = !isPanelVisible;
-                                              _quillController.readOnly = !_isEditing || !isPanelVisible;
-                                            });
-                                            if (!isPanelVisible) { // If it was hidden, we are trying to show it
-                                              SystemChannels.textInput.invokeMethod('TextInput.hide');
-                                              FocusScope.of(context).unfocus();
-                                            }
-                                          },
-                                          child: Icon(_showFormattingBar ? Icons.keyboard_arrow_down : Icons.window, color: Colors.white70, size: 26),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatBtn(
-                                          onTap: () => _showCustomColorPicker(isBackground: false),
-                                          child: const Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.format_color_text, color: Color(0xFFFF1493), size: 26),
-                                              Icon(Icons.arrow_drop_down, color: Colors.white54, size: 16),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatBtn(
-                                          onTap: () => _showCustomColorPicker(isBackground: true),
-                                          child: const Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.format_color_fill, color: Color(0xFF32CD32), size: 26),
-                                              Icon(Icons.arrow_drop_down, color: Colors.white54, size: 16),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatToggleBtn(
-                                          icon: Icons.format_bold,
-                                          attribute: quill.Attribute.bold,
-                                          controller: _quillController,
-                                          iconSize: 26,
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatBtn(
-                                          onTap: _showCustomFontSizePicker,
-                                          child: const Text('Aa', style: TextStyle(color: Colors.white70, fontSize: 24, fontWeight: FontWeight.w400)),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatBtn(
-                                          onTap: _showCustomFontPicker,
-                                          child: const Text('T', style: TextStyle(color: Colors.white70, fontSize: 24, fontWeight: FontWeight.w400)),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatBtn(
-                                          onTap: _showAlignmentMenu,
-                                          child: const Icon(Icons.format_align_left, color: Colors.white70, size: 26),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatToggleBtn(
-                                          icon: Icons.format_italic,
-                                          attribute: quill.Attribute.italic,
-                                          controller: _quillController,
-                                          iconSize: 26,
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatToggleBtn(
-                                          icon: Icons.format_underline,
-                                          attribute: quill.Attribute.underline,
-                                          controller: _quillController,
-                                          iconSize: 26,
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _FormatToggleBtn(
-                                          icon: Icons.format_strikethrough,
-                                          attribute: quill.Attribute.strikeThrough,
-                                          controller: _quillController,
-                                          iconSize: 26,
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                        ),
-                                        const SizedBox(width: 16),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                Builder(
-                                  builder: (ctx) {
-                                    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 60;
-                                    return IconButton(
-                                      icon: Icon(
-                                        isKeyboardOpen ? Icons.keyboard_hide : Icons.arrow_back,
-                                        color: Colors.white70,
-                                        size: 26,
-                                      ),
-                                      onPressed: () {
-                                        if (isKeyboardOpen) {
-                                          // Teclado aberto (keyboard_hide): Minimiza o teclado, mas continua no modo de edição (barra rápida visível)
-                                          SystemChannels.textInput.invokeMethod('TextInput.hide');
-                                          FocusScope.of(context).unfocus();
-                                        } else {
-                                          // Teclado fechado (arrow_back): Sai do modo de edição e volta para a barra principal
-                                          SystemChannels.textInput.invokeMethod('TextInput.hide');
-                                          FocusScope.of(context).unfocus();
-                                          setState(() {
-                                            _showFormattingBar = false;
-                                            _isEditing = false;
-                                            _quillController.readOnly = true;
-                                          });
-                                        }
-                                      },
-                                    );
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _BottomBarBtn(
-                                  icon: _isMobileView ? Icons.fullscreen : Icons.description_outlined,
-                                  label: _isMobileView ? 'Tela Inteira' : 'Página',
-                                  context: context,
-                                  onTap: () {
-                                    setState(() {
-                                      _isMobileView = !_isMobileView;
-                                      ref.read(sharedPreferencesProvider).setBool('note_is_mobile_view', _isMobileView);
-                                    });
-                                  },
-                                ),
-                                _BottomBarBtn(
-                                  icon: Icons.edit_document,
-                                  label: 'Editar',
-                                  context: context,
-                                  onTap: () {
-                                    setState(() {
-                                      _isEditing = true;
-                                      _quillController.readOnly = false;
-                                    });
-                                    Future.delayed(const Duration(milliseconds: 200), () {
-                                      if (mounted) _editorFocus.requestFocus();
-                                    });
-                                  },
-                                ),
-                                _BottomBarBtn(
-                                  icon: Icons.screen_rotation,
-                                  label: 'Paisagem',
-                                  context: context,
-                                  onTap: () {
-                                    setState(() {
-                                      _isLandscapeMode = !_isLandscapeMode;
-                                    });
-                                    if (_isLandscapeMode) {
-                                      SystemChrome.setPreferredOrientations([
-                                        DeviceOrientation.landscapeLeft,
-                                        DeviceOrientation.landscapeRight,
-                                      ]);
-                                    } else {
-                                      SystemChrome.setPreferredOrientations([
-                                        DeviceOrientation.portraitUp,
-                                        DeviceOrientation.portraitDown,
-                                      ]);
-                                    }
-                                  },
-                                ),
-                                _BottomBarBtn(
-                                  icon: Icons.search,
-                                  label: 'Pesquisar',
-                                  context: context,
-                                  onTap: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (ctx) => quill.QuillToolbarSearchDialog(
-                                        controller: _quillController,
-                                        dialogTheme: quill.QuillDialogTheme(
-                                          dialogBackgroundColor: Theme.of(context).cardColor,
-                                        ),
-                                        searchBarAlignment: Alignment.topCenter,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                _BottomBarBtn(
-                                  icon: Icons.ios_share,
-                                  label: 'Compartilhar',
-                                  context: context,
-                                  onTap: _generateAndSharePdf,
-                                ),
-                              ],
-                            ),
                     ),
                   ),
                 ),
@@ -2002,208 +1281,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   }
 }
 
-// ── Helpers de botão ─────────────────────────────────────────────────────────
-class _ToolbarBtn extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final Color? color;
-  final BuildContext? context;
 
-  const _ToolbarBtn({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.color,
-    this.context,
-  });
-
-  @override
-  Widget build(BuildContext ctx) {
-    final iconColor = color ?? (context != null ? Theme.of(context!).colorScheme.onSurface.withValues(alpha: 0.7) : Colors.white70);
-    return IconButton(
-      icon: Icon(icon, color: iconColor, size: 22),
-      tooltip: tooltip,
-      onPressed: onTap,
-    );
-  }
-}
-
-class _BottomBarBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color? color;
-  final bool isActive;
-  final BuildContext context;
-
-  const _BottomBarBtn({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.context,
-    this.color,
-    this.isActive = false,
-  });
-
-  @override
-  Widget build(BuildContext ctx) {
-    final baseColor = color ?? Theme.of(context).colorScheme.onSurface;
-    final activeColor = isActive ? Theme.of(context).colorScheme.primary : baseColor.withValues(alpha: 0.75);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: activeColor, size: 22),
-            if (label.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  color: activeColor,
-                  fontSize: 10,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FormatBtn extends StatelessWidget {
-  final Widget child;
-  final VoidCallback onTap;
-
-  const _FormatBtn({required this.child, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      canRequestFocus: false,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        child: child,
-      ),
-    );
-  }
-}
-
-class _FormatToggleBtn extends StatefulWidget {
-  final IconData icon;
-  final quill.Attribute attribute;
-  final quill.QuillController controller;
-  final bool isAlign;
-  final Color? activeColor;
-  final Color? inactiveColor;
-  final Color? customColor;
-  final VoidCallback? onPressed;
-  final bool hideKeyboardOnTap;
-  final double iconSize;
-  final EdgeInsetsGeometry? padding;
-
-  const _FormatToggleBtn({
-    required this.icon,
-    required this.attribute,
-    required this.controller,
-    this.isAlign = false,
-    this.activeColor,
-    this.inactiveColor,
-    this.customColor,
-    this.onPressed,
-    this.hideKeyboardOnTap = false,
-    this.iconSize = 24,
-    this.padding,
-    super.key,
-  });
-
-  @override
-  State<_FormatToggleBtn> createState() => _FormatToggleBtnState();
-}
-
-class _FormatToggleBtnState extends State<_FormatToggleBtn> {
-  late bool _isActive;
-
-  @override
-  void initState() {
-    super.initState();
-    _isActive = _isToggled();
-    widget.controller.addListener(_onChanged);
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_onChanged);
-    super.dispose();
-  }
-
-  void _onChanged() {
-    if (mounted) {
-      final toggled = _isToggled();
-      if (_isActive != toggled) {
-        setState(() => _isActive = toggled);
-      }
-    }
-  }
-
-  bool _isToggled() {
-    final attrs = widget.controller.getSelectionStyle().attributes;
-    if (widget.isAlign) {
-      final alignAttr = attrs[quill.Attribute.align.key];
-      if (widget.attribute.value == 'left' || widget.attribute == quill.Attribute.leftAlignment) {
-        return alignAttr == null || alignAttr.value == 'left';
-      }
-      return alignAttr?.value == widget.attribute.value;
-    }
-    return attrs.containsKey(widget.attribute.key);
-  }
-
-  void _handleTap() {
-    widget.onPressed?.call();
-    if (widget.isAlign) {
-      widget.controller.formatSelection(widget.attribute);
-    } else {
-      final toggled = _isToggled();
-      widget.controller.formatSelection(
-        toggled ? quill.Attribute.clone(widget.attribute, null) : widget.attribute,
-      );
-    }
-    if (widget.hideKeyboardOnTap) {
-      SystemChannels.textInput.invokeMethod('TextInput.hide');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final active = widget.activeColor ?? const Color(0xFF1E90FF);
-    final inactive = widget.inactiveColor ?? widget.customColor ?? Colors.white70;
-    final color = _isActive ? active : inactive;
-
-    return InkWell(
-      canRequestFocus: false,
-      onTap: _handleTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: _isActive
-            ? BoxDecoration(
-                color: active.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(8),
-              )
-            : null,
-        child: Icon(widget.icon, color: color, size: widget.iconSize),
-      ),
-    );
-  }
-}
 
 class _VerseSelectorSheet extends StatefulWidget {
   final BibleChapter chapter;
