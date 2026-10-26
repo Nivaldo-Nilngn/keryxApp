@@ -7,50 +7,48 @@ class ReleaseNotesCatalog {
     ReleaseNoteVersion(
       versionName: '2.0.3',
       buildNumber: 12,
-      title: 'Comunidade em Nuvem D1, Segurança & Mobile Compacto',
+      title: 'Comunidade Conectada, Tela Otimizada & Mais Segurança',
       releaseDate: '26 de Outubro de 2026',
       highlight:
-          'Persistência em nuvem D1 para a Comunidade, verificação rigorosa de integridade por SHA-256 no instalador de atualizações, layout mobile ultra compacto para oração e stories, e detecção PWA refinada para iPad e iPhone.',
+          'Compartilhe pedidos de oração e testemunhos com toda a igreja em tempo real, aproveite um layout mais espaçoso e confortável no celular, e conte com downloads protegidos e autenticados.',
       items: [
         // ── Novos Recursos (Implementações) ─────────────────────────
         ReleaseNoteItem(
           category: ReleaseNoteCategory.feature,
-          title: 'Persistência D1 na Comunidade',
+          title: 'Feed Comunitário e Pedidos de Oração',
           description:
-              'Posts, intercessões e comentários agora são armazenados em nuvem Cloudflare D1 em tempo real, garantindo persistência global entre usuários.',
-          customIcon: Icons.people_alt_rounded,
+              'Compartilhe seus motivos de oração, louvores e reflexões no feed da Comunidade. Suas mensagens agora sincronizam instantaneamente para que todos os membros possam orar juntos.',
+          customIcon: Icons.favorite_rounded,
         ),
         ReleaseNoteItem(
           category: ReleaseNoteCategory.feature,
-          title: 'Validação Criptográfica SHA-256 no APK',
+          title: 'Interações e Respostas no Feed',
           description:
-              'Atualizações contam com verificação streaming de integridade por hash SHA-256, impedindo instalações corrompidas ou adulteradas.',
+              'Comente nas publicações, deixe mensagens de encorajamento bíblico e participe ativamente da vida comunitária da igreja.',
+          customIcon: Icons.forum_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Verificação Inteligente de Atualizações',
+          description:
+              'O aplicativo agora confere automaticamente a autenticidade de cada nova atualização baixada, garantindo uma instalação 100% segura e confiável.',
           customIcon: Icons.verified_user_rounded,
         ),
 
         // ── Modificações & Melhorias ─────────────────────────────────
         ReleaseNoteItem(
           category: ReleaseNoteCategory.improvement,
-          title: 'Layout de Oração e Stories Compacto no Mobile',
+          title: 'Visual Mais Limpo e Espaçoso no Celular',
           description:
-              'O card de Intercessão do Dia foi reduzido para um formato fino de 46px com opção de dispensar, e a bandeja de stories foi ajustada para otimizar a visualização do feed em smartphones.',
+              'O card de Intercessão do Dia agora é compacto e pode ser fechado com um toque, liberando muito mais espaço na tela para você acompanhar as postagens e meditar na Palavra.',
           customIcon: Icons.smartphone_rounded,
         ),
         ReleaseNoteItem(
           category: ReleaseNoteCategory.improvement,
-          title: 'Orientação de Instalação PWA Especializada',
+          title: 'Instalação Fácil no iPhone e iPad',
           description:
-              'Distinção precisa entre iPhone (botão Compartilhar na barra inferior) e iPad (botão Compartilhar no canto superior/topo).',
-          customIcon: Icons.tablet_mac_rounded,
-        ),
-
-        // ── Correções & Ajustes ──────────────────────────────────────
-        ReleaseNoteItem(
-          category: ReleaseNoteCategory.fix,
-          title: 'Publicação Segura Fora do Pacote do App',
-          description:
-              'Tokens administrativos e rotas de publicação de versão foram desacoplados do cliente móvel, reforçando a segurança do ecossistema.',
-          customIcon: Icons.security_rounded,
+              'Novo guia ilustrado que mostra exatamente onde tocar no Safari para fixar o KeryxApp na sua tela inicial, com instruções sob medida para iPhone e iPad.',
+          customIcon: Icons.add_to_home_screen_rounded,
         ),
       ],
     ),

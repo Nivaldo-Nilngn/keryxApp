@@ -4,7 +4,7 @@
   "release_date": "2026-10-26",
   "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.3/keryxApp.apk",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.3: Comunidade em nuvem Cloudflare D1, verificação criptográfica SHA-256 no instalador de atualizações, layout mobile ultra compacto para oração e stories, e detecção PWA refinada para iPad e iPhone.",
+  "release_notes": "Versão 2.0.3: Compartilhe pedidos de oração e testemunhos no feed da Comunidade em tempo real, aproveite um layout mais limpo e espaçoso no celular e conte com atualizações seguras e verificadas.",
   "force_update": false,
   "min_version": 1,
   "sha256": "3216ce508766ef2c4d29d991d4ac2eeab64d6e50a039211b004a07623b1f4754"
