@@ -11,7 +11,7 @@ import '../theme/app_theme.dart';
 class _PresetAvatar {
   final String id;
   final String name;
-  final String category; // 'characters', 'faith', 'nature'
+  final String category;
   final String url;
 
   const _PresetAvatar({
@@ -19,6 +19,22 @@ class _PresetAvatar {
     required this.name,
     required this.category,
     required this.url,
+  });
+}
+
+class _AvatarFrameOption {
+  final String id;
+  final String name;
+  final List<Color> colors;
+  final Color shadowColor;
+  final String emoji;
+
+  const _AvatarFrameOption({
+    required this.id,
+    required this.name,
+    required this.colors,
+    required this.shadowColor,
+    required this.emoji,
   });
 }
 
@@ -31,7 +47,7 @@ void showEditProfileModal(BuildContext context, WidgetRef ref) {
       barrierDismissible: true,
       builder: (ctx) => Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 720),
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 760),
           child: const _EditProfileContent(isDialog: true),
         ),
       ),
@@ -58,13 +74,78 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
   late TextEditingController _nameController;
   late TextEditingController _urlController;
   String? _previewPhoto;
+  String _selectedFrame = 'gold';
   bool _isLoading = false;
   bool _showUrlField = false;
   String _selectedCategory = 'all';
 
-  // Catálogo de Avatares Pré-definidos
+  static const List<_AvatarFrameOption> _frameOptions = [
+    _AvatarFrameOption(
+      id: 'gold',
+      name: 'Ouro Real',
+      colors: [Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFFDE68A)],
+      shadowColor: Color(0xFFD97706),
+      emoji: '🟡',
+    ),
+    _AvatarFrameOption(
+      id: 'aurora',
+      name: 'Aurora',
+      colors: [Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+      shadowColor: Color(0xFF8B5CF6),
+      emoji: '🟣',
+    ),
+    _AvatarFrameOption(
+      id: 'fire',
+      name: 'Pentecostes',
+      colors: [Color(0xFFEF4444), Color(0xFFF97316), Color(0xFFFBBF24)],
+      shadowColor: Color(0xFFEF4444),
+      emoji: '🔥',
+    ),
+    _AvatarFrameOption(
+      id: 'sapphire',
+      name: 'Safira',
+      colors: [Color(0xFF06B6D4), Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+      shadowColor: Color(0xFF06B6D4),
+      emoji: '💎',
+    ),
+    _AvatarFrameOption(
+      id: 'emerald',
+      name: 'Esmeralda',
+      colors: [Color(0xFF10B981), Color(0xFF059669), Color(0xFF047857)],
+      shadowColor: Color(0xFF10B981),
+      emoji: '🌿',
+    ),
+    _AvatarFrameOption(
+      id: 'royal',
+      name: 'Púrpura',
+      colors: [Color(0xFF7C3AED), Color(0xFFA855F7), Color(0xFFC026D3)],
+      shadowColor: Color(0xFF7C3AED),
+      emoji: '👑',
+    ),
+    _AvatarFrameOption(
+      id: 'midnight',
+      name: 'Estelar',
+      colors: [Color(0xFF38BDF8), Color(0xFF6366F1), Color(0xFF0284C7)],
+      shadowColor: Color(0xFF38BDF8),
+      emoji: '🌌',
+    ),
+    _AvatarFrameOption(
+      id: 'silver',
+      name: 'Prata',
+      colors: [Color(0xFFF1F5F9), Color(0xFF94A3B8), Color(0xFFE2E8F0)],
+      shadowColor: Colors.white24,
+      emoji: '⚪',
+    ),
+    _AvatarFrameOption(
+      id: 'none',
+      name: 'Nenhum',
+      colors: [Colors.transparent, Colors.transparent],
+      shadowColor: Colors.transparent,
+      emoji: '🚫',
+    ),
+  ];
+
   static const List<_PresetAvatar> _presetAvatares = [
-    // 1. Personagens & Ilustrações de Fé (Estilo Notionists / DiceBear HD)
     _PresetAvatar(
       id: 'david',
       name: 'Davi',
@@ -125,8 +206,6 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
       category: 'characters',
       url: 'https://api.dicebear.com/7.x/notionists/png?seed=Daniel&backgroundColor=e2e8f0',
     ),
-
-    // 2. Fé & Devoção Bíblica (Unsplash HD com recorte 256x256)
     _PresetAvatar(
       id: 'bible_light',
       name: 'Palavra Viva',
@@ -151,8 +230,6 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
       category: 'faith',
       url: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=256&h=256&q=80',
     ),
-
-    // 3. Criação & Natureza Sagrada (Unsplash HD 256x256)
     _PresetAvatar(
       id: 'mount_sinai',
       name: 'Monte da Fé',
@@ -187,6 +264,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
 
     final initialName = userData?['name'] ?? authUser?.displayName ?? '';
     _previewPhoto = userData?['photoUrl'] ?? authUser?.photoURL;
+    _selectedFrame = userData?['avatarFrame'] ?? 'gold';
 
     _nameController = TextEditingController(text: initialName);
     _urlController = TextEditingController();
@@ -279,6 +357,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
       await ref.read(authServiceProvider).updateProfile(
         displayName: newName,
         photoUrl: _previewPhoto,
+        avatarFrame: _selectedFrame,
       );
 
       if (mounted) {
@@ -318,6 +397,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final containerBg = theme.scaffoldBackgroundColor;
 
     final initial = _nameController.text.trim().isNotEmpty
         ? _nameController.text.trim()[0].toUpperCase()
@@ -327,10 +407,10 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
       if (_selectedCategory == 'characters') return p.category == 'characters';
       if (_selectedCategory == 'faith') return p.category == 'faith';
       if (_selectedCategory == 'nature') return p.category == 'nature';
-      return true; // 'all'
+      return true;
     }).toList();
 
-    Widget avatarImage = _buildAvatarWidget(_previewPhoto, initial);
+    final avatarImage = _buildAvatarWidget(_previewPhoto, initial);
 
     final content = SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -344,7 +424,6 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Barra de arraste para mobile
           if (!widget.isDialog)
             Center(
               child: Container(
@@ -358,7 +437,6 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
               ),
             ),
 
-          // Título do Modal
           Row(
             children: [
               Container(
@@ -390,27 +468,16 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
 
           const SizedBox(height: 18),
 
-          // Avatar Grande Centralizado com Badge de Câmera
           GestureDetector(
             onTap: _pickImageFromDevice,
             child: Stack(
               alignment: Alignment.bottomRight,
               children: [
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.kPrimaryGold, width: 2.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.25),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipOval(child: avatarImage),
+                _buildFramedAvatar(
+                  child: avatarImage,
+                  frameId: _selectedFrame,
+                  size: 104,
+                  backgroundColor: containerBg,
                 ),
                 Container(
                   padding: const EdgeInsets.all(7),
@@ -421,6 +488,12 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                       color: isDark ? const Color(0xFF111223) : Colors.white,
                       width: 2,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.camera_alt_rounded,
@@ -434,7 +507,6 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
 
           const SizedBox(height: 12),
 
-          // Botões de Ação para Foto (Galeria, Link, Remover)
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 8,
@@ -474,7 +546,6 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
             ],
           ),
 
-          // Campo de URL se aberto
           if (_showUrlField) ...[
             const SizedBox(height: 12),
             Row(
@@ -506,11 +577,134 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
             ),
           ],
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
-          // ==========================================
-          // SEÇÃO: AVATARES PRONTOS & PRÉ-DEFINIDOS
-          // ==========================================
+          // SEÇÃO 1: CÍRCULOS DECORATIVOS DA FOTO
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF191928) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? Colors.white12 : Colors.black12,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.donut_large_rounded, color: AppTheme.kPrimaryGold, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'CÍRCULO DECORATIVO DA FOTO',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 68,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _frameOptions.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      final frame = _frameOptions[index];
+                      final isSelected = _selectedFrame == frame.id;
+
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedFrame = frame.id),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (isDark ? const Color(0xFF262638) : Colors.white)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppTheme.kPrimaryGold
+                                  : (isDark ? Colors.white12 : Colors.black12),
+                              width: isSelected ? 1.8 : 1,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.25),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 26,
+                                height: 26,
+                                padding: const EdgeInsets.all(2.5),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: frame.id != 'none'
+                                      ? LinearGradient(
+                                          colors: frame.colors,
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        )
+                                      : null,
+                                  border: frame.id == 'none'
+                                      ? Border.all(color: Colors.grey, width: 1.5)
+                                      : null,
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: containerBg,
+                                  ),
+                                  child: Center(
+                                    child: frame.id == 'none'
+                                        ? const Icon(Icons.block, size: 12, color: Colors.grey)
+                                        : (isSelected
+                                            ? const Icon(Icons.check, size: 12, color: AppTheme.kPrimaryGold)
+                                            : null),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                frame.name,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10.5,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected
+                                      ? AppTheme.kPrimaryGold
+                                      : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // SEÇÃO 2: AVATARES PRONTOS & PRÉ-DEFINIDOS
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -533,14 +727,13 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                         fontSize: 11,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.1,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
 
-                // Filtro de Categorias dos Avatares
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -557,7 +750,6 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                 ),
                 const SizedBox(height: 12),
 
-                // Carrossel de Avatares Prontos
                 SizedBox(
                   height: 94,
                   child: ListView.separated(
@@ -656,9 +848,8 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
-          // Campo de Nome de Exibição
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -701,7 +892,6 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
 
           const SizedBox(height: 24),
 
-          // Botões de Ação Finais
           Row(
             children: [
               Expanded(
@@ -782,6 +972,63 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: content,
+    );
+  }
+
+  Widget _buildFramedAvatar({
+    required Widget child,
+    required String frameId,
+    required double size,
+    required Color backgroundColor,
+  }) {
+    final frame = _frameOptions.firstWhere(
+      (f) => f.id == frameId,
+      orElse: () => _frameOptions.first,
+    );
+
+    if (frame.id == 'none') {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white24, width: 1.5),
+        ),
+        child: ClipOval(child: child),
+      );
+    }
+
+    final borderThickness = size > 60 ? 3.5 : 2.0;
+    final gapThickness = size > 60 ? 2.5 : 1.5;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(borderThickness),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: frame.colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: frame.shadowColor.withValues(alpha: 0.45),
+            blurRadius: size > 60 ? 16 : 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Container(
+        padding: EdgeInsets.all(gapThickness),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: backgroundColor,
+        ),
+        child: ClipOval(child: child),
+      ),
     );
   }
 

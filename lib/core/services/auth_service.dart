@@ -182,7 +182,11 @@ class AuthService {
     }
   }
 
-  Future<void> updateProfile({String? displayName, String? photoUrl}) async {
+  Future<void> updateProfile({
+    String? displayName,
+    String? photoUrl,
+    String? avatarFrame,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) return;
@@ -207,6 +211,9 @@ class AuthService {
       }
       if (trimmedPhoto != null) {
         updates['photoUrl'] = trimmedPhoto.isNotEmpty ? trimmedPhoto : null;
+      }
+      if (avatarFrame != null) {
+        updates['avatarFrame'] = avatarFrame;
       }
 
       await _firestore.collection('users').doc(user.uid).set(updates, SetOptions(merge: true));

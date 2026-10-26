@@ -446,15 +446,65 @@ class KeryxUserDropdown extends ConsumerWidget {
                                      user.photoURL ?? 
                                      (user.providerData.isNotEmpty ? user.providerData.first.photoURL : null);
 
+            final String frameId = data?['avatarFrame'] ?? 'gold';
+
+            List<Color> frameColors;
+            switch (frameId) {
+              case 'aurora':
+                frameColors = const [Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0xFF3B82F6)];
+                break;
+              case 'fire':
+                frameColors = const [Color(0xFFEF4444), Color(0xFFF97316), Color(0xFFFBBF24)];
+                break;
+              case 'sapphire':
+                frameColors = const [Color(0xFF06B6D4), Color(0xFF3B82F6), Color(0xFF1D4ED8)];
+                break;
+              case 'emerald':
+                frameColors = const [Color(0xFF10B981), Color(0xFF059669)];
+                break;
+              case 'royal':
+                frameColors = const [Color(0xFF7C3AED), Color(0xFFA855F7), Color(0xFFC026D3)];
+                break;
+              case 'midnight':
+                frameColors = const [Color(0xFF38BDF8), Color(0xFF6366F1)];
+                break;
+              case 'silver':
+                frameColors = const [Color(0xFFF1F5F9), Color(0xFF94A3B8)];
+                break;
+              case 'none':
+                frameColors = const [Colors.transparent, Colors.transparent];
+                break;
+              case 'gold':
+              default:
+                frameColors = const [Color(0xFFF59E0B), Color(0xFFD97706)];
+                break;
+            }
+
             return Container(
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
+              padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5), width: 1.5),
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                gradient: frameId != 'none'
+                    ? LinearGradient(
+                        colors: frameColors,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                border: frameId == 'none'
+                    ? Border.all(color: Colors.white24, width: 1.2)
+                    : null,
               ),
-              child: buildAvatarImageWidget(context, photoUrl, initial, size: 32),
+              child: Container(
+                padding: const EdgeInsets.all(1.2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                ),
+                child: buildAvatarImageWidget(context, photoUrl, initial, size: 28),
+              ),
             );
           },
           loading: () => SizedBox(width: 32, height: 32, child: Center(child: CircleAvatar(radius: 16, backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest))),
