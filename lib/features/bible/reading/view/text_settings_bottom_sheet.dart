@@ -1,42 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import 'package:keryx_app/core/utils/keryx_color_contrast.dart';
 import 'package:keryx_app/core/widgets/keryx_color_picker_dialog.dart';
 
-/// Modal bottom sheet para configurar tamanho de fonte, família tipográfica,
-/// cores do texto, cores do balão numérico e destaque Strong.
-/// O preview é fixo no topo e o conteúdo passa por baixo dele ao rolar.
-///
-/// Implementado seguindo as 10 Heurísticas de Usabilidade de Nielsen:
-/// 1. Visibilidade do status (Pill com cor ativa mesmo recolhido + live preview)
-/// 2. Correspondência com o mundo real (Metáforas claras de balão, texto e tipografia)
-/// 3. Controle e liberdade do usuário (Cards minimizáveis / expansíveis + Restaurar padrões)
-/// 4. Consistência e padrões (Cards com design unificado e tema Dark/Light)
-/// 5. Prevenção de erros (Validação automática de contraste WCAG 2.1)
-/// 6. Reconhecimento em vez de memorização (Amostras visuais de cores e fontes reais)
-/// 7. Flexibilidade e eficiência (Atalhos de tamanho rápido 14/16/19/24/28px + Minimizar listas)
-/// 8. Design estético e minimalista (Cores perfeitamente centralizadas, sem sobras na lateral)
-/// 9. Auxílio no reconhecimento e recuperação de erros (Confirmação ao restaurar padrões)
-/// 10. Ajuda e documentação (Legendas e tooltips explicativos em cada controle)
+/// Abre a tela de Configurações de Leitura & Strong em TELA CHEIA expandida.
 void showTextSettingsBottomSheet(BuildContext context, {bool isStrongVersion = false}) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    constraints: const BoxConstraints(maxWidth: double.infinity),
-    builder: (ctx) => TextSettingsBottomSheet(isStrongVersion: isStrongVersion),
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (ctx) => TextSettingsBottomSheet(
+        isStrongVersion: isStrongVersion,
+        isFullScreen: true,
+      ),
+    ),
   );
 }
 
 class TextSettingsBottomSheet extends ConsumerStatefulWidget {
   final bool isStrongVersion;
+  final bool isFullScreen;
 
   const TextSettingsBottomSheet({
     super.key,
     this.isStrongVersion = false,
+    this.isFullScreen = false,
   });
 
   @override
@@ -349,43 +340,26 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
       ),
     ];
 
-    return Container(
-      width: double.infinity,
-      constraints: BoxConstraints(
-        maxHeight: screenHeight * (isTablet ? 0.86 : 0.90),
-      ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Puxador / Handle
-            const SizedBox(height: 10),
-            Center(
-              child: Container(
-                width: isTablet ? 64 : 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black26,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    final Widget mainContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!widget.isFullScreen) ...[
+          // Puxador / Handle
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              width: isTablet ? 64 : 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white24 : Colors.black26,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 8),
 
-            // Cabeçalho da modal com Botão Restaurar e Fechar
+          // Cabeçalho da modal com Botão Restaurar e Fechar
             Padding(
               padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               child: Row(
@@ -447,23 +421,27 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
               ),
             ),
             const SizedBox(height: 8),
+        ],
 
-            // ==========================================
-            // PREVIEW FIXO NO TOPO (NÃO ROLA!)
-            // ==========================================
-            Container(
-              decoration: BoxDecoration(
-                color: bg,
-                border: Border(bottom: BorderSide(color: borderColor, width: 1)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+        // ==========================================
+        // PREVIEW FIXO NO TOPO (NÃO ROLA!)
+        // ==========================================
+        Container(
+          decoration: BoxDecoration(
+            color: bg,
+            border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              padding: EdgeInsets.fromLTRB(horizontalPadding, 0, horizontalPadding, 12),
+            ],
+          ),
+          padding: EdgeInsets.fromLTRB(horizontalPadding, 0, horizontalPadding, 12),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
               child: Container(
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
@@ -596,11 +574,16 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                 ),
               ),
             ),
+          ),
+        ),
 
-            // ==========================================
-            // CONTEÚDO SCROLLÁVEL
-            // ==========================================
-            Expanded(
+        // ==========================================
+        // CONTEÚDO SCROLLÁVEL
+        // ==========================================
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
               child: ListView(
                 padding: EdgeInsets.fromLTRB(horizontalPadding, 14, horizontalPadding, 24),
                 physics: const BouncingScrollPhysics(),
@@ -977,8 +960,98 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                 ],
               ),
             ),
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isFullScreen) {
+      return Scaffold(
+        backgroundColor: bg,
+        appBar: AppBar(
+          backgroundColor: bg,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 24,
+            ),
+            onPressed: () => Navigator.pop(context),
+            tooltip: 'Voltar',
+          ),
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.isStrongVersion
+                    ? 'Configurações de Leitura & Strong'
+                    : 'Configurações de Leitura',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                widget.isStrongVersion
+                    ? 'AJUSTE DE FONTES, CORES E STRONG'
+                    : 'AJUSTE DE FONTES, CORES E TAMANHO',
+                style: GoogleFonts.outfit(
+                  color: AppTheme.kPrimaryGold,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.3,
+                ),
+              ),
+            ],
+          ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.restart_alt_rounded, size: 22),
+              tooltip: 'Restaurar padrões originais',
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              onPressed: () => _confirmReset(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 22),
+              tooltip: 'Fechar',
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              onPressed: () => Navigator.pop(context),
+            ),
+            const SizedBox(width: 8),
           ],
         ),
+        body: SafeArea(
+          top: false,
+          child: mainContent,
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(
+        maxHeight: screenHeight * (isTablet ? 0.86 : 0.90),
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: mainContent,
       ),
     );
   }

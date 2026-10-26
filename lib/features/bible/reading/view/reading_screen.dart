@@ -750,7 +750,10 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                   SizedBox(
                     width: 40,
                     child: IconButton(
-                      onPressed: () => showTextSettingsBottomSheet(context),
+                      onPressed: () {
+                        final isStrong = ref.read(isStrongAvailableProvider);
+                        showTextSettingsBottomSheet(context, isStrongVersion: isStrong);
+                      },
                       tooltip: 'Configurações de Leitura & Fonte',
                       icon: Icon(
                         Icons.tune_rounded,
@@ -1139,20 +1142,73 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.close_rounded,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.6),
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          ref
-                              .read(readingSelectionProvider.notifier)
-                              .clearSelection();
-                        },
-                        visualDensity: VisualDensity.compact,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              final isStrong = ref.read(isStrongAvailableProvider);
+                              showTextSettingsBottomSheet(context, isStrongVersion: isStrong);
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF23263A)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.7),
+                                  width: 1.2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.settings_outlined,
+                                    size: 15,
+                                    color: AppTheme.kPrimaryGold,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Texto',
+                                    style: GoogleFonts.outfit(
+                                      color: AppTheme.kPrimaryGold,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          IconButton(
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              ref
+                                  .read(readingSelectionProvider.notifier)
+                                  .clearSelection();
+                            },
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
                       ),
                     ],
                   ),
