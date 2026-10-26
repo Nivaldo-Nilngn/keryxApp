@@ -4,6 +4,8 @@ import '../models/release_notes_model.dart';
 import '../data/release_notes_catalog.dart';
 import '../theme/app_theme.dart';
 
+/// Tela Completa de Notas de Atualização ("O que há de novo!")
+/// Proporciona leitura confortável, fluida e espaçosa em qualquer dispositivo móvel.
 class ReleaseNotesDialog extends StatefulWidget {
   final ReleaseNoteVersion? version;
   final String? adminReleaseNotes;
@@ -16,42 +18,45 @@ class ReleaseNotesDialog extends StatefulWidget {
     this.isAfterUpdate = false,
   });
 
-  /// Método estático utilitário para abrir o diálogo de forma padronizada
+  /// Método estático utilitário para abrir a tela de novidades em tela cheia com transição suave
   static Future<void> show(
     BuildContext context, {
     ReleaseNoteVersion? version,
     String? adminReleaseNotes,
     bool isAfterUpdate = false,
   }) {
-    return showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Notas de Atualização',
-      barrierColor: Colors.black.withValues(alpha: 0.75),
-      transitionDuration: const Duration(milliseconds: 320),
-      pageBuilder: (context, anim1, anim2) {
-        return ReleaseNotesDialog(
-          version: version,
-          adminReleaseNotes: adminReleaseNotes,
-          isAfterUpdate: isAfterUpdate,
-        );
-      },
-      transitionBuilder: (context, anim1, anim2, child) {
-        final curved = CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic);
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.92, end: 1.0).animate(curved),
-          child: FadeTransition(
-            opacity: curved,
-            child: child,
-          ),
-        );
-      },
+    return Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 320),
+        reverseTransitionDuration: const Duration(milliseconds: 260),
+        pageBuilder: (context, anim1, anim2) {
+          return ReleaseNotesDialog(
+            version: version,
+            adminReleaseNotes: adminReleaseNotes,
+            isAfterUpdate: isAfterUpdate,
+          );
+        },
+        transitionsBuilder: (context, anim1, anim2, child) {
+          final curved = CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic);
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(curved),
+            child: FadeTransition(opacity: curved, child: child),
+          );
+        },
+      ),
     );
   }
 
   @override
   State<ReleaseNotesDialog> createState() => _ReleaseNotesDialogState();
 }
+
+/// Alias para uso intuitivo como tela
+typedef ReleaseNotesScreen = ReleaseNotesDialog;
 
 class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
   ReleaseNoteCategory? _selectedCategory; // null = Todos
@@ -60,7 +65,7 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
   Widget build(BuildContext context) {
     final noteVersion = widget.version ?? ReleaseNotesCatalog.latest;
     final size = MediaQuery.of(context).size;
-    final isCompact = size.width < 500;
+    final isTablet = size.width >= 600;
 
     // Filtra os itens com base na categoria selecionada
     final filteredItems = _selectedCategory == null
@@ -71,205 +76,254 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
     final improvementCount = noteVersion.items.where((i) => i.category == ReleaseNoteCategory.improvement).length;
     final fixCount = noteVersion.items.where((i) => i.category == ReleaseNoteCategory.fix).length;
 
-    return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          width: isCompact ? size.width * 0.92 : 560,
-          constraints: BoxConstraints(maxHeight: size.height * 0.88),
-          margin: const EdgeInsets.symmetric(vertical: 24),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141722),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                blurRadius: 32,
-                offset: const Offset(0, 12),
+    return Scaffold(
+      backgroundColor: const Color(0xFF0C0E16),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0C0E16),
+        elevation: 0,
+        centerTitle: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Material(
+            color: const Color(0xFF1B1F2E),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => Navigator.of(context).pop(),
+              child: const Center(
+                child: Icon(Icons.close_rounded, color: Colors.white70, size: 20),
               ),
-              BoxShadow(
-                color: AppTheme.kPrimaryGold.withValues(alpha: 0.08),
-                blurRadius: 48,
-                spreadRadius: 2,
+            ),
+          ),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: widget.isAfterUpdate
+                    ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                    : AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: widget.isAfterUpdate
+                      ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                      : AppTheme.kPrimaryGold.withValues(alpha: 0.35),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                widget.isAfterUpdate ? 'ATUALIZAÇÃO' : 'NOVA VERSÃO',
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isAfterUpdate
+                      ? const Color(0xFF34D399)
+                      : AppTheme.kPrimaryGold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'v${noteVersion.versionName}',
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            if (noteVersion.buildNumber > 0) ...[
+              const SizedBox(width: 4),
+              Text(
+                '(${noteVersion.buildNumber})',
+                style: GoogleFonts.outfit(
+                  fontSize: 11.5,
+                  color: Colors.white38,
+                ),
               ),
             ],
+          ],
+        ),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: isTablet ? 720 : double.infinity,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── Cabeçalho Comemorativo com Gradiente ──────────────────────
-                _buildHeader(context, noteVersion),
-
-                // ── Mensagem Personalizada do Administrador (se houver) ──────
-                if (widget.adminReleaseNotes != null && widget.adminReleaseNotes!.trim().isNotEmpty)
-                  _buildAdminNotesBanner(widget.adminReleaseNotes!.trim()),
-
-                // ── Filtros por Pílulas ─────────────────────────────────────
-                _buildFilterPills(
-                  totalCount: noteVersion.items.length,
-                  featureCount: featureCount,
-                  improvementCount: improvementCount,
-                  fixCount: fixCount,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // ── Cabeçalho Hero Comemorativo ─────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  child: _buildHeroCard(context, noteVersion),
                 ),
+              ),
 
-                const Divider(height: 1, color: Color(0x1FFFFFFF)),
-
-                // ── Lista de Novidades ──────────────────────────────────────
-                Flexible(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                    shrinkWrap: true,
-                    itemCount: filteredItems.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      return _buildReleaseItemCard(filteredItems[index]);
-                    },
+              // ── Recado do Administrador (se houver) ──────────────────────
+              if (widget.adminReleaseNotes != null && widget.adminReleaseNotes!.trim().isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: _buildAdminNotesBanner(widget.adminReleaseNotes!.trim()),
                   ),
                 ),
 
-                // ── Rodapé com Botão Principal ──────────────────────────────
-                _buildFooter(context),
-              ],
-            ),
+              // ── Seletor de Categorias por Pílulas ─────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildFilterPills(
+                    totalCount: noteVersion.items.length,
+                    featureCount: featureCount,
+                    improvementCount: improvementCount,
+                    fixCount: fixCount,
+                  ),
+                ),
+              ),
+
+              // ── Lista de Novidades Ajustadas para Tela Cheia ─────────────
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final item = filteredItems[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildReleaseItemCard(item),
+                      );
+                    },
+                    childCount: filteredItems.length,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
+      bottomNavigationBar: _buildFooter(context),
     );
   }
 
-  Widget _buildHeader(BuildContext context, ReleaseNoteVersion version) {
+  /// Card de Abertura / Destaque com visual nobre
+  Widget _buildHeroCard(BuildContext context, ReleaseNoteVersion version) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 24, 20, 18),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1E2235),
-            Color(0xFF141722),
-          ],
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF151926),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppTheme.kPrimaryGold.withValues(alpha: 0.25),
+          width: 1,
         ),
-        border: Border(
-          bottom: BorderSide(color: Color(0x1FFFFFFF), width: 1),
-        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: AppTheme.kPrimaryGold.withValues(alpha: 0.05),
+            blurRadius: 32,
+            spreadRadius: 1,
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Ícone em destaque com brilho
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFFFD56B), Color(0xFFD97706)],
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFD97706).withValues(alpha: 0.4),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
+          Row(
+            children: [
+              // Avatar com halo dourado comemorativo
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFD56B), Color(0xFFD97706)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFD97706).withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.auto_awesome_rounded,
-                color: Color(0xFF1E1B18),
-                size: 28,
+                child: const Center(
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Color(0xFF1E1B18),
+                    size: 26,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
+                    Text(
+                      widget.isAfterUpdate
+                          ? '✨ ATUALIZAÇÃO CONCLUÍDA'
+                          : 'NOTAS DE LANÇAMENTO',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
                         color: widget.isAfterUpdate
-                            ? const Color(0xFF10B981).withValues(alpha: 0.2)
-                            : AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: widget.isAfterUpdate
-                              ? const Color(0xFF10B981).withValues(alpha: 0.5)
-                              : AppTheme.kPrimaryGold.withValues(alpha: 0.4),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        widget.isAfterUpdate ? '✨ ATUALIZADO COM SUCESSO' : 'NOTAS DE ATUALIZAÇÃO',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: widget.isAfterUpdate
-                              ? const Color(0xFF34D399)
-                              : AppTheme.kPrimaryGold,
-                          letterSpacing: 0.5,
-                        ),
+                            ? const Color(0xFF34D399)
+                            : AppTheme.kPrimaryGold,
+                        letterSpacing: 0.8,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 2),
                     Text(
-                      'v${version.versionName}',
-                      style: GoogleFonts.outfit(
+                      version.releaseDate,
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white70,
+                        color: Colors.white54,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  widget.isAfterUpdate ? 'O que há de novo nesta versão!' : version.title,
-                  style: GoogleFonts.outfit(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  version.highlight,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12.5,
-                    color: Colors.white70,
-                    height: 1.35,
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.isAfterUpdate ? 'O que há de novo nesta versão!' : version.title,
+            style: GoogleFonts.outfit(
+              fontSize: 21,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              height: 1.25,
             ),
           ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 22),
-            splashRadius: 20,
-            tooltip: 'Fechar',
+          const SizedBox(height: 8),
+          Text(
+            version.highlight,
+            style: GoogleFonts.manrope(
+              fontSize: 13.5,
+              color: Colors.white70,
+              height: 1.45,
+            ),
           ),
         ],
       ),
     );
   }
 
+  /// Banner com mensagem específica enviada pelo administrador
   Widget _buildAdminNotesBanner(String notes) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
@@ -289,20 +343,20 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Mensagem da Publicação',
+                  'Mensagem do Administrador',
                   style: GoogleFonts.outfit(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFFA5B4FC),
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   notes,
                   style: GoogleFonts.manrope(
-                    fontSize: 12.5,
+                    fontSize: 13,
                     color: Colors.white.withValues(alpha: 0.9),
-                    height: 1.35,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -313,6 +367,7 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
     );
   }
 
+  /// Pílulas horizontais de filtro
   Widget _buildFilterPills({
     required int totalCount,
     required int featureCount,
@@ -321,7 +376,8 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
   }) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           _buildFilterChip(
@@ -374,9 +430,9 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
         borderRadius: BorderRadius.circular(20),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? activeColor.withValues(alpha: 0.18) : const Color(0xFF1E2235),
+            color: isSelected ? activeColor.withValues(alpha: 0.18) : const Color(0xFF181C2B),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSelected ? activeColor : Colors.white.withValues(alpha: 0.08),
@@ -388,14 +444,14 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
             children: [
               Icon(
                 icon,
-                size: 14,
+                size: 15,
                 color: isSelected ? activeColor : Colors.white60,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: GoogleFonts.outfit(
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected ? Colors.white : Colors.white70,
                 ),
@@ -407,16 +463,18 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
     );
   }
 
+  /// Card espaçoso de cada item da versão
   Widget _buildReleaseItemCard(ReleaseNoteItem item) {
     final catColor = item.category.color;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B1F2E),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF151926),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: catColor.withValues(alpha: 0.2),
+          color: catColor.withValues(alpha: 0.22),
           width: 1,
         ),
       ),
@@ -424,19 +482,19 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
-              color: catColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              color: catColor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: catColor.withValues(alpha: 0.3),
+                color: catColor.withValues(alpha: 0.35),
                 width: 1,
               ),
             ),
             child: Icon(
               item.customIcon ?? item.category.icon,
               color: catColor,
-              size: 22,
+              size: 24,
             ),
           ),
           const SizedBox(width: 14),
@@ -447,18 +505,18 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
                         color: catColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
                         item.category.label.toUpperCase(),
                         style: GoogleFonts.outfit(
-                          fontSize: 9,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w800,
                           color: catColor,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.6,
                         ),
                       ),
                     ),
@@ -468,19 +526,19 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
                 Text(
                   item.title,
                   style: GoogleFonts.outfit(
-                    fontSize: 14.5,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     height: 1.25,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   item.description,
                   style: GoogleFonts.manrope(
-                    fontSize: 12.5,
+                    fontSize: 13,
                     color: Colors.white70,
-                    height: 1.4,
+                    height: 1.45,
                   ),
                 ),
               ],
@@ -491,64 +549,64 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
     );
   }
 
+  /// Rodapé Fixo com Botão Nobre
   Widget _buildFooter(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: const BoxDecoration(
-        color: Color(0xFF141722),
+        color: Color(0xFF0C0E16),
         border: Border(
           top: BorderSide(color: Color(0x1FFFFFFF), width: 1),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFD56B), Color(0xFFD97706)],
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFD97706).withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 52,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFD56B), Color(0xFFD97706)],
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.check_circle_outline_rounded,
-                          color: Color(0xFF1E1B18),
-                          size: 20,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFD97706).withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => Navigator.of(context).pop(),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: Color(0xFF1E1B18),
+                        size: 21,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        widget.isAfterUpdate ? 'Explorar Recursos ✨' : 'Entendido, Glória a Deus! 🙏',
+                        style: GoogleFonts.outfit(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1E1B18),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.isAfterUpdate ? 'Explorar Recursos ✨' : 'Entendido, Glória a Deus! 🙏',
-                          style: GoogleFonts.outfit(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1E1B18),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
