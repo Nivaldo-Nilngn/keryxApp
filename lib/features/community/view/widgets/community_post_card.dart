@@ -11,13 +11,63 @@ import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 
-class CommunityPostCard extends ConsumerWidget {
+class CommunityPostCard extends ConsumerStatefulWidget {
   final CommunityPost post;
 
   const CommunityPostCard({super.key, required this.post});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CommunityPostCard> createState() => _CommunityPostCardState();
+}
+
+class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
+    with SingleTickerProviderStateMixin {
+  bool _showHeartAnimation = false;
+  late AnimationController _heartAnimController;
+
+  @override
+  void initState() {
+    super.initState();
+    _heartAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+  }
+
+  @override
+  void dispose() {
+    _heartAnimController.dispose();
+    super.dispose();
+  }
+
+  void _onDoubleTap() {
+    if (!widget.post.userAmen) {
+      ref.read(communityFeedProvider.notifier).toggleReaction(widget.post.id, 'amen');
+    }
+    setState(() => _showHeartAnimation = true);
+    _heartAnimController.forward(from: 0.0).then((_) {
+      if (mounted) setState(() => _showHeartAnimation = false);
+    });
+  }
+
+  void _sendQuickComment(String text) async {
+    final service = ref.read(communityServiceProvider);
+    final comm = await service.addComment(postId: widget.post.id, text: text);
+    if (mounted && comm != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bênção enviada: "$text" ✨'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = widget.post;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final isAuthor = currentUserId != null && currentUserId == post.userId;
@@ -136,11 +186,52 @@ class CommunityPostCard extends ConsumerWidget {
             ),
           ),
 
-          // 2. Mídia / Cartão Bíblico Central
-          if (post.bibleText != null && post.bibleText!.isNotEmpty)
-            _buildBibleCard(context, ref, isDark)
-          else if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty)
-            _buildImageMedia(context),
+          // 2. Mídia / Cartão Bíblico Central com Double-Tap Animado
+          GestureDetector(
+            onDoubleTap: _onDoubleTap,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (post.bibleText != null && post.bibleText!.isNotEmpty)
+                  _buildBibleCard(context, isDark)
+                else if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty)
+                  _buildImageMedia(context)
+                else
+                  const SizedBox.shrink(),
+
+                // Animação de Coração Pulsante no Double-Tap
+                if (_showHeartAnimation)
+                  ScaleTransition(
+                    scale: Tween<double>(begin: 0.4, end: 1.3).animate(
+                      CurvedAnimation(
+                        parent: _heartAnimController,
+                        curve: Curves.elasticOut,
+                      ),
+                    ),
+                    child: FadeTransition(
+                      opacity: Tween<double>(begin: 1.0, end: 0.0).animate(
+                        CurvedAnimation(
+                          parent: _heartAnimController,
+                          curve: const Interval(0.6, 1.0, curve: Curves.easeOut),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 90,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            blurRadius: 16,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
 
           // 3. Barra de Ações (🙏 Orar, ❤️ Amém, 💬 Comentários, ↗️ Compartilhar)
           Padding(
@@ -154,7 +245,7 @@ class CommunityPostCard extends ConsumerWidget {
                   label: 'Orar',
                   count: post.prayingCount,
                   isActive: post.userPrayed,
-                  activeColor: const Color(0xFF10B981), // Esmeralda / Oração
+                  activeColor: const Color(0xFF10B981),
                   onTap: () {
                     ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'pray');
                   },
@@ -168,7 +259,7 @@ class CommunityPostCard extends ConsumerWidget {
                   label: 'Amém',
                   count: post.amenCount,
                   isActive: post.userAmen,
-                  activeColor: const Color(0xFFEF4444), // Vermelho Amor
+                  activeColor: const Color(0xFFEF4444),
                   onTap: () {
                     ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'amen');
                   },
@@ -206,10 +297,28 @@ class CommunityPostCard extends ConsumerWidget {
             ),
           ),
 
-          // 4. Legenda e Prévia de Comentários
+          // 4. Pílulas de Bênçãos / Reações Rápidas
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _buildQuickPill('🙏 Em oração por você!'),
+                  const SizedBox(width: 6),
+                  _buildQuickPill('❤️ Amém, glória a Deus!'),
+                  const SizedBox(width: 6),
+                  _buildQuickPill('🙌 Palavra edificante!'),
+                ],
+              ),
+            ),
+          ),
+
+          // 5. Legenda e Prévia de Comentários
           if (post.caption.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
               child: RichText(
                 text: TextSpan(
                   style: GoogleFonts.outfit(
@@ -257,6 +366,32 @@ class CommunityPostCard extends ConsumerWidget {
     );
   }
 
+  Widget _buildQuickPill(String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: () => _sendQuickComment(label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF222234) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark ? Colors.white10 : Colors.black12,
+            width: 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBadge(String badge) {
     Color bg;
     Color text;
@@ -284,11 +419,11 @@ class CommunityPostCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildBibleCard(BuildContext context, WidgetRef ref, bool isDark) {
+  Widget _buildBibleCard(BuildContext context, bool isDark) {
     LinearGradient cardGrad;
     Color accentColor;
 
-    switch (post.cardTheme) {
+    switch (widget.post.cardTheme) {
       case 'indigo':
         cardGrad = const LinearGradient(
           colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
@@ -336,9 +471,9 @@ class CommunityPostCard extends ConsumerWidget {
             children: [
               Icon(Icons.format_quote_rounded, color: accentColor, size: 24),
               const SizedBox(width: 8),
-              if (post.bibleReference != null)
+              if (widget.post.bibleReference != null)
                 Text(
-                  '${post.bibleReference!} (${post.bibleVersion})',
+                  '${widget.post.bibleReference!} (${widget.post.bibleVersion})',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -347,7 +482,6 @@ class CommunityPostCard extends ConsumerWidget {
                   ),
                 ),
               const Spacer(),
-              // Botão para abrir o versículo direto no leitor da Bíblia!
               InkWell(
                 onTap: () {
                   final lastRead = ref.read(lastReadProvider);
@@ -394,11 +528,11 @@ class CommunityPostCard extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '“${post.bibleText}”',
+            '“${widget.post.bibleText}”',
             style: GoogleFonts.merriweather(
               fontSize: 14.5,
               height: 1.55,
-              color: isDark || post.cardTheme != 'gold'
+              color: isDark || widget.post.cardTheme != 'gold'
                   ? Colors.white.withValues(alpha: 0.95)
                   : const Color(0xFF1E293B),
               fontStyle: FontStyle.italic,
@@ -417,7 +551,7 @@ class CommunityPostCard extends ConsumerWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         image: DecorationImage(
-          image: NetworkImage(post.mediaUrl!),
+          image: NetworkImage(widget.post.mediaUrl!),
           fit: BoxFit.cover,
         ),
       ),

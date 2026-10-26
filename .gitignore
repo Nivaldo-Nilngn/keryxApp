@@ -57,6 +57,7 @@ keryx_app.apk
 
 # Node / Wrangler
 node_modules/
+.wrangler/
 
 # Scratch & Logs
 scratch/

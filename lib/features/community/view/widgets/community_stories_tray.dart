@@ -34,7 +34,7 @@ class CommunityStoriesTray extends StatelessWidget {
           }
 
           final story = stories[index - 1];
-          return _buildStoryItem(context, story, isDark);
+          return _buildStoryItem(context, story, index - 1, isDark);
         },
       ),
     );
@@ -109,7 +109,7 @@ class CommunityStoriesTray extends StatelessWidget {
     );
   }
 
-  Widget _buildStoryItem(BuildContext context, CommunityStory story, bool isDark) {
+  Widget _buildStoryItem(BuildContext context, CommunityStory story, int storyIndex, bool isDark) {
     final isOfficial = story.authorName.toLowerCase().contains('keryx') ||
         story.title.toLowerCase().contains('versículo do dia');
 
@@ -119,7 +119,10 @@ class CommunityStoriesTray extends StatelessWidget {
           context,
           PageRouteBuilder(
             opaque: false,
-            pageBuilder: (_, __, ___) => StoryViewerScreen(story: story),
+            pageBuilder: (_, __, ___) => StoryViewerScreen(
+              stories: stories,
+              initialIndex: storyIndex,
+            ),
           ),
         );
       },
