@@ -5,6 +5,56 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.3',
+      buildNumber: 12,
+      title: 'Comunidade em Nuvem D1, Segurança & Mobile Compacto',
+      releaseDate: '26 de Outubro de 2026',
+      highlight:
+          'Persistência em nuvem D1 para a Comunidade, verificação rigorosa de integridade por SHA-256 no instalador de atualizações, layout mobile ultra compacto para oração e stories, e detecção PWA refinada para iPad e iPhone.',
+      items: [
+        // ── Novos Recursos (Implementações) ─────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Persistência D1 na Comunidade',
+          description:
+              'Posts, intercessões e comentários agora são armazenados em nuvem Cloudflare D1 em tempo real, garantindo persistência global entre usuários.',
+          customIcon: Icons.people_alt_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Validação Criptográfica SHA-256 no APK',
+          description:
+              'Atualizações contam com verificação streaming de integridade por hash SHA-256, impedindo instalações corrompidas ou adulteradas.',
+          customIcon: Icons.verified_user_rounded,
+        ),
+
+        // ── Modificações & Melhorias ─────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Layout de Oração e Stories Compacto no Mobile',
+          description:
+              'O card de Intercessão do Dia foi reduzido para um formato fino de 46px com opção de dispensar, e a bandeja de stories foi ajustada para otimizar a visualização do feed em smartphones.',
+          customIcon: Icons.smartphone_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Orientação de Instalação PWA Especializada',
+          description:
+              'Distinção precisa entre iPhone (botão Compartilhar na barra inferior) e iPad (botão Compartilhar no canto superior/topo).',
+          customIcon: Icons.tablet_mac_rounded,
+        ),
+
+        // ── Correções & Ajustes ──────────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Publicação Segura Fora do Pacote do App',
+          description:
+              'Tokens administrativos e rotas de publicação de versão foram desacoplados do cliente móvel, reforçando a segurança do ecossistema.',
+          customIcon: Icons.security_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.2',
       buildNumber: 11,
       title: 'IATheos Inteligente, Capas 3D & Notas em Tela Cheia',

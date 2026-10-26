@@ -1,10 +1,12 @@
 {
-  "latest_version": 11,
-  "version_name": "2.0.2",
+  "latest_version": 12,
+  "version_name": "2.0.3",
   "release_date": "2026-10-26",
-  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.2/keryxApp.apk",
+  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.3/keryxApp.apk",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.2: Redesign da IATheos com Modos Teológicos, novas capas 3D de livros na Loja e tela completa de Notas de Atualização em tela cheia.",
+  "release_notes": "Versão 2.0.3: Comunidade em nuvem Cloudflare D1, verificação criptográfica SHA-256 no instalador de atualizações, layout mobile ultra compacto para oração e stories, e detecção PWA refinada para iPad e iPhone.",
   "force_update": false,
-  "min_version": 1
+  "min_version": 1,
+  "sha256": "3216ce508766ef2c4d29d991d4ac2eeab64d6e50a039211b004a07623b1f4754"
 }
+
