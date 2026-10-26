@@ -8,6 +8,20 @@ import 'package:image/image.dart' as img;
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 
+class _PresetAvatar {
+  final String id;
+  final String name;
+  final String category; // 'characters', 'faith', 'nature'
+  final String url;
+
+  const _PresetAvatar({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.url,
+  });
+}
+
 void showEditProfileModal(BuildContext context, WidgetRef ref) {
   final isTablet = MediaQuery.of(context).size.width >= 600;
 
@@ -17,7 +31,7 @@ void showEditProfileModal(BuildContext context, WidgetRef ref) {
       barrierDismissible: true,
       builder: (ctx) => Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 720),
           child: const _EditProfileContent(isDialog: true),
         ),
       ),
@@ -46,6 +60,124 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
   String? _previewPhoto;
   bool _isLoading = false;
   bool _showUrlField = false;
+  String _selectedCategory = 'all';
+
+  // Catálogo de Avatares Pré-definidos
+  static const List<_PresetAvatar> _presetAvatares = [
+    // 1. Personagens & Ilustrações de Fé (Estilo Notionists / DiceBear HD)
+    _PresetAvatar(
+      id: 'david',
+      name: 'Davi',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=David&backgroundColor=fef3c7',
+    ),
+    _PresetAvatar(
+      id: 'esther',
+      name: 'Ester',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Esther&backgroundColor=fce7f3',
+    ),
+    _PresetAvatar(
+      id: 'paul',
+      name: 'Paulo',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Paul&backgroundColor=e0e7ff',
+    ),
+    _PresetAvatar(
+      id: 'ruth',
+      name: 'Rute',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Ruth&backgroundColor=ffedd5',
+    ),
+    _PresetAvatar(
+      id: 'samuel',
+      name: 'Samuel',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Samuel&backgroundColor=ede9fe',
+    ),
+    _PresetAvatar(
+      id: 'miriam',
+      name: 'Miriã',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Miriam&backgroundColor=fae8ff',
+    ),
+    _PresetAvatar(
+      id: 'john',
+      name: 'João',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=John&backgroundColor=dbeafe',
+    ),
+    _PresetAvatar(
+      id: 'sarah',
+      name: 'Sara',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Sarah&backgroundColor=dcfce7',
+    ),
+    _PresetAvatar(
+      id: 'timothy',
+      name: 'Timóteo',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Timothy&backgroundColor=ffe4e6',
+    ),
+    _PresetAvatar(
+      id: 'daniel',
+      name: 'Daniel',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Daniel&backgroundColor=e2e8f0',
+    ),
+
+    // 2. Fé & Devoção Bíblica (Unsplash HD com recorte 256x256)
+    _PresetAvatar(
+      id: 'bible_light',
+      name: 'Palavra Viva',
+      category: 'faith',
+      url: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'cross_sunset',
+      name: 'Redenção',
+      category: 'faith',
+      url: 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'prayer_hands',
+      name: 'Em Oração',
+      category: 'faith',
+      url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'peace_candle',
+      name: 'Luz do Mundo',
+      category: 'faith',
+      url: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+
+    // 3. Criação & Natureza Sagrada (Unsplash HD 256x256)
+    _PresetAvatar(
+      id: 'mount_sinai',
+      name: 'Monte da Fé',
+      category: 'nature',
+      url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'stars_glory',
+      name: 'Céu Celestial',
+      category: 'nature',
+      url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'sunrise_grace',
+      name: 'Amanhecer',
+      category: 'nature',
+      url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'prayer_summit',
+      name: 'Lugar Secreto',
+      category: 'nature',
+      url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+  ];
 
   @override
   void initState() {
@@ -125,6 +257,13 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
     }
   }
 
+  void _selectPresetAvatar(_PresetAvatar avatar) {
+    setState(() {
+      _previewPhoto = avatar.url;
+      _showUrlField = false;
+    });
+  }
+
   Future<void> _saveChanges() async {
     final newName = _nameController.text.trim();
     if (newName.isEmpty) {
@@ -184,44 +323,22 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
         ? _nameController.text.trim()[0].toUpperCase()
         : 'U';
 
-    Widget avatarImage;
-    if (_previewPhoto != null && _previewPhoto!.isNotEmpty) {
-      if (_previewPhoto!.startsWith('data:image') || !_previewPhoto!.startsWith('http')) {
-        try {
-          final clean = _previewPhoto!.contains(',') ? _previewPhoto!.split(',').last : _previewPhoto!;
-          avatarImage = Image.memory(
-            base64Decode(clean),
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _buildFallbackInitial(initial),
-          );
-        } catch (_) {
-          avatarImage = _buildFallbackInitial(initial);
-        }
-      } else {
-        String finalUrl = _previewPhoto!;
-        if (finalUrl.contains('googleusercontent.com')) {
-          finalUrl = finalUrl.replaceAll(RegExp(r'=s\d+(-c)?'), '=s256-c');
-        }
-        if (kIsWeb && finalUrl.startsWith('http') && !finalUrl.contains('wsrv.nl')) {
-          finalUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(finalUrl)}';
-        }
-        avatarImage = Image.network(
-          finalUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackInitial(initial),
-        );
-      }
-    } else {
-      avatarImage = _buildFallbackInitial(initial);
-    }
+    final filteredPresets = _presetAvatares.where((p) {
+      if (_selectedCategory == 'characters') return p.category == 'characters';
+      if (_selectedCategory == 'faith') return p.category == 'faith';
+      if (_selectedCategory == 'nature') return p.category == 'nature';
+      return true; // 'all'
+    }).toList();
+
+    Widget avatarImage = _buildAvatarWidget(_previewPhoto, initial);
 
     final content = SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
-        24,
-        20,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 24,
+        22,
+        18,
+        22,
+        MediaQuery.of(context).viewInsets.bottom + 22,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -233,7 +350,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
               child: Container(
                 width: 44,
                 height: 5,
-                margin: const EdgeInsets.only(bottom: 20),
+                margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
@@ -241,7 +358,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
               ),
             ),
 
-          // Título
+          // Título do Modal
           Row(
             children: [
               Container(
@@ -252,7 +369,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                 ),
                 child: const Icon(Icons.manage_accounts_rounded, color: AppTheme.kPrimaryGold, size: 22),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Editar Perfil',
@@ -271,7 +388,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
           // Avatar Grande Centralizado com Badge de Câmera
           GestureDetector(
@@ -300,7 +417,10 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                   decoration: BoxDecoration(
                     color: AppTheme.kPrimaryGold,
                     shape: BoxShape.circle,
-                    border: Border.all(color: isDark ? const Color(0xFF111223) : Colors.white, width: 2),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF111223) : Colors.white,
+                      width: 2,
+                    ),
                   ),
                   child: const Icon(
                     Icons.camera_alt_rounded,
@@ -314,7 +434,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
 
           const SizedBox(height: 12),
 
-          // Botões de Ação para Foto
+          // Botões de Ação para Foto (Galeria, Link, Remover)
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 8,
@@ -356,7 +476,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
 
           // Campo de URL se aberto
           if (_showUrlField) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -386,9 +506,159 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
             ),
           ],
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Campo de Nome
+          // ==========================================
+          // SEÇÃO: AVATARES PRONTOS & PRÉ-DEFINIDOS
+          // ==========================================
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF191928) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? Colors.white12 : Colors.black12,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.palette_rounded, color: AppTheme.kPrimaryGold, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'OU ESCOLHA UM AVATAR PRONTO',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Filtro de Categorias dos Avatares
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildCategoryChip('✨ Todos', 'all', isDark),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip('👤 Personagens', 'characters', isDark),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip('📖 Fé & Devoção', 'faith', isDark),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip('🌄 Criação', 'nature', isDark),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Carrossel de Avatares Prontos
+                SizedBox(
+                  height: 94,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: filteredPresets.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final item = filteredPresets[index];
+                      final isSelected = _previewPhoto == item.url;
+
+                      return GestureDetector(
+                        onTap: () => _selectPresetAvatar(item),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? AppTheme.kPrimaryGold
+                                          : (isDark ? Colors.white24 : Colors.black12),
+                                      width: isSelected ? 3 : 1.5,
+                                    ),
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: ClipOval(
+                                    child: Image.network(
+                                      item.url,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                                        child: const Icon(Icons.person, color: AppTheme.kPrimaryGold, size: 24),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (isSelected)
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                        color: AppTheme.kPrimaryGold,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check_rounded,
+                                        color: Colors.black,
+                                        size: 13,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            SizedBox(
+                              width: 64,
+                              child: Text(
+                                item.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected
+                                      ? AppTheme.kPrimaryGold
+                                      : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Campo de Nome de Exibição
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -405,7 +675,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
           TextField(
             controller: _nameController,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 16,
+              fontSize: 15.5,
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
             ),
@@ -429,7 +699,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
             ),
           ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
 
           // Botões de Ação Finais
           Row(
@@ -438,7 +708,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                 child: OutlinedButton(
                   onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     side: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
                   ),
@@ -459,7 +729,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.kPrimaryGold,
                     foregroundColor: Colors.black87,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
@@ -513,6 +783,68 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
       ),
       child: content,
     );
+  }
+
+  Widget _buildCategoryChip(String label, String value, bool isDark) {
+    final isSelected = _selectedCategory == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCategory = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppTheme.kPrimaryGold.withValues(alpha: 0.2)
+              : (isDark ? const Color(0xFF222234) : const Color(0xFFEEF2F6)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppTheme.kPrimaryGold : Colors.transparent,
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected
+                ? AppTheme.kPrimaryGold
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarWidget(String? photo, String initial) {
+    if (photo != null && photo.isNotEmpty) {
+      if (photo.startsWith('data:image') || !photo.startsWith('http')) {
+        try {
+          final clean = photo.contains(',') ? photo.split(',').last : photo;
+          return Image.memory(
+            base64Decode(clean),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildFallbackInitial(initial),
+          );
+        } catch (_) {
+          return _buildFallbackInitial(initial);
+        }
+      } else {
+        String finalUrl = photo;
+        if (finalUrl.contains('googleusercontent.com')) {
+          finalUrl = finalUrl.replaceAll(RegExp(r'=s\d+(-c)?'), '=s256-c');
+        }
+        if (kIsWeb && finalUrl.startsWith('http') && !finalUrl.contains('wsrv.nl')) {
+          finalUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(finalUrl)}';
+        }
+        return Image.network(
+          finalUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildFallbackInitial(initial),
+        );
+      }
+    }
+    return _buildFallbackInitial(initial);
   }
 
   Widget _buildFallbackInitial(String initial) {
