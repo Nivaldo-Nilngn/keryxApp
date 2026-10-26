@@ -657,47 +657,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Widget _buildSecondaryActions(BuildContext context, bool isShorter) {
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        TextButton(
-          onPressed: () {
-            ref.read(guestModeProvider.notifier).state = true;
+        Text(
+          'Novo por aqui? ',
+          style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
+        ),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SignUpScreen()),
+            );
           },
           child: Text(
-            'Entrar como Convidado',
+            'Criar conta agora',
             style: GoogleFonts.outfit(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
-              fontWeight: FontWeight.w400,
-              decoration: TextDecoration.underline,
-              decorationColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
           ),
-        ),
-        SizedBox(height: isShorter ? 8 : 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Novo por aqui? ',
-              style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignUpScreen()),
-                );
-              },
-              child: Text(
-                'Criar conta agora',
-                style: GoogleFonts.outfit(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ],
         ),
       ],
     );
