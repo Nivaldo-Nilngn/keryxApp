@@ -440,6 +440,14 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
         );
         accentColor = const Color(0xFF34D399);
         break;
+      case 'crimson':
+        cardGrad = const LinearGradient(
+          colors: [Color(0xFF4C0519), Color(0xFF881337)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
+        accentColor = const Color(0xFFFB7185);
+        break;
       case 'gold':
       default:
         cardGrad = LinearGradient(
