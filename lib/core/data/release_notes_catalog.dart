@@ -5,12 +5,12 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
-      versionName: '2.0.1',
-      buildNumber: 10,
-      title: 'IATheos Inteligente, Capas 3D & Notas de Atualização',
+      versionName: '2.0.2',
+      buildNumber: 11,
+      title: 'IATheos Inteligente, Capas 3D & Notas em Tela Cheia',
       releaseDate: '26 de Outubro de 2026',
       highlight:
-          'Grande reformulação da IA Teológica com modos de estudo especializados, novas capas 3D de livros bíblicos encadernados em couro e sistema automático de notas de versão.',
+          'Grande reformulação da IA Teológica com modos de estudo especializados, novas capas 3D de livros bíblicos encadernados em couro e nova experiência de notas de atualização em tela cheia.',
       items: [
         // ── Novos Recursos (Implementações) ─────────────────────────
         ReleaseNoteItem(
