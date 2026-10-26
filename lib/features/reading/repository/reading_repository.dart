@@ -233,6 +233,13 @@ class ReadingRepository {
     for (var doc in snapshot.docs) {
       batch.delete(doc.reference);
     }
+
+    // Remove também o resumo estatístico no documento de usuário
+    final userRef = _firestore.collection('users').doc(uid);
+    batch.update(userRef, {
+      'stats': FieldValue.delete(),
+    });
+
     await batch.commit();
   }
 }

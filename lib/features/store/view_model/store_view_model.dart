@@ -349,9 +349,9 @@ class StoreNotifier extends StateNotifier<StoreState> {
       );
       if (userId != null) {
         try {
-          await FirebaseFirestore.instance.collection('users').doc(userId).set({
-            'cloudLibrary': [],
-          }, SetOptions(merge: true));
+          await FirebaseFirestore.instance.collection('users').doc(userId).update({
+            'cloudLibrary': FieldValue.delete(),
+          });
         } catch (e) {
           debugPrint('⚠️ Erro ao limpar cloudLibrary no Firestore: $e');
         }

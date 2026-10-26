@@ -391,9 +391,9 @@ class PdfService {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       try {
-        await FirebaseFirestore.instance.collection('users').doc(uid).set({
-          'cloudPdfs': [],
-        }, SetOptions(merge: true));
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'cloudPdfs': FieldValue.delete(),
+        });
       } catch (e) {
         debugPrint('⚠️ Erro ao limpar cloudPdfs no Firestore: $e');
       }
