@@ -30,6 +30,7 @@ import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/study/view/study_hub_panel.dart';
 import 'package:keryx_app/features/study/view/cross_references_screen.dart';
+import 'package:keryx_app/features/bible/reading/view/verse_comparison_screen.dart';
 import 'package:keryx_app/features/study/view/annotations_screen.dart'
     as keryx_annotations;
 import 'package:keryx_app/features/study/view/favorites_screen.dart'
@@ -693,6 +694,15 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   }
 
   void _showComparisonSheet(List<int> selectedVerseNumbers) {
+    showVerseComparisonScreen(
+      context,
+      currentBook: _currentBook,
+      currentChapter: _currentChapter,
+      selectedVerseNumbers: selectedVerseNumbers,
+    );
+  }
+
+  void _legacyComparisonSheet(List<int> selectedVerseNumbers) {
     final sortedVerses = selectedVerseNumbers.toList()..sort();
     final verseRangeText = _formatVerseRange(sortedVerses);
 
@@ -1372,18 +1382,13 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   }
 
   void _showCommentarySheet({int initialTab = 0}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      constraints: const BoxConstraints(maxWidth: double.infinity),
-      backgroundColor: Colors.transparent,
-      builder: (context) => StudyHubPanel(
-        initialTab: initialTab,
-        onNavigateToVerse: (targetBookId, targetChapter, targetVerse) {
-          Navigator.pop(context);
-          _navigateToVerse(targetBookId, targetChapter, targetVerse);
-        },
-      ),
+    showStudyHubScreen(
+      context,
+      initialTab: initialTab,
+      onNavigateToVerse: (targetBookId, targetChapter, targetVerse) {
+        Navigator.pop(context);
+        _navigateToVerse(targetBookId, targetChapter, targetVerse);
+      },
     );
   }
 

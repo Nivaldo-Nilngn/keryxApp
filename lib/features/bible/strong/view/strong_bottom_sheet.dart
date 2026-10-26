@@ -303,11 +303,31 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.tune_rounded, color: _textSecondary, size: 22),
+            icon: Icon(Icons.text_decrease_rounded, color: _textSecondary, size: 20),
+            tooltip: 'Diminuir tamanho da fonte',
+            onPressed: () {
+              final cur = ref.read(fontSettingsProvider).fontSize;
+              if (cur > 12) {
+                ref.read(fontSettingsProvider.notifier).setFontSize(cur - 1.5);
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.text_increase_rounded, color: _textSecondary, size: 22),
+            tooltip: 'Aumentar tamanho da fonte',
+            onPressed: () {
+              final cur = ref.read(fontSettingsProvider).fontSize;
+              if (cur < 34) {
+                ref.read(fontSettingsProvider.notifier).setFontSize(cur + 1.5);
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.tune_rounded, color: _textSecondary, size: 20),
             tooltip: 'Configurações de Leitura & Strong',
             onPressed: () => showTextSettingsBottomSheet(context, isStrongVersion: true),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),

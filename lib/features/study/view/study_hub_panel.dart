@@ -36,14 +36,34 @@ final _aiAnalysisRequestedProvider = StateProvider.autoDispose<bool>(
   (ref) => false,
 );
 
+Future<void> showStudyHubScreen(
+  BuildContext context, {
+  int initialTab = 0,
+  void Function(int targetBookId, int targetChapter, int targetVerse)?
+  onNavigateToVerse,
+}) {
+  return Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => StudyHubPanel(
+        initialTab: initialTab,
+        onNavigateToVerse: onNavigateToVerse,
+        isFullScreen: true,
+      ),
+    ),
+  );
+}
+
 class StudyHubPanel extends ConsumerStatefulWidget {
   final int initialTab;
+  final bool isFullScreen;
   final void Function(int targetBookId, int targetChapter, int targetVerse)?
   onNavigateToVerse;
 
   const StudyHubPanel({
     super.key,
     this.initialTab = 0,
+    this.isFullScreen = false,
     this.onNavigateToVerse,
   });
 
@@ -192,17 +212,13 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
         ? '${currentBook.name} $currentChapter:${verses.first.number}'
         : '${currentBook.name} $currentChapter:${verses.first.number}-${verses.last.number}';
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.88,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Column(
-        children: [
+    final surfaceBase = Theme.of(context).scaffoldBackgroundColor;
+    final textPrimary = Theme.of(context).colorScheme.onSurface;
+    final textSecondary = textPrimary.withValues(alpha: 0.6);
+
+    final Widget contentBody = Column(
+      children: [
+        if (!widget.isFullScreen) ...[
           // ─── 1. Handle de Arraste ──────────────────────────────────────────
           Container(
             width: 42,
@@ -290,14 +306,19 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
               ],
             ),
           ),
-
           const SizedBox(height: 12),
+        ] else ...[
+          const SizedBox(height: 12),
+        ],
 
           // ─── 3. Segmented Tabs: [ Comentários Bíblicos ] | [ Análise com IA ] ───
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              height: 46,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Container(
+                  height: 46,
               decoration: BoxDecoration(
                 color: isDark
                     ? Colors.black.withValues(alpha: 0.35)
@@ -500,6 +521,8 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
               ),
             ),
           ),
+        ),
+      ),
 
           const SizedBox(height: 14),
 
@@ -531,7 +554,94 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
                       ),
           ),
         ],
+      );
+
+    if (widget.isFullScreen) {
+      return Scaffold(
+        backgroundColor: surfaceBase,
+        appBar: AppBar(
+          backgroundColor: surfaceBase,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_rounded, color: textPrimary, size: 24),
+            onPressed: () => Navigator.pop(context),
+            tooltip: 'Voltar',
+          ),
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                verseTitle,
+                style: GoogleFonts.plusJakartaSans(
+                  color: textPrimary,
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                'HUB DE ESTUDOS BÍBLICOS',
+                style: GoogleFonts.outfit(
+                  color: isDark ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
+          centerTitle: true,
+          actions: [
+            // Botão rápido: Diminuir tamanho do texto
+            IconButton(
+              icon: Icon(Icons.text_decrease_rounded, color: textSecondary, size: 20),
+              tooltip: 'Diminuir tamanho da fonte',
+              onPressed: () {
+                final cur = ref.read(fontSettingsProvider).fontSize;
+                if (cur > 12) {
+                  ref.read(fontSettingsProvider.notifier).setFontSize(cur - 1.5);
+                }
+              },
+            ),
+            // Botão rápido: Aumentar tamanho do texto
+            IconButton(
+              icon: Icon(Icons.text_increase_rounded, color: textSecondary, size: 22),
+              tooltip: 'Aumentar tamanho da fonte',
+              onPressed: () {
+                final cur = ref.read(fontSettingsProvider).fontSize;
+                if (cur < 34) {
+                  ref.read(fontSettingsProvider.notifier).setFontSize(cur + 1.5);
+                }
+              },
+            ),
+            // Botão: Ajustes completos de leitura
+            IconButton(
+              icon: Icon(Icons.tune_rounded, color: textSecondary, size: 20),
+              tooltip: 'Configurações de Leitura',
+              onPressed: () => showTextSettingsBottomSheet(context),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: contentBody,
+        ),
+      );
+    }
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.88,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+        ),
       ),
+      child: contentBody,
     );
   }
 
