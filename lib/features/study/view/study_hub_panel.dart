@@ -6,6 +6,7 @@ import 'package:flutter_html/flutter_html.dart';
 
 import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:keryx_app/core/services/bible_service.dart';
+import 'package:keryx_app/core/utils/bible_text_parser.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
@@ -1352,7 +1353,9 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
     final hasRequested = ref.watch(_aiAnalysisRequestedProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final verseTextJoined = verses.map((v) => '${v.number}. ${v.text.replaceAll(RegExp(r'<[^>]*>'), '')}').join('\n');
+    final verseTextJoined = verses
+        .map((v) => '${v.number}. ${BibleTextParser.cleanToPlainText(v.text)}')
+        .join('\n');
 
     if (!hasRequested) {
       return Center(
@@ -1777,7 +1780,14 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const primaryGold = AppTheme.kPrimaryGold;
     final verseNum = verses.first.number;
-    final verseText = verses.first.text;
+    final verseNumText = verses.length == 1
+        ? '$verseNum'
+        : '${verses.first.number}-${verses.last.number}';
+    final verseCleanText = verses.length == 1
+        ? BibleTextParser.cleanToPlainText(verses.first.text)
+        : verses
+            .map((v) => '${v.number}. ${BibleTextParser.cleanToPlainText(v.text)}')
+            .join(' ');
 
     return SingleChildScrollView(
       padding: EdgeInsets.only(
@@ -1815,7 +1825,7 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '${currentBook.name} $currentChapter:$verseNum',
+                        '${currentBook.name} $currentChapter:$verseNumText',
                         style: GoogleFonts.outfit(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -1826,8 +1836,8 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
                     const Spacer(),
                     InkWell(
                       onTap: () {
-                        final quote = '> "$verseText"\n— ${currentBook.name} $currentChapter:$verseNum\n\n';
-                        if (_notesController.text.contains(verseText)) {
+                        final quote = '> "$verseCleanText"\n— ${currentBook.name} $currentChapter:$verseNumText\n\n';
+                        if (_notesController.text.contains(verseCleanText)) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Este versículo já está citado na anotação.'),
@@ -1863,7 +1873,7 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '"$verseText"',
+                  '"$verseCleanText"',
                   style: GoogleFonts.merriweather(
                     fontSize: 13,
                     fontStyle: FontStyle.italic,
