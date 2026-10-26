@@ -216,6 +216,13 @@ class PushNotificationService {
     if (kIsWeb) return;
 
     try {
+      try {
+        tz.initializeTimeZones();
+        try {
+          tz.setLocalLocation(tz.getLocation('America/Sao_Paulo'));
+        } catch (_) {}
+      } catch (_) {}
+
       final now = tz.TZDateTime.now(tz.local);
       var scheduledDate = tz.TZDateTime(
         tz.local,
