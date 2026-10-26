@@ -1,9 +1,10 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../model/store_item.dart';
+import 'store_item_cover_art.dart';
 
-/// Card interativo ilustrado para as categorias da Loja
+/// Card de Categoria da Loja desenhado na mesma linguagem visual luxuosa
+/// das capas de livros bíblicos 3D (couro nobre, textura sutil, filetes dourados e fita marcadora).
 class CategoryIllustrationCard extends StatefulWidget {
   final StoreCategory category;
   final String label;
@@ -50,9 +51,27 @@ class _CategoryIllustrationCardState extends State<CategoryIllustrationCard>
     super.dispose();
   }
 
+  BookBindingStyle _getBindingStyle(StoreCategory cat) {
+    switch (cat) {
+      case StoreCategory.bibles:
+        return BookBindingStyle.gold;
+      case StoreCategory.books:
+      case StoreCategory.culture:
+        return BookBindingStyle.brown;
+      case StoreCategory.commentaries:
+      case StoreCategory.expository:
+        return BookBindingStyle.purple;
+      case StoreCategory.dictionaries:
+        return BookBindingStyle.sapphire;
+      default:
+        return BookBindingStyle.onyx;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final color = widget.baseColor;
+    final style = _getBindingStyle(widget.category);
+    final theme = BookBindingTheme.getTheme(style);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -68,21 +87,20 @@ class _CategoryIllustrationCardState extends State<CategoryIllustrationCard>
           scale: _scaleAnimation,
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF131722),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: _isHovered ? color : color.withValues(alpha: 0.3),
+                color: _isHovered ? theme.goldAccent : theme.goldAccent.withValues(alpha: 0.35),
                 width: _isHovered ? 1.8 : 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.55),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
                 ),
                 BoxShadow(
-                  color: color.withValues(alpha: _isHovered ? 0.22 : 0.08),
-                  blurRadius: 16,
+                  color: theme.goldAccent.withValues(alpha: _isHovered ? 0.25 : 0.08),
+                  blurRadius: 18,
                   spreadRadius: 1,
                 ),
               ],
@@ -91,117 +109,186 @@ class _CategoryIllustrationCardState extends State<CategoryIllustrationCard>
               borderRadius: BorderRadius.circular(20),
               child: Stack(
                 children: [
-                  // ── Arte de Fundo Temática Ilustrada ──────────────────
-                  Positioned.fill(
-                    child: _buildThematicBackground(widget.category, color),
-                  ),
-
-                  // ── Gradiente Escuro Suave para Garantir Legibilidade ──
+                  // ── 1. Fundo em Couro Legítimo Nobre (Mesma Paleta dos Livros) ──
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.25),
-                            Colors.black.withValues(alpha: 0.4),
-                            Colors.black.withValues(alpha: 0.85),
-                          ],
-                          stops: const [0.0, 0.45, 1.0],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: theme.gradientColors,
                         ),
                       ),
                     ),
                   ),
 
-                  // ── Badge de Quantidade no Topo Direito ──────────────
+                  // ── 2. Textura Sutil de Granulação de Couro ───────────
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _CategoryLeatherPainter(theme.leatherTextureColor),
+                    ),
+                  ),
+
+                  // ── 3. Filete Dourado Duplo Ornamental de Moldura ─────
                   Positioned(
-                    top: 12,
-                    right: 12,
+                    left: 14,
+                    top: 10,
+                    right: 10,
+                    bottom: 10,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: color.withValues(alpha: 0.5),
-                          width: 1,
+                          color: theme.goldAccent.withValues(alpha: 0.45),
+                          width: 1.0,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+
+                  // ── 4. Lombada 3D do Livro à Esquerda (Spine Effect) ──
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 10,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withValues(alpha: 0.75),
+                            Colors.white.withValues(alpha: 0.2),
+                            Colors.black.withValues(alpha: 0.5),
+                          ],
+                          stops: const [0.0, 0.4, 1.0],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        border: Border(
+                          right: BorderSide(
+                            color: theme.goldAccent.withValues(alpha: 0.4),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ── 5. Fita Marcadora de Páginas (Bookmark Ribbon) ────
+                  Positioned(
+                    top: 0,
+                    right: 32,
+                    child: Container(
+                      width: 10,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: theme.ribbonColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            blurRadius: 4,
+                            offset: const Offset(1, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // ── 6. Brasão Dourado com o Ícone da Categoria ────────
+                  Positioned(
+                    top: 18,
+                    left: 22,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.goldAccent.withValues(alpha: 0.7),
+                          width: 1.4,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: color.withValues(alpha: 0.2),
-                            blurRadius: 6,
+                            color: theme.goldAccent.withValues(alpha: 0.2),
+                            blurRadius: 8,
                           ),
                         ],
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.inventory_2_rounded, size: 11, color: color),
-                          const SizedBox(width: 4),
-                          Text(
-                            widget.itemCount > 0 ? '${widget.itemCount}' : 'Em breve',
-                            style: GoogleFonts.outfit(
-                              fontSize: 11.5,
-                              color: widget.itemCount > 0 ? color : Colors.white60,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                      child: Center(
+                        child: Icon(
+                          widget.iconData,
+                          color: theme.goldAccent,
+                          size: 22,
+                        ),
                       ),
                     ),
                   ),
 
-                  // ── Ícone no Topo Esquerdo em Container de Vidro ─────
+                  // ── 7. Badge de Quantidade no Topo Direito ────────────
                   Positioned(
-                    top: 14,
-                    left: 14,
+                    top: 18,
+                    right: 50,
                     child: Container(
-                      padding: const EdgeInsets.all(9),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: color.withValues(alpha: 0.4),
+                          color: theme.goldAccent.withValues(alpha: 0.5),
                           width: 1,
                         ),
                       ),
-                      child: Icon(
-                        widget.iconData,
-                        color: color,
-                        size: 24,
+                      child: Text(
+                        widget.itemCount > 0 ? '${widget.itemCount} volumes' : 'Em breve',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          color: theme.goldAccent,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.3,
+                        ),
                       ),
                     ),
                   ),
 
-                  // ── Textos e Descrição na Base ─────────────────────────
+                  // ── 8. Textos e Pílula na Base do Card ────────────────
                   Positioned(
-                    left: 14,
-                    right: 14,
-                    bottom: 14,
+                    left: 22,
+                    right: 18,
+                    bottom: 16,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Rótulo da Categoria
                         Text(
                           widget.label,
                           style: GoogleFonts.outfit(
-                            fontSize: 16,
+                            fontSize: 17,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             height: 1.2,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.8),
+                                blurRadius: 4,
+                                offset: const Offset(1, 1),
+                              ),
+                            ],
                           ),
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 6),
+
+                        // Pílula Indicativa de Uso com estilo nobre
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.18),
+                            color: Colors.black.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: color.withValues(alpha: 0.35),
+                              color: theme.goldAccent.withValues(alpha: 0.4),
                               width: 0.8,
                             ),
                           ),
@@ -209,9 +296,9 @@ class _CategoryIllustrationCardState extends State<CategoryIllustrationCard>
                             _getDestinationText(widget.category),
                             style: GoogleFonts.outfit(
                               fontSize: 9.5,
-                              color: color,
+                              color: theme.goldAccent,
                               fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
+                              letterSpacing: 0.2,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -229,332 +316,53 @@ class _CategoryIllustrationCardState extends State<CategoryIllustrationCard>
     );
   }
 
-  /// Retorna a ilustração artística vetorial de acordo com a categoria
-  Widget _buildThematicBackground(StoreCategory category, Color color) {
-    switch (category) {
-      case StoreCategory.bibles:
-        return CustomPaint(
-          painter: _BibleIllustrationPainter(color),
-        );
-      case StoreCategory.books:
-        return CustomPaint(
-          painter: _BooksIllustrationPainter(color),
-        );
-      case StoreCategory.commentaries:
-      case StoreCategory.expository:
-        return CustomPaint(
-          painter: _CommentariesIllustrationPainter(color),
-        );
-      case StoreCategory.dictionaries:
-        return CustomPaint(
-          painter: _DictionariesIllustrationPainter(color),
-        );
-      default:
-        return CustomPaint(
-          painter: _GenericStoreIllustrationPainter(color),
-        );
-    }
-  }
-
   String _getDestinationText(StoreCategory cat) {
     switch (cat) {
       case StoreCategory.bibles:
-        return '📖 Lido na aba Bíblia';
+        return 'Lido na aba Bíblia';
       case StoreCategory.books:
-        return '📚 Lido na Biblioteca';
+        return 'Lido na Biblioteca';
       case StoreCategory.commentaries:
-        return '🔍 Aba Bíblia (Comentários)';
+        return 'Aba Bíblia (Comentários)';
       case StoreCategory.dictionaries:
-        return '📖 Lido em Dicionários';
+        return 'Lido em Dicionários';
       case StoreCategory.expository:
-        return '📖 Estudos Expositivos';
+        return 'Estudos Expositivos';
       case StoreCategory.homiletics:
-        return '🎙️ Esboços e Sermões';
+        return 'Esboços e Sermões';
       case StoreCategory.culture:
-        return '🏛️ História & Cultura';
+        return 'História & Cultura';
       case StoreCategory.audios:
-        return '🎵 Harpa & Louvores';
+        return 'Harpa & Louvores';
       default:
-        return '✨ Módulo Keryx';
+        return 'Módulo Keryx';
     }
   }
 }
 
-// ── Pintores Artísticos de Fundo por Categoria ───────────────────────────────
+/// Textura diagonal suave de couro
+class _CategoryLeatherPainter extends CustomPainter {
+  final Color textureColor;
 
-/// Ilustração para Bíblias: Bíblia Sagrada aberta com raios celestiais e feixes de luz
-class _BibleIllustrationPainter extends CustomPainter {
-  final Color baseColor;
-
-  const _BibleIllustrationPainter(this.baseColor);
+  const _CategoryLeatherPainter(this.textureColor);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width * 0.72;
-    final cy = size.height * 0.42;
+    final paint = Paint()
+      ..color = textureColor
+      ..strokeWidth = 0.6
+      ..style = PaintingStyle.stroke;
 
-    // Raios de luz celestial saindo do centro
-    final rayPaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.12)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    for (int i = 0; i < 8; i++) {
-      final angle = (i * math.pi / 4) - (math.pi / 8);
-      final ex = cx + math.cos(angle) * (size.width * 0.55);
-      final ey = cy + math.sin(angle) * (size.height * 0.55);
-      canvas.drawLine(Offset(cx, cy), Offset(ex, ey), rayPaint);
+    const step = 10.0;
+    for (double i = 0; i < size.width + size.height; i += step) {
+      canvas.drawLine(
+        Offset(0, i),
+        Offset(i, 0),
+        paint,
+      );
     }
-
-    // Desenho vetorial da Bíblia aberta
-    final bookPaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.22)
-      ..style = PaintingStyle.fill;
-
-    final borderPaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    // Página Esquerda
-    final leftPage = Path()
-      ..moveTo(cx, cy + 24)
-      ..quadraticBezierTo(cx - 26, cy + 28, cx - 44, cy + 18)
-      ..lineTo(cx - 44, cy - 20)
-      ..quadraticBezierTo(cx - 26, cy - 10, cx, cy - 16)
-      ..close();
-
-    // Página Direita
-    final rightPage = Path()
-      ..moveTo(cx, cy + 24)
-      ..quadraticBezierTo(cx + 26, cy + 28, cx + 44, cy + 18)
-      ..lineTo(cx + 44, cy - 20)
-      ..quadraticBezierTo(cx + 26, cy - 10, cx, cy - 16)
-      ..close();
-
-    canvas.drawPath(leftPage, bookPaint);
-    canvas.drawPath(leftPage, borderPaint);
-    canvas.drawPath(rightPage, bookPaint);
-    canvas.drawPath(rightPage, borderPaint);
-
-    // Cruz sutil de luz no topo
-    final crossPaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.75)
-      ..strokeWidth = 2.0;
-    canvas.drawLine(Offset(cx, cy - 36), Offset(cx, cy - 24), crossPaint);
-    canvas.drawLine(Offset(cx - 5, cy - 32), Offset(cx + 5, cy - 32), crossPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _BibleIllustrationPainter oldDelegate) => false;
-}
-
-/// Ilustração para Livros: Coleção de livros clássicos empilhados com marcadores
-class _BooksIllustrationPainter extends CustomPainter {
-  final Color baseColor;
-
-  const _BooksIllustrationPainter(this.baseColor);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width * 0.72;
-    final cy = size.height * 0.45;
-
-    final paint = Paint()
-      ..color = baseColor.withValues(alpha: 0.22)
-      ..style = PaintingStyle.fill;
-
-    final stroke = Paint()
-      ..color = baseColor.withValues(alpha: 0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
-
-    // Livro 1 (Base inclinada)
-    canvas.save();
-    canvas.translate(cx, cy + 18);
-    canvas.rotate(-0.06);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-36, -8, 72, 16),
-        const Radius.circular(4),
-      ),
-      paint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-36, -8, 72, 16),
-        const Radius.circular(4),
-      ),
-      stroke,
-    );
-    canvas.restore();
-
-    // Livro 2 (Meio)
-    canvas.save();
-    canvas.translate(cx + 2, cy);
-    canvas.rotate(0.04);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-32, -8, 64, 16),
-        const Radius.circular(4),
-      ),
-      paint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-32, -8, 64, 16),
-        const Radius.circular(4),
-      ),
-      stroke,
-    );
-    canvas.restore();
-
-    // Livro 3 (Topo)
-    canvas.save();
-    canvas.translate(cx - 2, cy - 18);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-28, -7, 56, 14),
-        const Radius.circular(4),
-      ),
-      paint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-28, -7, 56, 14),
-        const Radius.circular(4),
-      ),
-      stroke,
-    );
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _BooksIllustrationPainter oldDelegate) => false;
-}
-
-/// Ilustração para Comentários: Pergaminho antigo com caneta-tinteiro de pena
-class _CommentariesIllustrationPainter extends CustomPainter {
-  final Color baseColor;
-
-  const _CommentariesIllustrationPainter(this.baseColor);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width * 0.72;
-    final cy = size.height * 0.42;
-
-    final paint = Paint()
-      ..color = baseColor.withValues(alpha: 0.2)
-      ..style = PaintingStyle.fill;
-
-    final stroke = Paint()
-      ..color = baseColor.withValues(alpha: 0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
-
-    // Pergaminho enrolado nas bordas
-    final scroll = Path()
-      ..moveTo(cx - 32, cy - 28)
-      ..quadraticBezierTo(cx, cy - 34, cx + 32, cy - 28)
-      ..lineTo(cx + 32, cy + 24)
-      ..quadraticBezierTo(cx, cy + 18, cx - 32, cy + 24)
-      ..close();
-
-    canvas.drawPath(scroll, paint);
-    canvas.drawPath(scroll, stroke);
-
-    // Linhas de texto escritas no pergaminho
-    final linePaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.45)
-      ..strokeWidth = 1.5;
-
-    canvas.drawLine(Offset(cx - 20, cy - 14), Offset(cx + 16, cy - 14), linePaint);
-    canvas.drawLine(Offset(cx - 20, cy - 4), Offset(cx + 20, cy - 4), linePaint);
-    canvas.drawLine(Offset(cx - 20, cy + 6), Offset(cx + 10, cy + 6), linePaint);
-
-    // Pena clássica inclinada
-    final featherPaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.7)
-      ..strokeWidth = 2.0;
-    canvas.drawLine(Offset(cx + 18, cy - 36), Offset(cx + 32, cy + 4), featherPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CommentariesIllustrationPainter oldDelegate) => false;
-}
-
-/// Ilustração para Dicionários: Letras sagradas gregas (Α, Ω) e hebraicas (א, ת)
-class _DictionariesIllustrationPainter extends CustomPainter {
-  final Color baseColor;
-
-  const _DictionariesIllustrationPainter(this.baseColor);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width * 0.72;
-    final cy = size.height * 0.42;
-
-    // Círculo decorativo ao redor das letras
-    final circlePaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.16)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    canvas.drawCircle(Offset(cx, cy), 36, circlePaint);
-
-    // Letra Alfa 'A'
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: 'Α',
-        style: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: baseColor.withValues(alpha: 0.7),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    textPainter.paint(canvas, Offset(cx - 22, cy - 22));
-
-    // Letra Ômega 'Ω'
-    final textPainter2 = TextPainter(
-      text: TextSpan(
-        text: 'Ω',
-        style: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: baseColor.withValues(alpha: 0.7),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    textPainter2.paint(canvas, Offset(cx + 2, cy - 4));
-  }
-
-  @override
-  bool shouldRepaint(covariant _DictionariesIllustrationPainter oldDelegate) => false;
-}
-
-/// Ilustração genérica para outras categorias
-class _GenericStoreIllustrationPainter extends CustomPainter {
-  final Color baseColor;
-
-  const _GenericStoreIllustrationPainter(this.baseColor);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width * 0.72;
-    final cy = size.height * 0.42;
-
-    final circlePaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.15)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    canvas.drawCircle(Offset(cx, cy), 32, circlePaint);
-    canvas.drawCircle(Offset(cx, cy), 20, circlePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _GenericStoreIllustrationPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _CategoryLeatherPainter oldDelegate) => false;
 }
