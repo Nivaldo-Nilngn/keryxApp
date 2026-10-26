@@ -14,6 +14,7 @@ import 'package:keryx_app/core/services/notification_service.dart';
 import 'package:keryx_app/core/services/push_notification_service.dart';
 import 'package:keryx_app/core/services/app_update_service.dart';
 import 'package:keryx_app/core/services/internal_download_service.dart';
+import 'package:keryx_app/core/services/release_notes_service.dart';
 
 class _NotifEntry {
   final String? id;
@@ -335,6 +336,21 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                     final isHymnDismissed = dismissedDaily.contains('hymn_$todayStr');
 
                     final entries = <_NotifEntry>[
+                      // Notas de Atualização e Novidades da Versão
+                      _NotifEntry(
+                        id: 'whats_new_current',
+                        icon: Icons.auto_awesome_rounded,
+                        iconColor: const Color(0xFFFFD56B),
+                        title: 'Novidades da Versão: O que mudou?',
+                        time: 'Novidades',
+                        description:
+                            'Toque para conferir todos os novos recursos, melhorias e modificações implementados nesta versão.',
+                        isUnread: false,
+                        onTap: () {
+                          Navigator.pop(context);
+                          ref.read(releaseNotesServiceProvider).showReleaseNotes(context);
+                        },
+                      ),
                       if (isUpdateAvailable && updateInfo != null)
                         _NotifEntry(
                           id: 'update_v${updateInfo.versionName}',

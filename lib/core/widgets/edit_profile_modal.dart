@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image/image.dart' as img;
 import '../services/auth_service.dart';
+import '../services/release_notes_service.dart';
 import '../theme/app_theme.dart';
 
 class _PresetAvatar {
@@ -933,6 +934,61 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.kPrimaryGold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // ── NOTAS DE ATUALIZAÇÃO / O QUE HÁ DE NOVO ───────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome_rounded, color: Color(0xFF818CF8), size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Notas de Atualização',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        'Veja os novos recursos e modificações do KeryxApp',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10.5,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    ref.read(releaseNotesServiceProvider).showReleaseNotes(context);
+                  },
+                  child: Text(
+                    'Ver Novidades',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF818CF8),
                     ),
                   ),
                 ),

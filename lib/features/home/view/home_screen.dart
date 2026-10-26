@@ -19,6 +19,7 @@ import 'package:keryx_app/features/study_plan/presentation/study_plan_window.dar
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/widgets/update_banner.dart';
 import 'package:keryx_app/core/services/app_update_service.dart';
+import 'package:keryx_app/core/services/release_notes_service.dart';
 
 const Color _secondaryColor = Color(0xFFFFB95F);
 const Color _primaryContainer = Color(0xFF4F46E5);
@@ -37,6 +38,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.invalidate(latestUpdateInfoProvider);
+      ref.read(releaseNotesServiceProvider).checkAndShowAfterUpdate(context);
     });
   }
 

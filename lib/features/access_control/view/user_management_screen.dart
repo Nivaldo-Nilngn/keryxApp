@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/app_update_service.dart';
+import '../../../core/widgets/release_notes_dialog.dart';
 import '../model/user_access_model.dart';
 import '../service/access_control_service.dart';
 import '../state/access_control_providers.dart';
@@ -1415,7 +1416,29 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      ReleaseNotesDialog.show(
+                        context,
+                        adminReleaseNotes: _versionNotesController.text,
+                        isAfterUpdate: true,
+                      );
+                    },
+                    icon: const Icon(Icons.preview_rounded, size: 16, color: AppTheme.kPrimaryGold),
+                    label: Text(
+                      'Pré-visualizar Tela de Novidades ✨',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.kPrimaryGold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
 
                 // Campo 3: Switch de Atualização Obrigatória
                 Container(
