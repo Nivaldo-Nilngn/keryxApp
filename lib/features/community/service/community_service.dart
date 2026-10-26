@@ -51,7 +51,7 @@ class CommunityService {
           final list = (data['posts'] as List)
               .map((p) => CommunityPost.fromJson(p as Map<String, dynamic>))
               .toList();
-          if (list.isNotEmpty) return list;
+          return list;
         }
       }
     } catch (e) {
@@ -98,13 +98,14 @@ class CommunityService {
 
       if (res.statusCode == 200) {
         return newPost;
+      } else {
+        debugPrint('⚠️ [CommunityService] Erro ao salvar post no D1 (${res.statusCode}): ${res.body}');
+        return null;
       }
     } catch (e) {
       debugPrint('⚠️ [CommunityService] Erro ao criar post no D1: $e');
+      return null;
     }
-
-    // Mesmo se o D1 estiver com falha temporária, retorna o post otimista para a UI
-    return newPost;
   }
 
   /// Alterna reação (🙏 Orar / ❤️ Amém)

@@ -182,6 +182,13 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
         );
       } else {
         setState(() => _isPublishing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível salvar o post no servidor. Verifique sua conexão e tente novamente.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
