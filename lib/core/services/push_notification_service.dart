@@ -16,9 +16,10 @@ const _androidChannel = AndroidNotificationChannel(
   'keryx_app_notifications',
   'Notificações Keryx',
   description: 'Notificações de avisos, downloads e novidades do KeryxApp',
-  importance: Importance.high,
+  importance: Importance.max,
   playSound: true,
   enableVibration: true,
+  showBadge: true,
 );
 
 /// Instância do plugin de notificações locais
@@ -47,7 +48,7 @@ class PushNotificationService {
     if (_initialized) return;
     _initialized = true;
 
-    // 1. Cria o canal de notificações no Android
+    // 1. Cria o canal de notificações no Android com importância máxima
     await _createNotificationChannel();
 
     // 2. Inicializa o plugin de notificações locais
@@ -87,6 +88,21 @@ class PushNotificationService {
 
     // 7. Inscreve no tópico global de atualizações do app
     await subscribeToTopic('keryx_updates');
+
+    // Inscreve no tópico pessoal do usuário para notificações da comunidade e diretas
+    final currentUid = _ref.read(authStateProvider).valueOrNull?.uid;
+    if (currentUid != null) {
+      await subscribeToTopic('user_$currentUid');
+    }
+
+    // Monitora login/logout para inscrever/desinscrever automaticamente
+    _ref.listen<AsyncValue<dynamic>>(authStateProvider, (prev, next) async {
+      final user = next.valueOrNull;
+      if (user != null) {
+        await saveCurrentToken(user.uid);
+        await subscribeToTopic('user_${user.uid}');
+      }
+    });
 
     // 8. Notificações FCM em primeiro plano
     _subscriptions.add(FirebaseMessaging.onMessage.listen(_onForegroundMessage));
@@ -260,9 +276,15 @@ class PushNotificationService {
             'keryx_app_notifications',
             'Notificações Keryx',
             channelDescription: 'Notificações de avisos, downloads e novidades do KeryxApp',
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
+            importance: Importance.max,
+            priority: Priority.max,
+            icon: '@mipmap/launcher_icon',
+            ticker: 'KeryxApp',
+            enableVibration: true,
+            playSound: true,
+            channelShowBadge: true,
+            visibility: NotificationVisibility.public,
+            category: AndroidNotificationCategory.message,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,

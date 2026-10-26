@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -34,6 +35,14 @@ import 'features/access_control/view/update_required_screen.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/community_notification_listener.dart';
+import 'features/home/view_model/notifications_provider.dart';
+
+/// Handler obrigatório de segundo plano para processar notificações do Firebase
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint('🔔 [FCM Background Handler] Mensagem recebida em segundo plano/minimizado: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +71,11 @@ void main() async {
         : null,
   );
 
+  // Registra handler de notificações em segundo plano no Android/iOS
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
+
   // Carrega fontes dinâmicas baixadas da loja
   await CustomFontLoader.loadDownloadedFonts();
 
@@ -86,12 +100,13 @@ class KeryxApp extends ConsumerStatefulWidget {
   ConsumerState<KeryxApp> createState() => _KeryxAppState();
 }
 
-class _KeryxAppState extends ConsumerState<KeryxApp> {
+class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver {
   NavbarRouteObserver? _navbarObserver;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(pushNotificationServiceProvider).initialize();
       ref.read(communityNotificationListenerProvider).startListening();
@@ -110,6 +125,22 @@ class _KeryxAppState extends ConsumerState<KeryxApp> {
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Quando o usuário restaura o app após estar minimizado:
+      // Revalida imediatamente as notificações da comunidade e checagem de atualização
+      ref.invalidate(notificationsProvider);
+      ref.invalidate(latestUpdateInfoProvider);
+    }
   }
 
   @override
