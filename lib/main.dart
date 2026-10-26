@@ -92,9 +92,23 @@ class _KeryxAppState extends ConsumerState<KeryxApp> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(pushNotificationServiceProvider).initialize();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(pushNotificationServiceProvider).initialize();
       ref.read(communityNotificationListenerProvider).startListening();
+
+      // Dispara notificação nativa no sistema se já houver versão mais recente disponível
+      final isAvailable = ref.read(isUpdateAvailableProvider);
+      if (isAvailable) {
+        final info = ref.read(latestUpdateInfoProvider).valueOrNull;
+        if (info != null) {
+          ref.read(pushNotificationServiceProvider).notifyAppUpdateIfAvailable(
+                latestVersion: info.latestVersion,
+                versionName: info.versionName,
+                releaseNotes: info.releaseNotes,
+                downloadUrl: info.downloadUrl,
+              );
+        }
+      }
     });
   }
 
@@ -107,6 +121,34 @@ class _KeryxAppState extends ConsumerState<KeryxApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Monitora atualizações para disparar alerta na barra de notificações do Android/iOS
+    ref.listen<bool>(isUpdateAvailableProvider, (prev, isAvailable) {
+      if (isAvailable) {
+        final updateInfo = ref.read(latestUpdateInfoProvider).valueOrNull;
+        if (updateInfo != null) {
+          ref.read(pushNotificationServiceProvider).notifyAppUpdateIfAvailable(
+                latestVersion: updateInfo.latestVersion,
+                versionName: updateInfo.versionName,
+                releaseNotes: updateInfo.releaseNotes,
+                downloadUrl: updateInfo.downloadUrl,
+              );
+        }
+      }
+    });
+
+    ref.listen<AsyncValue<AppUpdateInfo?>>(latestUpdateInfoProvider, (prev, next) {
+      final info = next.valueOrNull;
+      final current = ref.read(currentAppVersionProvider).valueOrNull;
+      if (info != null && current != null && info.latestVersion > current.buildNumber) {
+        ref.read(pushNotificationServiceProvider).notifyAppUpdateIfAvailable(
+              latestVersion: info.latestVersion,
+              versionName: info.versionName,
+              releaseNotes: info.releaseNotes,
+              downloadUrl: info.downloadUrl,
+            );
+      }
+    });
+
     final appThemeMode = ref.watch(themeModeProvider);
 
     ThemeData themeData;

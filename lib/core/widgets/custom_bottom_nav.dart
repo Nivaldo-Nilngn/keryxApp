@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:keryx_app/core/theme/app_theme.dart';
+import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 
 /// Barra de navegação unificada para todo o aplicativo, 
@@ -26,6 +26,89 @@ class KeryxBottomNav extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isVisible = ref.watch(navbarVisibleProvider) && !forceHide;
+    final theme = Theme.of(context);
+    final themeMode = ref.watch(themeModeProvider);
+
+    final Color navBgColor;
+    final Color borderColor;
+    final List<BoxShadow> shadows;
+    final Color activeColor;
+    final Color inactiveColor;
+
+    switch (themeMode) {
+      case AppThemeMode.dark:
+        navBgColor = const Color(0xFF131825).withValues(alpha: 0.90);
+        borderColor = const Color(0xFFFFB95F).withValues(alpha: 0.45);
+        activeColor = const Color(0xFFFFB95F);
+        inactiveColor = theme.colorScheme.onSurface.withValues(alpha: 0.55);
+        shadows = [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.70),
+            blurRadius: 30,
+            offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: const Color(0xFFFFB95F).withValues(alpha: 0.16),
+            blurRadius: 22,
+            spreadRadius: 1,
+            offset: const Offset(0, 2),
+          ),
+        ];
+        break;
+
+      case AppThemeMode.sepia:
+        // Sepia: pergaminho nobre e acolhedor (não branco!), em perfeita harmonia com o tema
+        navBgColor = const Color(0xFFEBE0C7).withValues(alpha: 0.96);
+        borderColor = const Color(0xFF8B5E3C).withValues(alpha: 0.40);
+        activeColor = const Color(0xFF8B5E3C);
+        inactiveColor = const Color(0xFF6B533E);
+        shadows = [
+          BoxShadow(
+            color: const Color(0xFF4A3420).withValues(alpha: 0.20),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: const Color(0xFF8B5E3C).withValues(alpha: 0.12),
+            blurRadius: 14,
+            spreadRadius: 0.5,
+          ),
+        ];
+        break;
+
+      case AppThemeMode.paper:
+        navBgColor = Colors.white.withValues(alpha: 0.94);
+        borderColor = const Color(0xFFE2E8F0);
+        activeColor = const Color(0xFF2C2C2C);
+        inactiveColor = Colors.grey.shade600;
+        shadows = [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ];
+        break;
+
+      case AppThemeMode.light:
+        navBgColor = Colors.white.withValues(alpha: 0.94);
+        borderColor = const Color(0xFFD97706).withValues(alpha: 0.40);
+        activeColor = const Color(0xFFD97706);
+        inactiveColor = const Color(0xFF475569);
+        shadows = [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.16),
+            blurRadius: 26,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: const Color(0xFFD97706).withValues(alpha: 0.10),
+            blurRadius: 18,
+            spreadRadius: 0.5,
+          ),
+        ];
+        break;
+    }
 
     return AnimatedSlide(
       offset: isVisible ? Offset.zero : const Offset(0, 1.5),
@@ -39,95 +122,150 @@ class KeryxBottomNav extends ConsumerWidget {
             Flexible(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
-            child: Container(
-              margin: EdgeInsets.only(
-                bottom: 24 + MediaQuery.of(context).padding.bottom, 
-                left: 16, 
-                right: 16
-              ),
-              height: 72,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: const Color(0xFF4D4635).withValues(alpha: 0.15),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFE9C349).withValues(alpha: 0.06),
-                  blurRadius: 40,
-                  offset: const Offset(0, 20),
+                child: Container(
+                  margin: EdgeInsets.only(
+                    bottom: 24 + MediaQuery.of(context).padding.bottom, 
+                    left: 16, 
+                    right: 16
+                  ),
+                  height: 72,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(34),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: navBgColor,
+                          borderRadius: BorderRadius.circular(34),
+                          border: Border.all(
+                            color: borderColor,
+                            width: 1.5,
+                          ),
+                          boxShadow: shadows,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            if (!isHome && onBack != null)
+                              _buildItem(
+                                context,
+                                Icons.arrow_back_ios_new_rounded,
+                                'Voltar',
+                                activeColor: activeColor,
+                                inactiveColor: inactiveColor,
+                                onTap: onBack,
+                              ),
+                            if (!isHome)
+                              _buildItem(
+                                context,
+                                Icons.home_filled,
+                                'Início',
+                                activeColor: activeColor,
+                                inactiveColor: inactiveColor,
+                                isActive: currentIndex == 0,
+                                onTap: () => onTap(0),
+                              ),
+                            _buildItem(
+                              context,
+                              Icons.auto_stories_rounded,
+                              'Bíblia',
+                              activeColor: activeColor,
+                              inactiveColor: inactiveColor,
+                              isActive: currentIndex == 1,
+                              onTap: () => onTap(1),
+                            ),
+                            _buildItem(
+                              context,
+                              Icons.edit_note_rounded,
+                              'Anotações',
+                              activeColor: activeColor,
+                              inactiveColor: inactiveColor,
+                              isActive: currentIndex == 3,
+                              onTap: () => onTap(3),
+                            ),
+                            _buildItem(
+                              context,
+                              Icons.favorite_rounded,
+                              'Favoritos',
+                              activeColor: activeColor,
+                              inactiveColor: inactiveColor,
+                              isActive: currentIndex == 4,
+                              onTap: () => onTap(4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ],
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                if (!isHome && onBack != null)
-                  _buildItem(context, Icons.arrow_back_ios_new_rounded, 'Voltar', onTap: onBack),
-                
-                if (!isHome)
-                  _buildItem(context, Icons.home_filled, 'Início', isActive: currentIndex == 0, onTap: () => onTap(0)),
-                
-                _buildItem(context, Icons.auto_stories_rounded, 'Bíblia', isActive: currentIndex == 1, onTap: () => onTap(1)),
-                _buildItem(context, Icons.edit_note_rounded, 'Anotações', isActive: currentIndex == 3, onTap: () => onTap(3)),
-                _buildItem(context, Icons.favorite_rounded, 'Favoritos', isActive: currentIndex == 4, onTap: () => onTap(4)),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
-              ), // closes Container
-            ), // closes ConstrainedBox
-            ), // closes Flexible
-          ], // closes children of Row
-        ), // closes Row
-      ), // closes SafeArea
-    ); // closes AnimatedSlide
+    );
   }
 
-  Widget _buildItem(BuildContext context, IconData icon, String label, {bool isActive = false, VoidCallback? onTap}) {
+  Widget _buildItem(
+    BuildContext context,
+    IconData icon,
+    String label, {
+    required Color activeColor,
+    required Color inactiveColor,
+    bool isActive = false,
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedScale(
-        scale: isActive ? 1.25 : 1.0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutBack,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                size: 20,
-                shadows: isActive ? [
-                  Shadow(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4), 
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  )
-                ] : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isActive ? 16 : 10,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: isActive
+              ? activeColor.withValues(alpha: 0.16)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+          border: isActive
+              ? Border.all(
+                  color: activeColor.withValues(alpha: 0.35),
+                  width: 1.2,
+                )
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isActive ? activeColor : inactiveColor,
+              size: isActive ? 21 : 20,
+              shadows: isActive
+                  ? [
+                      Shadow(
+                        color: activeColor.withValues(alpha: 0.40),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                letterSpacing: 0.2,
+                color: isActive ? activeColor : inactiveColor,
               ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 9,
-                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
-                  color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

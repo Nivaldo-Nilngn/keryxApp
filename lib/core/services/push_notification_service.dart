@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/state/font_state.dart';
+import 'package:keryx_app/core/state/navigation_state.dart';
 
 final pushNotificationServiceProvider = Provider(PushNotificationService.new);
 
@@ -84,12 +85,18 @@ class PushNotificationService {
       await _saveTokenToDatabase(newToken, uid);
     }));
 
-    // 7. Notificações FCM em primeiro plano
+    // 7. Inscreve no tópico global de atualizações do app
+    await subscribeToTopic('keryx_updates');
+
+    // 8. Notificações FCM em primeiro plano
     _subscriptions.add(FirebaseMessaging.onMessage.listen(_onForegroundMessage));
 
-    // 8. Trata clique na notificação em segundo plano
+    // 9. Trata clique na notificação em segundo plano
     _subscriptions.add(FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('📱 App aberto via notificação: ${message.data}');
+      if (message.data['type'] == 'app_update') {
+        _ref.read(navigationProvider.notifier).setIndex(0);
+      }
     }));
   }
 
@@ -147,9 +154,37 @@ class PushNotificationService {
       if (id != null) {
         checkAndMarkAsNotified(id.toString());
       }
+      if (data['type'] == 'app_update') {
+        _ref.read(navigationProvider.notifier).setIndex(0);
+      }
     } catch (e) {
       debugPrint('❌ Erro ao processar payload do clique: $e');
     }
+  }
+
+  /// Dispara uma notificação nativa no sistema (Android, iOS) alertando sobre a nova versão
+  Future<void> notifyAppUpdateIfAvailable({
+    required int latestVersion,
+    required String versionName,
+    required String releaseNotes,
+    required String downloadUrl,
+  }) async {
+    final notifId = 'app_update_build_$latestVersion';
+    if (checkAndMarkAsNotified(notifId)) return;
+
+    await showLocalNotification(
+      id: notifId,
+      title: 'Nova Atualização: v$versionName',
+      body: releaseNotes.isNotEmpty
+          ? releaseNotes
+          : 'Uma nova versão do KeryxApp está disponível. Toque para atualizar.',
+      payload: {
+        'type': 'app_update',
+        'url': downloadUrl,
+        'version': versionName,
+        'build': latestVersion,
+      },
+    );
   }
 
   /// Verifica e marca um ID como já notificado para prevenir duplicações.

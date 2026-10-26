@@ -1,10 +1,10 @@
 {
-  "latest_version": 7,
-  "version_name": "1.0.5",
+  "latest_version": 8,
+  "version_name": "1.0.6",
   "release_date": "2026-10-25",
   "download_url": "https://keryx-version.nivaldo-nilngn.workers.dev/download",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Ajuste na tela de notificações para modo tablet, limpeza definitiva de alertas e devocional, notificações em tempo real para criadores da comunidade e Ribbon nativa em tablets.",
+  "release_notes": "Barra de navegação com bordas destacadas e harmonia para o tema Sepia, alertas nativos de atualização no sistema e melhorias de responsividade.",
   "force_update": false,
   "min_version": 1
 }
