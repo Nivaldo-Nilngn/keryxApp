@@ -889,8 +889,58 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
               ),
             ),
           ),
+          const SizedBox(height: 14),
 
-          const SizedBox(height: 24),
+          // Opção de Criar/Definir Senha para quem logou com Google
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E30) : const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: theme.colorScheme.onSurface.withValues(alpha: 0.08)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.password_rounded, color: AppTheme.kPrimaryGold, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Senha para Login sem Google',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        'Cadastre uma senha para logar em outros aparelhos',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10.5,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: _showSetPasswordDialog,
+                  child: Text(
+                    'Definir Senha',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.kPrimaryGold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
 
           Row(
             children: [
@@ -1105,6 +1155,138 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
           fontWeight: FontWeight.bold,
           color: AppTheme.kPrimaryGold,
         ),
+      ),
+    );
+  }
+
+  void _showSetPasswordDialog() {
+    final passController = TextEditingController();
+    final confirmController = TextEditingController();
+    bool isSaving = false;
+    bool obscure = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.lock_rounded, color: AppTheme.kPrimaryGold, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  'Criar Senha de Acesso',
+                  style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Com esta senha, você poderá entrar na Bíblia digitando seu e-mail e senha em qualquer celular, tablet ou computador, mesmo se o aparelho não tiver sua conta Google conectada!',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12.5,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passController,
+                  obscureText: obscure,
+                  decoration: InputDecoration(
+                    labelText: 'Nova Senha',
+                    hintText: 'Mínimo 6 caracteres',
+                    prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded, size: 18),
+                      onPressed: () => setDialogState(() => obscure = !obscure),
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmController,
+                  obscureText: obscure,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar Nova Senha',
+                    prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Cancelar', style: GoogleFonts.outfit(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final p1 = passController.text.trim();
+                        final p2 = confirmController.text.trim();
+                        if (p1.length < 6) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('A senha deve ter no mínimo 6 caracteres.')),
+                          );
+                          return;
+                        }
+                        if (p1 != p2) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('As senhas não conferem.')),
+                          );
+                          return;
+                        }
+
+                        setDialogState(() => isSaving = true);
+                        try {
+                          await ref.read(authServiceProvider).setPasswordForCurrentUser(p1);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Senha cadastrada com sucesso! Agora você pode entrar com seu e-mail e senha em qualquer aparelho.'),
+                                backgroundColor: Color(0xFF10B981),
+                                behavior: SnackBarBehavior.floating,
+                                duration: Duration(seconds: 5),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setDialogState(() => isSaving = false);
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Erro ao salvar senha: $e'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.kPrimaryGold,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                      )
+                    : Text('Salvar Senha', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

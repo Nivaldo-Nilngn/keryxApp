@@ -223,6 +223,57 @@ class AuthService {
     }
   }
 
+  /// Envia e-mail de redefinição de senha (ou criação de senha para quem entrou com Google)
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } catch (e) {
+      print('Erro ao enviar e-mail de redefinição: $e');
+      rethrow;
+    }
+  }
+
+  /// Verifica se o usuário atual só tem login com Google (sem senha de e-mail cadastrada)
+  bool get isGoogleOnlyAccount {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    final hasGoogle = user.providerData.any((p) => p.providerId == 'google.com');
+    final hasPassword = user.providerData.any((p) => p.providerId == 'password');
+    return hasGoogle && !hasPassword;
+  }
+
+  /// Define ou altera a senha de e-mail para a conta logada atualmente
+  Future<void> setPasswordForCurrentUser(String newPassword) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) {
+      throw Exception('Nenhum usuário logado com e-mail válido.');
+    }
+
+    final trimmed = newPassword.trim();
+    if (trimmed.length < 6) {
+      throw Exception('A senha deve ter pelo menos 6 caracteres.');
+    }
+
+    try {
+      final hasPassword = user.providerData.any((p) => p.providerId == 'password');
+      if (hasPassword) {
+        // Já tem provedor de senha, apenas atualiza
+        await user.updatePassword(trimmed);
+      } else {
+        // Usuário do Google sem senha: vincula credencial de e-mail/senha à mesma conta
+        final credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: trimmed,
+        );
+        await user.linkWithCredential(credential);
+      }
+      await user.reload();
+    } catch (e) {
+      print('Erro ao definir senha: $e');
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       // No Web, o signOut do google_sign_in pode travar devido a políticas de CORS/COOP.

@@ -8,9 +8,7 @@ import 'package:keryx_app/core/widgets/glass_card.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/features/auth/view/signup_screen.dart';
 
-// Mesma paleta da splash screen (Keryx), para as duas telas conversarem entre si.
-const Color _bgDeep = Color(0xFF0F0F1E);
-const Color _bgGlow = Color(0xFF1B1B3A);
+
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -362,6 +360,116 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  void _showForgotPasswordDialog() {
+    final resetEmailController = TextEditingController(text: _emailController.text.trim());
+    bool isSending = false;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.lock_reset_rounded, color: AppTheme.kPrimaryGold, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Criar ou Redefinir Senha',
+                    style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Se você criou sua conta usando o Google ou esqueceu sua senha, informe seu e-mail abaixo.\n\nEnviaremos um link oficial para você cadastrar uma senha de acesso e poder entrar em qualquer aparelho!',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: resetEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: GoogleFonts.outfit(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Seu E-mail',
+                    hintText: 'exemplo@gmail.com',
+                    prefixIcon: const Icon(Icons.mail_outline_rounded, size: 20),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Cancelar', style: GoogleFonts.outfit(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: isSending
+                    ? null
+                    : () async {
+                        final email = resetEmailController.text.trim();
+                        if (email.isEmpty || !email.contains('@')) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Informe um e-mail válido.')),
+                          );
+                          return;
+                        }
+                        setDialogState(() => isSending = true);
+                        try {
+                          await ref.read(authServiceProvider).sendPasswordResetEmail(email);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Link enviado para $email! Verifique sua caixa de entrada e spam para definir sua senha.'),
+                                backgroundColor: const Color(0xFF10B981),
+                                behavior: SnackBarBehavior.floating,
+                                duration: const Duration(seconds: 6),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setDialogState(() => isSending = false);
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Erro ao enviar link: $e'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.kPrimaryGold,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: isSending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                      )
+                    : Text('Enviar Link', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -373,16 +481,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } catch (e) {
       if (mounted) {
         String message = 'Erro ao entrar. Verifique seus dados.';
-        if (e.toString().contains('invalid-credential')) {
-          message = 'E-mail ou senha incorretos.';
+        if (e.toString().contains('invalid-credential') || e.toString().contains('wrong-password')) {
+          message = 'E-mail ou senha incorretos.\nSe você cadastrou sua conta pelo Google, toque em "ESQUECI A SENHA" para criar uma senha para ela.';
         } else if (e.toString().contains('user-not-found')) {
-          message = 'E-mail não cadastrado.';
+          message = 'E-mail não cadastrado. Crie uma conta ou entre com Google.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            backgroundColor: Colors.redAccent.withValues(alpha: 0.9),
+            backgroundColor: const Color(0xFF1E1E2C),
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: 'Criar Senha',
+              textColor: AppTheme.kPrimaryGold,
+              onPressed: _showForgotPasswordDialog,
+            ),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
@@ -494,13 +608,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             if (isPassword)
               GestureDetector(
-                onTap: () {},
+                onTap: _showForgotPasswordDialog,
                 child: Text(
                   'ESQUECI A SENHA',
                   style: GoogleFonts.outfit(
-                    fontSize: 9,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                    color: AppTheme.kPrimaryGold,
                   ),
                 ),
               ),
