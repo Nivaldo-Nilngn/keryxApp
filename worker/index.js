@@ -671,6 +671,284 @@ export default {
       }
     }
 
+    // ---- Comunidade Keryx (D1 Feed Estilo Instagram) ----------------
+    if (url.pathname.startsWith("/community/")) {
+      const db = env.DB_BIBLIA || env.DB;
+      const subpath = url.pathname.replace("/community", "");
+
+      // 1. Stories do topo (Versículo do Dia + Membros)
+      if (request.method === "GET" && subpath === "/stories") {
+        try {
+          const res = await db.prepare(
+            "SELECT * FROM community_stories WHERE expires_at IS NULL OR expires_at > datetime('now') ORDER BY created_at DESC LIMIT 20"
+          ).all();
+          let stories = res.results || [];
+          if (stories.length === 0) {
+            stories = [
+              {
+                id: "story_v_today",
+                author_name: "Keryx Oficial",
+                author_avatar: "",
+                title: "Versículo do Dia",
+                bible_reference: "Salmos 23:1",
+                verse_text: "O SENHOR é o meu pastor, nada me faltará.",
+                background_style: "gold_gradient",
+                created_at: new Date().toISOString(),
+              },
+              {
+                id: "story_prayer",
+                author_name: "Comunhão Keryx",
+                author_avatar: "",
+                title: "Momento de Oração",
+                bible_reference: "Filipenses 4:6",
+                verse_text: "Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus pela oração e súplica.",
+                background_style: "indigo_gradient",
+                created_at: new Date().toISOString(),
+              },
+              {
+                id: "story_grace",
+                author_name: "Devocional Diário",
+                author_avatar: "",
+                title: "Graça & Paz",
+                bible_reference: "Efésios 2:8",
+                verse_text: "Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus.",
+                background_style: "emerald_gradient",
+                created_at: new Date().toISOString(),
+              }
+            ];
+          }
+          return jsonResp({ stories });
+        } catch (e) {
+          return jsonResp({
+            stories: [
+              {
+                id: "story_v_today",
+                author_name: "Keryx Oficial",
+                author_avatar: "",
+                title: "Versículo do Dia",
+                bible_reference: "Salmos 23:1",
+                verse_text: "O SENHOR é o meu pastor, nada me faltará.",
+                background_style: "gold_gradient",
+                created_at: new Date().toISOString(),
+              }
+            ]
+          });
+        }
+      }
+
+      // 2. Feed de Posts
+      if (request.method === "GET" && subpath === "/feed") {
+        try {
+          const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") || "20", 10)));
+          const offset = Math.max(0, parseInt(url.searchParams.get("offset") || "0", 10));
+          const userId = url.searchParams.get("userId") || "";
+
+          const postsRes = await db.prepare(
+            "SELECT * FROM community_posts ORDER BY created_at DESC LIMIT ? OFFSET ?"
+          ).bind(limit, offset).all();
+
+          const posts = postsRes.results || [];
+
+          if (userId && posts.length > 0) {
+            const postIds = posts.map((p) => `'${p.id}'`).join(",");
+            const reactionsRes = await db.prepare(
+              `SELECT post_id, reaction_type FROM community_reactions WHERE user_id = ? AND post_id IN (${postIds})`
+            ).bind(userId).all();
+
+            const reactionMap = {};
+            for (const r of reactionsRes.results || []) {
+              if (!reactionMap[r.post_id]) reactionMap[r.post_id] = {};
+              reactionMap[r.post_id][r.reaction_type] = true;
+            }
+
+            for (const p of posts) {
+              p.user_prayed = !!reactionMap[p.id]?.pray;
+              p.user_amen = !!reactionMap[p.id]?.amen;
+            }
+          }
+
+          return jsonResp({ posts, has_more: posts.length === limit });
+        } catch (e) {
+          return jsonResp({
+            posts: [
+              {
+                id: "welcome_post_1",
+                user_id: "keryx_system",
+                user_name: "Comunidade Keryx",
+                user_avatar: "",
+                user_badge: "Oficial",
+                media_type: "verse_card",
+                caption: "Bem-vindo à nova Comunidade Keryx! Um espaço para compartilharmos meditações bíblicas, versículos edificantes e orações uns pelos outros. Toque no botão (+) acima para compartilhar sua meditação com os irmãos!",
+                bible_reference: "Colossenses 3:16",
+                bible_version: "ACF",
+                bible_text: "A palavra de Cristo habite em vós abundantemente, em toda a sabedoria, ensinando-vos e admoestando-vos uns aos outros, com salmos, hinos e cânticos espirituais.",
+                card_theme: "gold",
+                praying_count: 7,
+                amen_count: 14,
+                comments_count: 2,
+                created_at: new Date().toISOString(),
+                user_prayed: false,
+                user_amen: false,
+              }
+            ],
+            has_more: false,
+            db_note: e.message
+          });
+        }
+      }
+
+      // 3. Criar Post
+      if (request.method === "POST" && subpath === "/posts") {
+        try {
+          const body = await request.json();
+          const id = body.id || `post_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          const userId = body.user_id || "anon";
+          const userName = body.user_name || "Membro Keryx";
+          const userAvatar = body.user_avatar || "";
+          const userBadge = body.user_badge || "Membro";
+          const mediaUrl = body.media_url || "";
+          const mediaType = body.media_type || "verse_card";
+          const caption = body.caption || "";
+          const bibleRef = body.bible_reference || "";
+          const bibleVer = body.bible_version || "ACF";
+          const bibleText = body.bible_text || "";
+          const cardTheme = body.card_theme || "gold";
+
+          await db.prepare(`
+            INSERT INTO community_posts (
+              id, user_id, user_name, user_avatar, user_badge,
+              media_url, media_type, caption, bible_reference,
+              bible_version, bible_text, card_theme, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+          `).bind(
+            id, userId, userName, userAvatar, userBadge,
+            mediaUrl, mediaType, caption, bibleRef,
+            bibleVer, bibleText, cardTheme
+          ).run();
+
+          return jsonResp({ success: true, id, message: "Post publicado com sucesso!" });
+        } catch (e) {
+          return jsonResp({ error: "Erro ao criar post: " + e.message }, 500);
+        }
+      }
+
+      // 4. Toggle de Reação (🙏 Orar / ❤️ Amém)
+      if (request.method === "POST" && subpath === "/react") {
+        try {
+          const body = await request.json();
+          const { post_id, user_id, reaction_type } = body;
+          if (!post_id || !user_id || !["pray", "amen"].includes(reaction_type)) {
+            return jsonResp({ error: "Parâmetros inválidos" }, 400);
+          }
+
+          const check = await db.prepare(
+            "SELECT 1 FROM community_reactions WHERE post_id = ? AND user_id = ? AND reaction_type = ?"
+          ).bind(post_id, user_id, reaction_type).first();
+
+          const countCol = reaction_type === "pray" ? "praying_count" : "amen_count";
+          let active = false;
+
+          if (check) {
+            await db.prepare(
+              "DELETE FROM community_reactions WHERE post_id = ? AND user_id = ? AND reaction_type = ?"
+            ).bind(post_id, user_id, reaction_type).run();
+            await db.prepare(
+              `UPDATE community_posts SET ${countCol} = MAX(0, ${countCol} - 1) WHERE id = ?`
+            ).bind(post_id).run();
+            active = false;
+          } else {
+            await db.prepare(
+              "INSERT INTO community_reactions (post_id, user_id, reaction_type, created_at) VALUES (?, ?, ?, datetime('now'))"
+            ).bind(post_id, user_id, reaction_type).run();
+            await db.prepare(
+              `UPDATE community_posts SET ${countCol} = ${countCol} + 1 WHERE id = ?`
+            ).bind(post_id).run();
+            active = true;
+          }
+
+          const updated = await db.prepare(
+            `SELECT praying_count, amen_count FROM community_posts WHERE id = ?`
+          ).bind(post_id).first();
+
+          return jsonResp({
+            success: true,
+            active,
+            reaction_type,
+            praying_count: updated?.praying_count ?? 0,
+            amen_count: updated?.amen_count ?? 0
+          });
+        } catch (e) {
+          return jsonResp({ error: e.message }, 500);
+        }
+      }
+
+      // 5. Comentários (Listar & Criar)
+      if (request.method === "GET" && subpath === "/comments") {
+        try {
+          const postId = url.searchParams.get("postId");
+          if (!postId) return jsonResp({ error: "postId obrigatório" }, 400);
+
+          const res = await db.prepare(
+            "SELECT * FROM community_comments WHERE post_id = ? ORDER BY created_at ASC LIMIT 100"
+          ).bind(postId).all();
+
+          return jsonResp({ comments: res.results || [] });
+        } catch (e) {
+          return jsonResp({ comments: [] });
+        }
+      }
+
+      if (request.method === "POST" && subpath === "/comments") {
+        try {
+          const body = await request.json();
+          const { post_id, user_id, user_name, user_avatar, text } = body;
+          if (!post_id || !text?.trim()) return jsonResp({ error: "Dados incompletos" }, 400);
+
+          const id = `comm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+          await db.prepare(
+            "INSERT INTO community_comments (id, post_id, user_id, user_name, user_avatar, text, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))"
+          ).bind(id, post_id, user_id || "anon", user_name || "Membro", user_avatar || "", text.trim()).run();
+
+          await db.prepare(
+            "UPDATE community_posts SET comments_count = comments_count + 1 WHERE id = ?"
+          ).bind(post_id).run();
+
+          return jsonResp({
+            success: true,
+            comment: {
+              id,
+              post_id,
+              user_id,
+              user_name,
+              user_avatar,
+              text: text.trim(),
+              created_at: new Date().toISOString()
+            }
+          });
+        } catch (e) {
+          return jsonResp({ error: e.message }, 500);
+        }
+      }
+
+      // 6. Deletar Post
+      if (request.method === "DELETE" && subpath.startsWith("/posts/")) {
+        try {
+          const postId = subpath.replace("/posts/", "");
+          const userId = url.searchParams.get("userId");
+          if (!userId) return jsonResp({ error: "userId obrigatório" }, 400);
+
+          const post = await db.prepare("SELECT user_id FROM community_posts WHERE id = ?").bind(postId).first();
+          if (!post) return jsonResp({ error: "Post não encontrado" }, 404);
+          if (post.user_id !== userId) return jsonResp({ error: "Sem permissão" }, 403);
+
+          await db.prepare("DELETE FROM community_posts WHERE id = ?").bind(postId).run();
+          return jsonResp({ success: true, message: "Post removido" });
+        } catch (e) {
+          return jsonResp({ error: e.message }, 500);
+        }
+      }
+    }
+
     // ---- Bancos D1 --------------------------------------------------
     const dbComms = env.DB_COMMENTARIES || env.DB;
     const dbBibles = env.DB_BIBLIA || env.DB;

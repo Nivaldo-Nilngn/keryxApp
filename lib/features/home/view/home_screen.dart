@@ -8,7 +8,7 @@ import 'package:keryx_app/features/pdf/view/pdf_books_screen.dart';
 import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
 import 'package:keryx_app/features/study/view/dictionary_screen.dart';
 import 'package:keryx_app/features/ai/view/chat_assistant_screen.dart';
-import 'package:keryx_app/features/study/view/public_forum_screen.dart';
+import 'package:keryx_app/features/community/view/community_feed_screen.dart';
 import 'package:keryx_app/features/home/service/devocional_service.dart';
 import 'package:keryx_app/features/home/view/devocional_screen.dart';
 import 'package:keryx_app/features/home/view/guide_screen.dart';
@@ -652,11 +652,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             ),
             _buildToolCard(
               title: 'Comunidade',
-              subtitle: 'Fórum de estudos bíblicos',
-              icon: Icons.forum_rounded,
-              colors: const [Color(0xFFDB2777), Color(0xFFEC4899)],
+              subtitle: 'Feed de Fé, Stories e Oração',
+              icon: Icons.people_alt_rounded,
+              colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
               badge: _buildBadge(
-                'Novidade',
+                'Novo',
                 null,
                 Colors.black.withValues(alpha: 0.3),
                 Colors.white,
@@ -664,7 +664,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const PublicForumScreen()),
+                  MaterialPageRoute(builder: (_) => const CommunityFeedScreen()),
                 );
               },
             ),
