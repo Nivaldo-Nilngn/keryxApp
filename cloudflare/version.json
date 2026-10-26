@@ -2,9 +2,9 @@
   "latest_version": 10,
   "version_name": "2.0.1",
   "release_date": "2026-10-26",
-  "download_url": "https://keryx-version.nivaldo-nilngn.workers.dev/download",
+  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.1/keryxApp.apk",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.0: Redesign da IATheos com Modos Teológicos (Exegese, História, Esboços e Devocional), novas capas de livros 3D em couro nobre na Loja, modal de Notas de Atualização e melhorias visuais.",
+  "release_notes": "Versão 2.0.1: Redesign da IATheos com Modos Teológicos (Exegese, História, Esboços e Devocional), novas capas de livros 3D em couro nobre na Loja, tela completa de Notas de Atualização e melhorias visuais.",
   "force_update": false,
   "min_version": 1
 }
