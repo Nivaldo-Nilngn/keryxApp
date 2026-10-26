@@ -654,7 +654,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               title: 'Comunidade',
               subtitle: 'Feed de Fé, Stories e Oração',
               icon: Icons.people_alt_rounded,
-              colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
+              colors: const [Color(0xFF4F46E5), Color(0xFF7C3AED)],
               badge: _buildBadge(
                 'Novo',
                 null,

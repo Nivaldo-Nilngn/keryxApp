@@ -111,11 +111,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                         padding: const EdgeInsets.all(6.5),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+                            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.people_alt_rounded, color: Colors.black, size: 18),
+                        child: const Icon(Icons.people_alt_rounded, color: Colors.white, size: 18),
                       ),
                       const SizedBox(width: 10),
                       Column(
