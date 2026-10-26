@@ -21,6 +21,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   String _selectedCategory = 'all'; // 'all', 'prayer', 'verse', 'testimony'
   bool _joinedDailyPrayer = false;
   int _dailyPrayerCount = 58;
+  bool _isDailyPrayerDismissed = false;
 
   @override
   void initState() {
@@ -216,131 +217,162 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                   ),
                 ),
 
-                // 3. Card de Intercessão Coletiva do Dia (Banner Vibrante)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [const Color(0xFF1E1B4B), const Color(0xFF312E81)]
-                              : [const Color(0xFFEEF2FF), const Color(0xFFE0E7FF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                // 3. Card de Intercessão Coletiva do Dia (Ultra-Compacto para Celular)
+                if (!_isDailyPrayerDismissed)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isDark
+                                ? [const Color(0xFF1E1B4B), const Color(0xFF282566)]
+                                : [const Color(0xFFEEF2FF), const Color(0xFFE0E7FF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFF818CF8).withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: const Color(0xFF818CF8).withValues(alpha: 0.35),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(9),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF818CF8).withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF818CF8).withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.volunteer_activism_rounded,
+                                size: 15,
+                                color: Color(0xFF818CF8),
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.volunteer_activism_rounded,
-                              size: 22,
-                              color: Color(0xFF818CF8),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'INTERCESSÃO DO DIA',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.8,
+                                          color: const Color(0xFF818CF8),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Container(
+                                        width: 3,
+                                        height: 3,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        '$_dailyPrayerCount orando',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 9.5,
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    'Pela paz e restauração das famílias dos nossos irmãos.',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'INTERCESSÃO DO DIA',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.2,
-                                    color: const Color(0xFF818CF8),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Pela paz e restauração das famílias dos nossos irmãos.',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  '$_dailyPrayerCount irmãos unidos em oração hoje',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 11,
-                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _joinedDailyPrayer = !_joinedDailyPrayer;
-                                _dailyPrayerCount += _joinedDailyPrayer ? 1 : -1;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    _joinedDailyPrayer
-                                        ? 'Glória a Deus! Você se uniu à intercessão de hoje. 🙏'
-                                        : 'Oração retirada.',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _joinedDailyPrayer
+                            const SizedBox(width: 6),
+                            Material(
+                              color: _joinedDailyPrayer
                                   ? const Color(0xFF10B981)
                                   : const Color(0xFF818CF8),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              minimumSize: Size.zero,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  setState(() {
+                                    _joinedDailyPrayer = !_joinedDailyPrayer;
+                                    _dailyPrayerCount += _joinedDailyPrayer ? 1 : -1;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        _joinedDailyPrayer
+                                            ? 'Glória a Deus! Você se uniu à intercessão de hoje. 🙏'
+                                            : 'Oração retirada.',
+                                      ),
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  child: Text(
+                                    _joinedDailyPrayer ? 'Orando 🙏' : 'Orar 🙏',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                            child: Text(
-                              _joinedDailyPrayer ? 'Orando 🙏' : 'Orar 🙏',
-                              style: GoogleFonts.outfit(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.bold,
+                            const SizedBox(width: 4),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => setState(() => _isDailyPrayerDismissed = true),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 15,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
 
                 // 4. Barra de Categorias / Filtros
                 SliverToBoxAdapter(
                   child: Container(
-                    height: 42,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    height: 36,
+                    margin: const EdgeInsets.only(top: 2, bottom: 6),
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),

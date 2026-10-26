@@ -19,14 +19,14 @@ class CommunityStoriesTray extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      height: 110,
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      height: 94,
+      margin: const EdgeInsets.only(top: 2, bottom: 4),
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: stories.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           if (index == 0) {
             // Botão Adicionar Story / Meu Versículo
@@ -49,20 +49,20 @@ class CommunityStoriesTray extends StatelessWidget {
           Stack(
             children: [
               Container(
-                width: 66,
-                height: 66,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isDark ? const Color(0xFF222234) : const Color(0xFFF1F3F5),
                   border: Border.all(
                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
-                    width: 2,
+                    width: 1.8,
                   ),
                 ),
                 child: Center(
                   child: Icon(
                     Icons.auto_stories_rounded,
-                    size: 28,
+                    size: 23,
                     color: AppTheme.kPrimaryGold.withValues(alpha: 0.8),
                   ),
                 ),
@@ -71,34 +71,34 @@ class CommunityStoriesTray extends StatelessWidget {
                 bottom: 0,
                 right: 0,
                 child: Container(
-                  width: 22,
-                  height: 22,
+                  width: 19,
+                  height: 19,
                   decoration: const BoxDecoration(
                     color: AppTheme.kPrimaryGold,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black26,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.add, size: 15, color: Colors.black),
+                  child: const Icon(Icons.add, size: 13, color: Colors.black),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           SizedBox(
-            width: 72,
+            width: 64,
             child: Text(
               'Seu Versículo',
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.outfit(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
               ),
@@ -130,7 +130,7 @@ class CommunityStoriesTray extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(2.8),
+            padding: const EdgeInsets.all(2.4),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: isOfficial
@@ -146,13 +146,13 @@ class CommunityStoriesTray extends StatelessWidget {
                     ),
             ),
             child: Container(
-              padding: const EdgeInsets.all(2.2),
+              padding: const EdgeInsets.all(1.8),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isDark ? const Color(0xFF14141E) : Colors.white,
               ),
               child: CircleAvatar(
-                radius: 29,
+                radius: 25,
                 backgroundColor: isDark ? const Color(0xFF262638) : const Color(0xFFE2E8F0),
                 backgroundImage: story.authorAvatar != null && story.authorAvatar!.isNotEmpty
                     ? NetworkImage(story.authorAvatar!)
