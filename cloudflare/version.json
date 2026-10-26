@@ -1,10 +1,10 @@
 {
   "latest_version": 9,
   "version_name": "2.0.0",
-  "release_date": "2026-10-25",
+  "release_date": "2026-10-26",
   "download_url": "https://keryx-version.nivaldo-nilngn.workers.dev/download",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.0: Limpeza profunda de resíduos no Firestore (book_progress, stats, cloudLibrary, cloudPdfs), barra de navegação destacada com suporte Sepia e alertas nativos de atualização.",
+  "release_notes": "Versão 2.0.0: Redesign da IATheos com Modos Teológicos (Exegese, História, Esboços e Devocional), novas capas de livros 3D em couro nobre na Loja, modal de Notas de Atualização e melhorias visuais.",
   "force_update": false,
   "min_version": 1
 }
