@@ -29,7 +29,7 @@ import 'package:keryx_app/features/study/view/dictionary_screen.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/study/view/study_hub_panel.dart';
-import 'package:keryx_app/features/study/view/cross_references_view.dart';
+import 'package:keryx_app/features/study/view/cross_references_screen.dart';
 import 'package:keryx_app/features/study/view/annotations_screen.dart'
     as keryx_annotations;
 import 'package:keryx_app/features/study/view/favorites_screen.dart'
@@ -632,13 +632,17 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
   Widget _buildComparisonVerseText(String text, BuildContext context) {
     final clean = text.trim();
+    final fontSettings = ref.watch(fontSettingsProvider);
+    final userFontSize = fontSettings.fontSize;
+    final numFontSize = (userFontSize * 0.88).clamp(13.0, 22.0);
+
     if (!clean.contains('\n\n')) {
       return Text(
         BibleTextParser.cleanToPlainText(clean),
         style: GoogleFonts.outfit(
-          fontSize: 15,
+          fontSize: userFontSize,
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
-          height: 1.5,
+          height: 1.6,
           fontWeight: FontWeight.w400,
         ),
       );
@@ -655,7 +659,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
         spans.add(TextSpan(
           text: '$num ',
           style: GoogleFonts.outfit(
-            fontSize: 14,
+            fontSize: numFontSize,
             fontWeight: FontWeight.w800,
             color: AppTheme.kPrimaryGold,
           ),
@@ -663,9 +667,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
         spans.add(TextSpan(
           text: content,
           style: GoogleFonts.outfit(
-            fontSize: 15,
+            fontSize: userFontSize,
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
-            height: 1.5,
+            height: 1.6,
             fontWeight: FontWeight.w400,
           ),
         ));
@@ -673,9 +677,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
         spans.add(TextSpan(
           text: BibleTextParser.cleanToPlainText(p),
           style: GoogleFonts.outfit(
-            fontSize: 15,
+            fontSize: userFontSize,
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
-            height: 1.5,
+            height: 1.6,
             fontWeight: FontWeight.w400,
           ),
         ));
@@ -733,9 +737,20 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 40,
-                  ), // Balanceia o botão X para centralizar perfeitamente
+                    child: IconButton(
+                      onPressed: () => showTextSettingsBottomSheet(context),
+                      tooltip: 'Configurações de Leitura & Fonte',
+                      icon: Icon(
+                        Icons.tune_rounded,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                    ),
+                  ),
                   Expanded(
                     child: Column(
                       children: [
@@ -1344,119 +1359,14 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
   void _showCrossReferencesSheet(BibleVerse verse) {
     final bookIdInt = BibleMetadata.findBookId(_currentBook.abbrev);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      constraints: const BoxConstraints(maxWidth: double.infinity),
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.86,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-            ),
-          ),
-          child: Column(
-            children: [
-              // Handle de arraste
-              Container(
-                width: 42,
-                height: 4,
-                margin: const EdgeInsets.only(top: 14, bottom: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
-              // Cabeçalho dedicado de Referências Cruzadas
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.alt_route_rounded,
-                        color: AppTheme.kPrimaryGold,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'REFERÊNCIAS CRUZADAS',
-                            style: GoogleFonts.outfit(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2.2,
-                              color: isDark ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${_currentBook.name} $_currentChapter:${verse.number}',
-                            style: GoogleFonts.outfit(
-                              fontSize: 19,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      tooltip: 'Fechar',
-                      icon: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              Divider(
-                height: 16,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-              ),
-
-              // Conteúdo: CrossReferencesView
-              Expanded(
-                child: CrossReferencesView(
-                  bookId: bookIdInt,
-                  bookName: _currentBook.name,
-                  chapter: _currentChapter,
-                  verse: verse.number,
-                  onNavigateToVerse: (targetBookId, targetChapter, targetVerse) {
-                    Navigator.pop(context);
-                    _navigateToVerse(targetBookId, targetChapter, targetVerse);
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
+    showCrossReferencesScreen(
+      context,
+      bookId: bookIdInt,
+      bookName: _currentBook.name,
+      chapter: _currentChapter,
+      verse: verse.number,
+      onNavigateToVerse: (targetBookId, targetChapter, targetVerse) {
+        _navigateToVerse(targetBookId, targetChapter, targetVerse);
       },
     );
   }

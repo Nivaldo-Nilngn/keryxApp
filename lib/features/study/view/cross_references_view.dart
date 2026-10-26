@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/services/cross_reference_service.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
+import 'package:keryx_app/core/state/font_state.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 
 class CrossReferencesView extends ConsumerStatefulWidget {
@@ -36,6 +37,8 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentVersion = ref.watch(selectedVersionProvider);
+    final fontSettings = ref.watch(fontSettingsProvider);
+    final userFontSize = fontSettings.fontSize;
 
     return Column(
       children: [
@@ -79,8 +82,8 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
         // ─── Conteúdo da Aba ─────────────────────────────────────────────────
         Expanded(
           child: _selectedSubTab == 0
-              ? _buildCrossReferencesList(currentVersion, isDark)
-              : _buildThompsonChainsList(isDark),
+              ? _buildCrossReferencesList(currentVersion, isDark, userFontSize)
+              : _buildThompsonChainsList(isDark, userFontSize),
         ),
       ],
     );
@@ -151,7 +154,7 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
     );
   }
 
-  Widget _buildCrossReferencesList(String version, bool isDark) {
+  Widget _buildCrossReferencesList(String version, bool isDark, [double userFontSize = 16.0]) {
     final asyncRefs = ref.watch(
       crossReferencesForVerseProvider((
         bookId: widget.bookId,
@@ -230,14 +233,16 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final item = refs[index];
-            return _buildCrossReferenceCard(item, version, isDark);
+            return _buildCrossReferenceCard(item, version, isDark, userFontSize);
           },
         );
       },
     );
   }
 
-  Widget _buildCrossReferenceCard(CrossReferenceVerse item, String version, bool isDark) {
+  Widget _buildCrossReferenceCard(CrossReferenceVerse item, String version, bool isDark, [double userFontSize = 16.0]) {
+    final badgeFontSize = (userFontSize * 0.85).clamp(13.0, 20.0);
+
     return Container(
       decoration: BoxDecoration(
         color: isDark
@@ -273,14 +278,14 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
                   children: [
                     Icon(
                       Icons.menu_book_rounded,
-                      size: 13,
+                      size: badgeFontSize,
                       color: isDark ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 5),
                     Text(
                       item.displayReference,
                       style: GoogleFonts.outfit(
-                        fontSize: 13,
+                        fontSize: badgeFontSize,
                         fontWeight: FontWeight.bold,
                         color: isDark ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.primary,
                       ),
@@ -344,13 +349,14 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
             item: item,
             version: version,
             isDark: isDark,
+            fontSize: userFontSize,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildThompsonChainsList(bool isDark) {
+  Widget _buildThompsonChainsList(bool isDark, [double userFontSize = 16.0]) {
     final asyncChains = ref.watch(
       thompsonChainsForVerseProvider((
         bookId: widget.bookId,
@@ -423,6 +429,9 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
           );
         }
 
+        final titleFontSize = (userFontSize * 0.95).clamp(15.0, 24.0);
+        final bodyFontSize = (userFontSize * 0.85).clamp(13.0, 20.0);
+
         return ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           itemCount: chains.length,
@@ -465,7 +474,7 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
                         child: Text(
                           chain.topicTitle,
                           style: GoogleFonts.outfit(
-                            fontSize: 15,
+                            fontSize: titleFontSize,
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
@@ -494,7 +503,7 @@ class _CrossReferencesViewState extends ConsumerState<CrossReferencesView> {
                     Text(
                       chain.chainSummary,
                       style: GoogleFonts.outfit(
-                        fontSize: 13,
+                        fontSize: bodyFontSize,
                         height: 1.5,
                         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                       ),
@@ -514,12 +523,14 @@ class _LazyVerseTextWidget extends ConsumerStatefulWidget {
   final CrossReferenceVerse item;
   final String version;
   final bool isDark;
+  final double? fontSize;
 
   const _LazyVerseTextWidget({
     super.key,
     required this.item,
     required this.version,
     required this.isDark,
+    this.fontSize,
   });
 
   @override
@@ -591,7 +602,7 @@ class _LazyVerseTextWidgetState extends ConsumerState<_LazyVerseTextWidget> {
           return Text(
             text,
             style: GoogleFonts.merriweather(
-              fontSize: 14,
+              fontSize: widget.fontSize ?? 16.0,
               height: 1.6,
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
             ),

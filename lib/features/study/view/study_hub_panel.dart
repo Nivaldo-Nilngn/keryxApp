@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import 'package:keryx_app/features/study/model/note_card.dart';
 import 'package:keryx_app/features/study/view_model/note_cards_provider.dart';
 import 'package:keryx_app/features/study/view/annotations_screen.dart';
+import 'package:keryx_app/features/bible/reading/view/text_settings_bottom_sheet.dart';
 
 // ─── Providers de Estado do Hub de Estudos ────────────────────────────────────
 // 0: Comentários Bíblicos (Módulos MyBible)
@@ -253,6 +254,23 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
                     ],
                   ),
                 ),
+                IconButton(
+                  onPressed: () => showTextSettingsBottomSheet(context),
+                  tooltip: 'Ajuste de Leitura & Fonte',
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   tooltip: 'Fechar',
