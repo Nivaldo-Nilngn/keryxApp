@@ -215,57 +215,73 @@ class KeryxBottomNav extends ConsumerWidget {
     bool isActive = false,
     VoidCallback? onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isActive ? 16 : 10,
-          vertical: 6,
-        ),
-        decoration: BoxDecoration(
-          color: isActive
-              ? activeColor.withValues(alpha: 0.16)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-          border: isActive
-              ? Border.all(
-                  color: activeColor.withValues(alpha: 0.35),
-                  width: 1.2,
-                )
-              : null,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isActive ? activeColor : inactiveColor,
-              size: isActive ? 21 : 20,
-              shadows: isActive
-                  ? [
-                      Shadow(
-                        color: activeColor.withValues(alpha: 0.40),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
+    return Semantics(
+      label: label,
+      selected: isActive,
+      button: true,
+      child: FocusableActionDetector(
+        mouseCursor: SystemMouseCursors.click,
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              if (onTap != null) onTap();
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.symmetric(
+              horizontal: isActive ? 16 : 10,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? activeColor.withValues(alpha: 0.16)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(22),
+              border: isActive
+                  ? Border.all(
+                      color: activeColor.withValues(alpha: 0.35),
+                      width: 1.2,
+                    )
                   : null,
             ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                letterSpacing: 0.2,
-                color: isActive ? activeColor : inactiveColor,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  color: isActive ? activeColor : inactiveColor,
+                  size: isActive ? 21 : 20,
+                  shadows: isActive
+                      ? [
+                          Shadow(
+                            color: activeColor.withValues(alpha: 0.40),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                    letterSpacing: 0.2,
+                    color: isActive ? activeColor : inactiveColor,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -159,7 +159,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           color: AppTheme.kBackgroundDark,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Image.asset('assets/img/logoHome.png', fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.auto_stories_rounded, color: AppTheme.kPrimaryGold)),
+        child: Image.asset(
+          'assets/img/logoHome.png',
+          semanticLabel: 'Logotipo Keryx',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const Icon(Icons.auto_stories_rounded, color: AppTheme.kPrimaryGold),
+        ),
       ),
     );
   }

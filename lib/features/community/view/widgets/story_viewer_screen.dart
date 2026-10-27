@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
@@ -260,74 +261,92 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
         break;
     }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onVerticalDragEnd: (details) {
-          if ((details.primaryVelocity ?? 0) > 300) {
-            Navigator.pop(context);
-          }
-        },
-        child: Stack(
-          children: [
-            // 1. Imagem de Fundo (se houver)
-            if (story.mediaUrl != null && story.mediaUrl!.isNotEmpty)
-              Positioned.fill(
-                child: Image.network(
-                  story.mediaUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): _advanceToPrevious,
+        const SingleActivator(LogicalKeyboardKey.arrowRight): _advanceToNext,
+        const SingleActivator(LogicalKeyboardKey.space): _togglePlayPause,
+        const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.pop(context),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: GestureDetector(
+            onVerticalDragEnd: (details) {
+              if ((details.primaryVelocity ?? 0) > 300) {
+                Navigator.pop(context);
+              }
+            },
+            child: Stack(
+              children: [
+                // 1. Imagem de Fundo (se houver)
+                if (story.mediaUrl != null && story.mediaUrl!.isNotEmpty)
+                  Positioned.fill(
+                    child: Image.network(
+                      story.mediaUrl!,
+                      semanticLabel: 'Imagem de fundo do story de ${story.authorName}',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+
+                // 2. Camada de Gradiente Atmosférico Escuro (garante legibilidade máxima)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(gradient: gradientOverlay),
+                  ),
                 ),
-              ),
 
-            // 2. Camada de Gradiente Atmosférico Escuro (garante legibilidade máxima)
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(gradient: gradientOverlay),
-              ),
-            ),
-
-            // 3. Áreas de Toque Laterais para Navegar
-            Positioned.fill(
-              child: Row(
-                children: [
-                  // Lado Esquerdo: Voltar (story anterior ou usuário anterior)
-                  Expanded(
-                    flex: 1,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: _advanceToPrevious,
-                      onLongPressStart: (_) {
-                        setState(() => _isPaused = true);
-                        _progressController.stop();
-                      },
-                      onLongPressEnd: (_) {
-                        setState(() => _isPaused = false);
-                        _progressController.forward();
-                      },
-                      child: const SizedBox.expand(),
-                    ),
+                // 3. Áreas de Toque Laterais para Navegar
+                Positioned.fill(
+                  child: Row(
+                    children: [
+                      // Lado Esquerdo: Voltar (story anterior ou usuário anterior)
+                      Expanded(
+                        flex: 1,
+                        child: Semantics(
+                          label: 'Story anterior',
+                          button: true,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onTap: _advanceToPrevious,
+                            onLongPressStart: (_) {
+                              setState(() => _isPaused = true);
+                              _progressController.stop();
+                            },
+                            onLongPressEnd: (_) {
+                              setState(() => _isPaused = false);
+                              _progressController.forward();
+                            },
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                      ),
+                      // Lado Direito: Avançar (próximo story deste usuário ou próximo usuário)
+                      Expanded(
+                        flex: 2,
+                        child: Semantics(
+                          label: 'Próximo story',
+                          button: true,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onTap: _advanceToNext,
+                            onLongPressStart: (_) {
+                              setState(() => _isPaused = true);
+                              _progressController.stop();
+                            },
+                            onLongPressEnd: (_) {
+                              setState(() => _isPaused = false);
+                              _progressController.forward();
+                            },
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  // Lado Direito: Avançar (próximo story deste usuário ou próximo usuário)
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: _advanceToNext,
-                      onLongPressStart: (_) {
-                        setState(() => _isPaused = true);
-                        _progressController.stop();
-                      },
-                      onLongPressEnd: (_) {
-                        setState(() => _isPaused = false);
-                        _progressController.forward();
-                      },
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
 
             // 4. Conteúdo Visual Completo
             SafeArea(
@@ -694,6 +713,8 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
               ),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

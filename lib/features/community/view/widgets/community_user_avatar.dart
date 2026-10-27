@@ -43,7 +43,11 @@ class CommunityUserAvatar extends ConsumerWidget {
     final double size = radius * 2;
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U';
 
-    Widget avatarContent = _buildContent(context, resolvedUrl, initial, size);
+    Widget avatarContent = Semantics(
+      label: 'Foto de perfil de $name',
+      image: true,
+      child: _buildContent(context, resolvedUrl, initial, size),
+    );
 
     if (onTap != null) {
       return GestureDetector(onTap: onTap, child: avatarContent);

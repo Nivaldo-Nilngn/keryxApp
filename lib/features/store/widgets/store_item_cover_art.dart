@@ -189,9 +189,10 @@ class StoreItemCoverArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget coverWidget;
     // Se tiver imagem real válida por URL
     if (customImageUrl != null && customImageUrl!.isNotEmpty) {
-      return ClipRRect(
+      coverWidget = ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: CachedNetworkImage(
           imageUrl: customImageUrl!,
@@ -202,9 +203,15 @@ class StoreItemCoverArt extends StatelessWidget {
           errorWidget: (_, __, ___) => _buildProceduralBookCover(context),
         ),
       );
+    } else {
+      coverWidget = _buildProceduralBookCover(context);
     }
 
-    return _buildProceduralBookCover(context);
+    return Semantics(
+      label: 'Capa de ${item.name}',
+      image: true,
+      child: coverWidget,
+    );
   }
 
   Widget _buildProceduralBookCover(BuildContext context) {

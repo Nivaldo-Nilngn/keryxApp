@@ -82,6 +82,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
           titleSpacing: showBackButton ? 0 : 24.0,
           leadingWidth: leading != null ? 80 : 56,
           leading: leading ?? (showBackButton ? IconButton(
+            tooltip: 'Voltar',
             icon: Icon(Icons.arrow_back_ios_new_rounded, color: Theme.of(context).colorScheme.onSurface, size: 20),
             onPressed: onBack ?? () => Navigator.pop(context),
           ) : null),
@@ -108,6 +109,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
                       borderRadius: BorderRadius.circular(8),
                       child: Image.asset(
                         'assets/img/logoHome.png',
+                        semanticLabel: 'Logotipo Keryx',
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
@@ -151,6 +153,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
             Stack(
               children: [
                 IconButton(
+                  tooltip: 'Notificações',
                   icon: Icon(
                     Icons.notifications_none_rounded,
                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
@@ -194,6 +197,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
               ],
             ),
             IconButton(
+              tooltip: 'Loja de Recursos',
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -255,6 +259,7 @@ class KeryxUserDropdown extends ConsumerWidget {
     return authState.when(
       data: (user) {
         return PopupMenuButton<String>(
+          tooltip: 'Menu de perfil e opções',
           offset: const Offset(0, 56),
           color: Theme.of(context).cardColor,
           surfaceTintColor: Colors.transparent,
@@ -527,6 +532,7 @@ class KeryxUserDropdown extends ConsumerWidget {
         return ClipOval(
           child: Image.memory(
             bytes,
+            semanticLabel: 'Foto de perfil do usuário',
             fit: BoxFit.cover,
             width: size,
             height: size,
@@ -550,6 +556,7 @@ class KeryxUserDropdown extends ConsumerWidget {
     return ClipOval(
       child: Image.network(
         resolvedUrl,
+        semanticLabel: 'Foto de perfil do usuário',
         fit: BoxFit.cover,
         width: size,
         height: size,
@@ -559,14 +566,17 @@ class KeryxUserDropdown extends ConsumerWidget {
   }
 
   static Widget buildInitialsWidget(BuildContext context, String initial, {double? size}) {
-    return Container(
-      alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: GoogleFonts.outfit(
-          color: Theme.of(context).colorScheme.primary,
-          fontSize: size != null ? size * 0.45 : 14,
-          fontWeight: FontWeight.bold,
+    return Semantics(
+      label: 'Avatar do usuário com inicial $initial',
+      child: Container(
+        alignment: Alignment.center,
+        child: Text(
+          initial,
+          style: GoogleFonts.outfit(
+            color: Theme.of(context).colorScheme.primary,
+            fontSize: size != null ? size * 0.45 : 14,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );

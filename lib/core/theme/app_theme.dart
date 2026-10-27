@@ -70,7 +70,7 @@ class AppTheme {
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.transparent,
       selectedItemColor: kPrimaryGold,
-      unselectedItemColor: Color(0x66E2E0F9),
+      unselectedItemColor: Color(0x99E2E0F9),
       elevation: 0,
       showUnselectedLabels: true,
     ),
@@ -110,11 +110,11 @@ class AppTheme {
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: kPrimaryGold,
+      seedColor: const Color(0xFFB45309),
       brightness: Brightness.light,
       surface: const Color(0xFFF9F9F9),
       onSurface: const Color(0xFF2C2C2C),
-      primary: kPrimaryGold,
+      primary: const Color(0xFFB45309),
     ).copyWith(
       surfaceContainer: Colors.white,
       surfaceContainerHighest: const Color(0xFFF0F0F0),
@@ -128,8 +128,8 @@ class AppTheme {
 
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       type: BottomNavigationBarType.fixed,
-      selectedItemColor: kPrimaryGold,
-      unselectedItemColor: Colors.grey,
+      selectedItemColor: Color(0xFFB45309),
+      unselectedItemColor: Color(0xFF525252),
       elevation: 0,
     ),
   );

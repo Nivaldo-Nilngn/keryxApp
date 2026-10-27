@@ -406,14 +406,23 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBody: true,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-      ),
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _changeChapter(1),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _changeChapter(-1),
+        const SingleActivator(LogicalKeyboardKey.pageDown): () => _changeChapter(1),
+        const SingleActivator(LogicalKeyboardKey.pageUp): () => _changeChapter(-1),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          extendBody: true,
+          appBar: const MBibliaTopBar(
+            title: 'KeryxApp',
+            showLogo: true,
+            showBackButton: false,
+          ),
       body: Container(
         color: Theme.of(context).scaffoldBackgroundColor,
         child: Stack(
@@ -623,6 +632,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       ],
     ),
   ),
+),
+),
 );
 }
 

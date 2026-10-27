@@ -260,6 +260,7 @@ class _KeryxSplashScreenState extends State<KeryxSplashScreen>
                 child: ClipOval(
                   child: Image.asset(
                     'assets/img/logoHome.png',
+                    semanticLabel: 'Logotipo Keryx',
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => Icon(
                       Icons.auto_stories_rounded,
