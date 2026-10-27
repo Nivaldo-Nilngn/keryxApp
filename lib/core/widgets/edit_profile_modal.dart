@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import '../services/auth_service.dart';
 import '../services/release_notes_service.dart';
 import '../theme/app_theme.dart';
+import 'package:keryx_app/features/legal/view/legal_terms_screen.dart';
 
 class _PresetAvatar {
   final String id;
@@ -996,6 +997,67 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
             ),
           ),
 
+          const SizedBox(height: 10),
+
+          // ── PRIVACIDADE, TERMOS DE USO & LGPD ─────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF10B981).withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Privacidade & Termos (LGPD)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        'Seus direitos, segurança de dados e regras',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10.5,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LegalTermsScreen(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Consultar',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 20),
 
           Row(
@@ -1305,7 +1367,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                         try {
                           await ref.read(authServiceProvider).setPasswordForCurrentUser(p1);
                           if (ctx.mounted) Navigator.pop(ctx);
-                          if (mounted) {
+                          if (mounted && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Senha cadastrada com sucesso! Agora você pode entrar com seu e-mail e senha em qualquer aparelho.'),

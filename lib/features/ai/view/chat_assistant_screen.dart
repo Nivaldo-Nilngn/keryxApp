@@ -528,6 +528,18 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
               onSend: () => _sendMessage(),
               isLoading: _isLoading,
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+              child: Text(
+                'A IATheos pode cometer imprecisões. Verifique sempre com as Escrituras Sagradas. Não substitui aconselhamento pastoral, médico ou jurídico.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.38),
+                  height: 1.25,
+                ),
+              ),
+            ),
           ],
         ),
       ),
