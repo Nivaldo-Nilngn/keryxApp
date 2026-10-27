@@ -7,9 +7,7 @@ import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/model/community_post.dart';
 import 'package:keryx_app/features/community/view_model/community_feed_provider.dart';
 import 'package:keryx_app/features/community/view/widgets/community_comments_bottom_sheet.dart';
-import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
-import 'package:keryx_app/features/bible/view_model/bible_state.dart';
-import 'package:keryx_app/core/state/navigation_state.dart';
+import 'package:keryx_app/core/utils/bible_reference_helper.dart';
 
 class CommunityPostCard extends ConsumerStatefulWidget {
   final CommunityPost post;
@@ -484,21 +482,11 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
               const Spacer(),
               InkWell(
                 onTap: () {
-                  final lastRead = ref.read(lastReadProvider);
-                  if (lastRead != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ReadingScreen(
-                          book: lastRead.book,
-                          initialChapter: lastRead.chapter,
-                        ),
-                      ),
-                    );
-                  } else {
-                    Navigator.pop(context);
-                    ref.read(navigationProvider.notifier).setIndex(1);
-                  }
+                  BibleReferenceHelper.openReference(
+                    context,
+                    ref,
+                    widget.post.bibleReference,
+                  );
                 },
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
@@ -620,6 +608,6 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
       text.writeln(post.caption);
     }
     text.writeln('\nLeia mais no KeryxApp: https://keryx.app');
-    Share.share(text.toString());
+    SharePlus.instance.share(ShareParams(text: text.toString()));
   }
 }

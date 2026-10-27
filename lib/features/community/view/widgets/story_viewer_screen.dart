@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/model/community_story.dart';
-import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
-import 'package:keryx_app/features/bible/view_model/bible_state.dart';
-import 'package:keryx_app/core/state/navigation_state.dart';
+import 'package:keryx_app/core/utils/bible_reference_helper.dart';
 
 class StoryViewerScreen extends ConsumerStatefulWidget {
   final List<CommunityStory> stories;
@@ -101,6 +100,31 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
         _progressController.forward();
       }
     });
+  }
+
+  void _shareStory(CommunityStory story) {
+    setState(() {
+      _isPaused = true;
+      _progressController.stop();
+    });
+
+    final buffer = StringBuffer();
+    if (story.verseText != null && story.verseText!.isNotEmpty) {
+      buffer.writeln('“${story.verseText}”');
+    }
+    if (story.bibleReference != null && story.bibleReference!.isNotEmpty) {
+      buffer.writeln('— ${story.bibleReference}');
+    }
+    if (story.reflection != null && story.reflection!.isNotEmpty) {
+      buffer.writeln('\n${story.reflection}');
+    }
+    buffer.writeln('\nCompartilhado via KeryxApp 📖✨');
+
+    try {
+      SharePlus.instance.share(ShareParams(text: buffer.toString()));
+    } catch (e) {
+      debugPrint('⚠️ Erro ao compartilhar story: $e');
+    }
   }
 
   @override
@@ -317,6 +341,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                           tooltip: _isPaused ? 'Continuar tempo' : 'Pausar tempo',
                           onPressed: _togglePlayPause,
                         ),
+                        // Botão de Compartilhar
+                        IconButton(
+                          icon: const Icon(Icons.share_rounded, color: Colors.white, size: 22),
+                          tooltip: 'Compartilhar Story',
+                          onPressed: () => _shareStory(story),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
                           tooltip: 'Fechar',
@@ -503,42 +533,57 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                         ),
                         const SizedBox(height: 12),
 
-                        // Botão ABRIR NA BÍBLIA
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            final lastRead = ref.read(lastReadProvider);
-                            Navigator.pop(context);
-                            if (lastRead != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ReadingScreen(
-                                    book: lastRead.book,
-                                    initialChapter: lastRead.chapter,
+                        // Botão ABRIR NA BÍBLIA e COMPARTILHAR STORY
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  BibleReferenceHelper.openReference(
+                                    context,
+                                    ref,
+                                    story.bibleReference,
+                                  );
+                                },
+                                icon: const Icon(Icons.menu_book_rounded, size: 18, color: Colors.black),
+                                label: Text(
+                                  'ABRIR NA BÍBLIA',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                    color: Colors.black,
                                   ),
                                 ),
-                              );
-                            } else {
-                              ref.read(navigationProvider.notifier).setIndex(1);
-                            }
-                          },
-                          icon: const Icon(Icons.menu_book_rounded, size: 18, color: Colors.black),
-                          label: Text(
-                            'ABRIR NA BÍBLIA',
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                              color: Colors.black,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.kPrimaryGold,
+                                  minimumSize: const Size(0, 50),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  elevation: 4,
+                                ),
+                              ),
                             ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.kPrimaryGold,
-                            minimumSize: const Size(double.infinity, 50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                            const SizedBox(width: 10),
+                            Container(
+                              height: 50,
+                              width: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.share_rounded, color: Colors.white, size: 21),
+                                tooltip: 'Compartilhar Story',
+                                onPressed: () => _shareStory(story),
+                              ),
                             ),
-                            elevation: 4,
-                          ),
+                          ],
                         ),
                       ],
                     ),

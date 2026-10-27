@@ -29,6 +29,7 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
   late String _selectedCategory;
   String _selectedTheme = 'gold'; // 'gold', 'indigo', 'emerald', 'crimson'
   bool _includeVerse = false;
+  bool _postToStories = true;
   bool _isPublishing = false;
   bool _showLivePreview = true;
 
@@ -89,6 +90,7 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory;
+    _postToStories = _selectedCategory == 'verse';
     if (_selectedCategory == 'verse') {
       _includeVerse = true;
       _referenceController.text = 'Filipenses 4:13';
@@ -268,6 +270,8 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
     final finalCaption = caption;
 
     final service = ref.read(communityServiceProvider);
+
+    // 1. Cria o post no Feed
     final post = await service.createPost(
       caption: finalCaption,
       bibleReference: _includeVerse && refText.isNotEmpty ? refText : null,
@@ -275,14 +279,39 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
       cardTheme: _selectedTheme,
     );
 
+    // 2. Se marcado para Stories ou categoria 'verse', cria também nos Stories de 24h
+    if (_postToStories || _selectedCategory == 'verse') {
+      try {
+        final storyTitle = _selectedCategory == 'verse'
+            ? (refText.isNotEmpty ? refText : 'Versículo do Dia')
+            : _getCategoryBadge();
+        final createdStory = await service.createStory(
+          title: storyTitle,
+          bibleReference: _includeVerse && refText.isNotEmpty ? refText : null,
+          verseText: _includeVerse && verse.isNotEmpty ? verse : null,
+          reflection: finalCaption.isNotEmpty ? finalCaption : null,
+          backgroundStyle: '${_selectedTheme}_gradient',
+        );
+        if (createdStory != null && mounted) {
+          ref.read(communityFeedProvider.notifier).addLocalStory(createdStory);
+        }
+      } catch (e) {
+        debugPrint('⚠️ Erro ao criar Story: $e');
+      }
+    }
+
     if (mounted) {
       if (post != null) {
         ref.read(communityFeedProvider.notifier).addLocalPost(post);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sua bênção foi compartilhada na Comunidade! 🎉🙏'),
-            backgroundColor: Color(0xFF10B981),
+          SnackBar(
+            content: Text(
+              _postToStories
+                  ? 'Sua bênção foi publicada no Feed e nos Stories! 🌟🙏'
+                  : 'Sua bênção foi compartilhada na Comunidade! 🎉🙏',
+            ),
+            backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -940,6 +969,67 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
                               ],
                             ),
                           ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Opção de Destacar nos Stories do Topo
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _postToStories
+                            ? AppTheme.kPrimaryGold.withValues(alpha: 0.12)
+                            : (isDark ? const Color(0xFF1E1E2C) : const Color(0xFFF8FAFC)),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _postToStories ? AppTheme.kPrimaryGold : (isDark ? Colors.white10 : Colors.black12),
+                          width: _postToStories ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: _postToStories ? AppTheme.kPrimaryGold : Colors.grey.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 16,
+                              color: _postToStories ? Colors.black : (isDark ? Colors.white70 : Colors.black54),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Publicar também nos Stories do Topo (24h)',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                                Text(
+                                  'Fica em destaque na barra de versículos do topo',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: _postToStories,
+                            activeThumbColor: AppTheme.kPrimaryGold,
+                            onChanged: (val) => setState(() => _postToStories = val),
+                          ),
                         ],
                       ),
                     ),

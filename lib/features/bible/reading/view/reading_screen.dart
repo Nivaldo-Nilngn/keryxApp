@@ -45,12 +45,14 @@ import 'package:keryx_app/features/bible/view/tts_settings_sheet.dart' show cont
 class ReadingScreen extends ConsumerStatefulWidget {
   final BibleBook book;
   final int initialChapter;
+  final int? initialVerse;
   final bool openChapterSelector;
 
   const ReadingScreen({
     super.key,
     required this.book,
     required this.initialChapter,
+    this.initialVerse,
     this.openChapterSelector = false,
   });
 
@@ -99,6 +101,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     super.initState();
     _currentChapter = widget.initialChapter;
     _currentBook = widget.book;
+    _targetVerseToScroll = widget.initialVerse;
     _scrollController.addListener(_onScroll);
     _updateLastRead();
     if (widget.openChapterSelector) {
@@ -453,17 +456,24 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                 if (_targetVerseToScroll != null) {
                   final target = _targetVerseToScroll;
                   _targetVerseToScroll = null;
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                  void tryScroll([int attempts = 0]) {
                     if (!mounted) return;
                     final key = _verseKeys[target];
                     if (key != null && key.currentContext != null) {
                       Scrollable.ensureVisible(
                         key.currentContext!,
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeInOut,
+                        duration: const Duration(milliseconds: 600),
+                        curve: Curves.easeInOutCubic,
+                        alignment: 0.20,
+                      );
+                    } else if (attempts < 6) {
+                      Future.delayed(
+                        const Duration(milliseconds: 100),
+                        () => tryScroll(attempts + 1),
                       );
                     }
-                  });
+                  }
+                  WidgetsBinding.instance.addPostFrameCallback((_) => tryScroll());
                 }
 
                 final bottomSafeArea = MediaQuery.of(context).padding.bottom;

@@ -149,6 +149,11 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
     state = state.copyWith(posts: [post, ...state.posts]);
   }
 
+  /// Adiciona novo story publicado pelo usuário no topo da bandeja de stories
+  void addLocalStory(CommunityStory story) {
+    state = state.copyWith(stories: [story, ...state.stories]);
+  }
+
   /// Remove post deletado
   Future<void> deletePost(String postId) async {
     final updatedList = state.posts.where((p) => p.id != postId).toList();

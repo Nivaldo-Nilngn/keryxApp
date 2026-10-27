@@ -34,8 +34,62 @@ class CommunityService {
     } catch (e) {
       debugPrint('⚠️ [CommunityService] Erro ao carregar stories (usando fallback): $e');
     }
-
     return _getFallbackStories();
+  }
+
+  /// Publica um novo story bíblico no Cloudflare D1
+  Future<CommunityStory?> createStory({
+    required String title,
+    String? bibleReference,
+    String? verseText,
+    String? reflection,
+    String backgroundStyle = 'gold_gradient',
+  }) async {
+    final storyId = 'story_${DateTime.now().millisecondsSinceEpoch}';
+    final newStory = CommunityStory(
+      id: storyId,
+      authorName: _currentUserName,
+      authorAvatar: _currentUserAvatar,
+      title: title,
+      bibleReference: bibleReference,
+      verseText: verseText,
+      reflection: reflection,
+      backgroundStyle: backgroundStyle,
+      createdAt: DateTime.now(),
+      expiresAt: DateTime.now().add(const Duration(hours: 24)),
+    );
+
+    try {
+      final uri = Uri.parse('$_baseUrl/stories');
+      final res = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'id': storyId,
+              'author_name': _currentUserName,
+              'author_avatar': _currentUserAvatar,
+              'title': title,
+              'bible_reference': bibleReference,
+              'verse_text': verseText,
+              'reflection': reflection,
+              'background_style': backgroundStyle,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        if (data is Map && data['story'] != null) {
+          return CommunityStory.fromJson(data['story'] as Map<String, dynamic>);
+        }
+        return newStory;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [CommunityService] Erro ao salvar story no D1: $e');
+    }
+
+    return newStory;
   }
 
   /// Busca o feed de posts paginado

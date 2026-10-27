@@ -736,6 +736,53 @@ export default {
         }
       }
 
+      // 1.1 Criar Story Bíblico (Ativo por 24 horas)
+      if (request.method === "POST" && subpath === "/stories") {
+        try {
+          const body = await request.json();
+          const id = body.id || `story_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          const authorName = body.author_name || "Membro Keryx";
+          const authorAvatar = body.author_avatar || "";
+          const title = body.title || "Versículo do Dia";
+          const bibleRef = body.bible_reference || "";
+          const verseText = body.verse_text || "";
+          const reflection = body.reflection || "";
+          const mediaUrl = body.media_url || "";
+          const backgroundStyle = body.background_style || "gold_gradient";
+
+          await db.prepare(`
+            INSERT INTO community_stories (
+              id, author_name, author_avatar, title,
+              bible_reference, verse_text, reflection,
+              media_url, background_style, created_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+24 hours'))
+          `).bind(
+            id, authorName, authorAvatar, title,
+            bibleRef, verseText, reflection,
+            mediaUrl, backgroundStyle
+          ).run();
+
+          return jsonResp({
+            success: true,
+            story: {
+              id,
+              author_name: authorName,
+              author_avatar: authorAvatar,
+              title,
+              bible_reference: bibleRef,
+              verse_text: verseText,
+              reflection,
+              media_url: mediaUrl,
+              background_style: backgroundStyle,
+              created_at: new Date().toISOString(),
+              expires_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+            }
+          });
+        } catch (e) {
+          return jsonResp({ error: e.message }, 500);
+        }
+      }
+
       // 2. Feed de Posts
       if (request.method === "GET" && subpath === "/feed") {
         try {
