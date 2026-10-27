@@ -8,12 +8,16 @@ import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/widgets/edit_profile_modal.dart';
 import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/features/community/model/community_post.dart';
+import 'package:keryx_app/features/community/model/community_story.dart';
 import 'package:keryx_app/features/community/view_model/community_feed_provider.dart';
 import 'package:keryx_app/features/community/view_model/following_provider.dart';
 import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 import 'package:keryx_app/features/community/view/widgets/community_post_card.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/community/view/widgets/create_post_bottom_sheet.dart';
+import 'package:keryx_app/features/community/model/user_stories_group.dart';
+import 'package:keryx_app/features/community/view/widgets/story_viewer_screen.dart';
+import 'package:keryx_app/features/community/view/widgets/create_story_bottom_sheet.dart';
 
 /// Tela de Perfil e Publicações do Usuário — Estilo Instagram
 class CommunityUserProfileScreen extends ConsumerStatefulWidget {
@@ -255,15 +259,25 @@ class _CommunityUserProfileScreenState
       return false;
     }).toList();
 
-    // Contagens de estatísticas
-    final totalPosts = userPosts.length;
-    final totalAmens = userPosts.fold<int>(0, (sum, p) => sum + p.amenCount);
-    final totalFollowers = isCurrentUser ? (totalAmens + 12) : (totalAmens + 8);
-    final totalFollowing = isCurrentUser ? 24 : 16;
+    // Busca se este usuário possui stories ativos na comunidade
+    final allStories = ref.watch(communityFeedProvider).stories;
+    final userStories = allStories.where((s) {
+      if (s.authorName.trim().toLowerCase() == displayName.trim().toLowerCase()) return true;
+      if (widget.userId.isNotEmpty && s.id.contains(widget.userId)) return true;
+      return false;
+    }).toList();
+    final hasActiveStories = userStories.isNotEmpty;
 
     // Estado de Seguir (SharedPreferences)
     final userKey = widget.userId.isNotEmpty ? widget.userId : widget.userName;
     final isFollowing = ref.watch(followingUsersProvider).contains(userKey);
+
+    // Contagens de estatísticas (sem números mockados)
+    final totalPosts = userPosts.length;
+    final totalAmens = userPosts.fold<int>(0, (sum, p) => sum + p.amenCount);
+    final totalFollowing = isCurrentUser
+        ? ref.watch(followingUsersProvider).length
+        : (isFollowing ? 1 : 0);
 
     Widget profileContent = NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) {
@@ -333,70 +347,75 @@ class _CommunityUserProfileScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Linha Superior: Foto com Nota + Estatísticas
+                      // Linha Superior: Foto com Story Ativo/Perfil + Estatísticas Reais
                       Row(
                         children: [
-                          // Avatar com moldura e balão de "Nota..."
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              CommunityUserAvatar(
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              if (hasActiveStories) {
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    opaque: false,
+                                    pageBuilder: (_, __, ___) => StoryViewerScreen(
+                                      groups: [
+                                        UserStoriesGroup(
+                                          authorName: displayName,
+                                          authorAvatar: displayAvatar,
+                                          stories: userStories,
+                                        ),
+                                      ],
+                                      initialGroupIndex: 0,
+                                    ),
+                                  ),
+                                );
+                              } else if (isCurrentUser) {
+                                showEditProfileModal(context, ref);
+                              }
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(hasActiveStories ? 2.8 : 0.0),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: hasActiveStories
+                                    ? const LinearGradient(
+                                        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF59E0B)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : null,
+                                boxShadow: hasActiveStories
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(0xFFEC4899).withValues(alpha: 0.4),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: CommunityUserAvatar(
                                 photoUrl: displayAvatar,
                                 name: displayName,
                                 userId: widget.userId,
                                 radius: 42,
-                                avatarFrame: displayFrame,
+                                avatarFrame: hasActiveStories ? 'none' : displayFrame,
                                 isOfficial: widget.userBadge == 'Oficial' ||
                                     displayName.toLowerCase().contains('keryx'),
                               ),
-                              Positioned(
-                                top: -6,
-                                left: -4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF262638) : Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.15),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 1),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text(
-                                        '✝️',
-                                        style: TextStyle(fontSize: 10),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        'Fé viva',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: Theme.of(context).colorScheme.onSurface,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
 
                           const SizedBox(width: 24),
 
-                          // 3 Contadores: Posts, Seguidores, Seguindo
+                          // 3 Contadores Reais: Posts, Améns recebidos, Seguindo
                           Expanded(
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
                                 _buildStatItem(context, totalPosts.toString(), 'posts'),
-                                _buildStatItem(context, totalFollowers.toString(), 'seguidores'),
+                                _buildStatItem(context, totalAmens.toString(), totalAmens == 1 ? 'amém' : 'améns'),
                                 _buildStatItem(context, totalFollowing.toString(), 'seguindo'),
                               ],
                             ),
@@ -425,13 +444,16 @@ class _CommunityUserProfileScreenState
 
                       const SizedBox(height: 8),
 
-                      // Biografia Cristã / Detalhes
+                      // Biografia Cristã / Detalhes (sem textos mockados fixos)
                       Text(
                         isCurrentUser
-                            ? '📌 Membro KeryxApp\n📖 Hebreus 11:1 • "A fé que nos mantém de pé"\n✝️ Em oração e comunhão'
-                            : (widget.userBadge == 'Oficial'
-                                ? '✨ Canal Oficial da Comunidade Keryx\n📖 Colossenses 3:16 • Versículos, devocionais e orações diárias\n🕊️ Que a Palavra de Cristo habite ricamente em vós'
-                                : '📌 Irmão na Fé • Comunidade Keryx\n📖 Vivendo a Palavra de Deus\n🙏 Em oração constante'),
+                            ? ((userData?['bio'] as String?)?.trim().isNotEmpty == true
+                                ? (userData!['bio'] as String).trim()
+                                : 'Membro da Comunidade Keryx • Em comunhão')
+                            : (widget.userBadge == 'Oficial' ||
+                                    displayName.toLowerCase().contains('keryx')
+                                ? '✨ Canal Oficial da Comunidade Keryx\nEdificando vidas através da Palavra de Deus.'
+                                : 'Membro da Comunidade Keryx • Em comunhão'),
                         style: GoogleFonts.outfit(
                           fontSize: 13.5,
                           height: 1.35,
@@ -553,8 +575,8 @@ class _CommunityUserProfileScreenState
 
                       const SizedBox(height: 16),
 
-                      // Destaques (Highlights)
-                      _buildHighlightsSection(isDark, isCurrentUser),
+                      // Destaques / Stories Ativos do Usuário
+                      _buildHighlightsSection(context, userStories, isDark, isCurrentUser, displayName, displayAvatar),
                     ],
                   ),
                 ),
@@ -681,81 +703,115 @@ class _CommunityUserProfileScreenState
     );
   }
 
-  Widget _buildHighlightsSection(bool isDark, bool isCurrentUser) {
-    final highlights = [
-      ('📖 Versículos', const Color(0xFF4F46E5)),
-      ('🙏 Orações', const Color(0xFF059669)),
-      ('✨ Bênçãos', const Color(0xFFD97706)),
-      ('🕊️ Fé', const Color(0xFF7C3AED)),
-    ];
+  Widget _buildHighlightsSection(
+    BuildContext context,
+    List<CommunityStory> userStories,
+    bool isDark,
+    bool isCurrentUser,
+    String displayName,
+    String? displayAvatar,
+  ) {
+    final hasActiveStories = userStories.isNotEmpty;
+    if (!hasActiveStories && !isCurrentUser) {
+      return const SizedBox.shrink();
+    }
 
     return SizedBox(
       height: 84,
-      child: ListView.separated(
+      child: ListView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: highlights.length + (isCurrentUser ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
-        itemBuilder: (context, index) {
-          if (isCurrentUser && index == 0) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? Colors.white24 : Colors.black12,
-                      width: 1.5,
+        children: [
+          if (hasActiveStories) ...[
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    opaque: false,
+                    pageBuilder: (_, __, ___) => StoryViewerScreen(
+                      groups: [
+                        UserStoriesGroup(
+                          authorName: displayName,
+                          authorAvatar: displayAvatar,
+                          stories: userStories,
+                        ),
+                      ],
+                      initialGroupIndex: 0,
                     ),
                   ),
-                  child: const Center(
-                    child: Icon(Icons.add, size: 24),
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    padding: const EdgeInsets.all(2.2),
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF59E0B)],
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(1.5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark ? const Color(0xFF14141E) : Colors.white,
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.play_arrow_rounded, color: AppTheme.kPrimaryGold, size: 28),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Novo',
-                  style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w500),
-                ),
-              ],
-            );
-          }
-
-          final itemIndex = isCurrentUser ? (index - 1) : index;
-          final (title, color) = highlights[itemIndex];
-
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withValues(alpha: 0.15),
-                  border: Border.all(
-                    color: color.withValues(alpha: 0.5),
-                    width: 1.8,
+                  const SizedBox(height: 5),
+                  Text(
+                    'Story Ativo',
+                    style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w600),
                   ),
-                ),
-                child: Center(
-                  child: Text(
-                    title.split(' ').first,
-                    style: const TextStyle(fontSize: 22),
-                  ),
-                ),
+                ],
               ),
-              const SizedBox(height: 5),
-              Text(
-                title.split(' ').last,
-                style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(width: 14),
+          ],
+          if (isCurrentUser)
+            GestureDetector(
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const CreateStoryBottomSheet(),
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark ? Colors.white24 : Colors.black12,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.add, size: 24),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Novo Story',
+                    style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w500),
+                  ),
+                ],
               ),
-            ],
-          );
-        },
+            ),
+        ],
       ),
     );
   }

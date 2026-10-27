@@ -282,32 +282,23 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                     child: Container(
                       height: 36,
                       margin: const EdgeInsets.only(top: 2, bottom: 6),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          return SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                minWidth: (constraints.maxWidth - 28) > 0 ? (constraints.maxWidth - 28) : 0,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _buildCategoryChip('✨ Tudo', 'all', isDark),
-                                  const SizedBox(width: 8),
-                                  _buildCategoryChip('🙏 Pedidos de Oração', 'prayer', isDark),
-                                  const SizedBox(width: 8),
-                                  _buildCategoryChip('📖 Versículos', 'verse', isDark),
-                                  const SizedBox(width: 8),
-                                  _buildCategoryChip('🕊️ Testemunhos', 'testimony', isDark),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            _buildCategoryChip('✨ Tudo', 'all', isDark),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip('🙏 Pedidos de Oração', 'prayer', isDark),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip('📖 Versículos', 'verse', isDark),
+                            const SizedBox(width: 8),
+                            _buildCategoryChip('🕊️ Testemunhos', 'testimony', isDark),
+                          ],
+                        ),
                       ),
                     ),
                   ),

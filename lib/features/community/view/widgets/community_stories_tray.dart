@@ -7,6 +7,7 @@ import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/theme/avatar_frame_options.dart';
 import 'package:keryx_app/features/community/model/community_story.dart';
 import 'package:keryx_app/features/community/model/user_stories_group.dart';
+import 'package:keryx_app/features/community/view/community_user_profile_screen.dart';
 import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 import 'package:keryx_app/features/community/view/widgets/story_viewer_screen.dart';
 
@@ -25,16 +26,42 @@ class CommunityStoriesTray extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final groups = UserStoriesGroup.fromStories(stories);
 
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final userData = ref.watch(userDataProvider).valueOrNull;
+    final currentUserName = (userData?['name'] as String?)?.trim() ??
+        currentUser?.displayName?.trim() ??
+        '';
+
+    // Separa os stories do usuário atual para unificar no primeiro botão e evitar duplicata
+    UserStoriesGroup? myStoriesGroup;
+    final otherGroups = <UserStoriesGroup>[];
+
+    for (final group in groups) {
+      final isMe = (currentUserName.isNotEmpty &&
+              group.displayName.trim().toLowerCase() == currentUserName.toLowerCase()) ||
+          (currentUser != null &&
+              currentUser.displayName != null &&
+              currentUser.displayName!.trim().isNotEmpty &&
+              group.displayName.trim().toLowerCase() ==
+                  currentUser.displayName!.trim().toLowerCase());
+
+      if (isMe) {
+        myStoriesGroup = group;
+      } else {
+        otherGroups.add(group);
+      }
+    }
+
     return Container(
       height: 94,
       margin: const EdgeInsets.only(top: 2, bottom: 4),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final items = <Widget>[
-            _buildAddStoryButton(context, ref, isDark),
-            for (int i = 0; i < groups.length; i++) ...[
+            _buildUserStoryButton(context, ref, myStoriesGroup, isDark),
+            for (int i = 0; i < otherGroups.length; i++) ...[
               const SizedBox(width: 12),
-              _buildStoryGroupItem(context, ref, groups[i], groups, i, isDark),
+              _buildStoryGroupItem(context, ref, otherGroups[i], otherGroups, i, isDark),
             ],
           ];
 
@@ -42,15 +69,11 @@ class CommunityStoriesTray extends ConsumerWidget {
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: (constraints.maxWidth - 28) > 0 ? (constraints.maxWidth - 28) : 0,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: items,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: items,
             ),
           );
         },
@@ -58,7 +81,12 @@ class CommunityStoriesTray extends ConsumerWidget {
     );
   }
 
-  Widget _buildAddStoryButton(BuildContext context, WidgetRef ref, bool isDark) {
+  Widget _buildUserStoryButton(
+    BuildContext context,
+    WidgetRef ref,
+    UserStoriesGroup? myStoriesGroup,
+    bool isDark,
+  ) {
     final currentUser = FirebaseAuth.instance.currentUser;
     final userData = ref.watch(userDataProvider).valueOrNull;
     final userPhoto = (userData?['photoUrl'] as String?)?.trim() ??
@@ -72,36 +100,69 @@ class CommunityStoriesTray extends ConsumerWidget {
     final userFrameId = (userData?['avatarFrame'] as String?) ?? 'gold';
     final frame = AvatarFrameOption.getById(userFrameId);
 
-    return GestureDetector(
-      onTap: onAddStoryTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            children: [
-              Container(
+    final hasActiveStories = myStoriesGroup != null && myStoriesGroup.stories.isNotEmpty;
+    final storiesCount = myStoriesGroup?.stories.length ?? 0;
+
+    // Gradiente do story ativo
+    const activeStoryRing = LinearGradient(
+      colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF59E0B)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
+    void openUserProfile() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CommunityUserProfileScreen(
+            userId: currentUser?.uid ?? '',
+            userName: userName,
+            userAvatar: userPhoto,
+            userBadge: 'Membro',
+            avatarFrame: userFrameId,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Clique na foto -> Abre o perfil do usuário
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: openUserProfile,
+              child: Container(
                 width: 56,
                 height: 56,
-                padding: const EdgeInsets.all(2.2),
+                padding: const EdgeInsets.all(2.4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: userFrameId != 'none'
-                      ? LinearGradient(
-                          colors: frame.colors,
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : null,
-                  border: userFrameId == 'none'
+                  gradient: hasActiveStories
+                      ? activeStoryRing
+                      : (userFrameId != 'none'
+                          ? LinearGradient(
+                              colors: frame.colors,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null),
+                  border: (!hasActiveStories && userFrameId == 'none')
                       ? Border.all(
                           color: isDark ? Colors.white24 : Colors.black12,
                           width: 1.5,
                         )
                       : null,
-                  boxShadow: userFrameId != 'none'
+                  boxShadow: (hasActiveStories || userFrameId != 'none')
                       ? [
                           BoxShadow(
-                            color: frame.shadowColor.withValues(alpha: 0.45),
+                            color: (hasActiveStories
+                                    ? const Color(0xFFEC4899)
+                                    : frame.shadowColor)
+                                .withValues(alpha: 0.45),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -122,16 +183,59 @@ class CommunityStoriesTray extends ConsumerWidget {
                   ),
                 ),
               ),
+            ),
+
+            // Badge com número de stories se houver múltiplos
+            if (hasActiveStories && storiesCount > 1)
               Positioned(
-                bottom: 0,
-                right: 0,
+                top: -1,
+                right: -1,
                 child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: const BoxDecoration(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.kPrimaryGold,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF14141E) : Colors.white,
+                      width: 1.2,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    '$storiesCount',
+                    style: GoogleFonts.outfit(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+
+            // Clique no botão "+" -> Abre publicação do story
+            Positioned(
+              bottom: -1,
+              right: -1,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onAddStoryTap,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
                     color: AppTheme.kPrimaryGold,
                     shape: BoxShape.circle,
-                    boxShadow: [
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF14141E) : Colors.white,
+                      width: 2,
+                    ),
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black38,
                         blurRadius: 4,
@@ -139,28 +243,33 @@ class CommunityStoriesTray extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.add, size: 14, color: Colors.black),
+                  child: const Center(
+                    child: Icon(Icons.add, size: 14, color: Colors.black),
+                  ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          SizedBox(
-            width: 64,
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        GestureDetector(
+          onTap: openUserProfile,
+          child: SizedBox(
+            width: 68,
             child: Text(
               'Seu Versículo',
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.outfit(
-                fontSize: 10,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
