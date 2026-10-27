@@ -12,6 +12,10 @@ import 'package:keryx_app/features/home/view/notifications_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/community/view/community_user_profile_screen.dart';
 
+/// Provider global para controlar a expansão manual do menu lateral em tablets/desktop.
+/// null = automático baseado no tamanho da tela (>= 1150px expandido).
+final sidebarExpandedProvider = StateProvider<bool?>((ref) => null);
+
 /// Menu Lateral Estilo Instagram para Tablets e Telas Maiores
 class InstagramTabletSidebar extends ConsumerWidget {
   final int currentIndex;
@@ -188,8 +192,10 @@ class InstagramTabletSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 1050; // Recolhe em tablets médios, expande em desktop
-    final sidebarWidth = isCompact ? 76.0 : 220.0;
+    final manualExpanded = ref.watch(sidebarExpandedProvider);
+    final isExpanded = manualExpanded ?? (screenWidth >= 1150);
+    final isCompact = !isExpanded;
+    final sidebarWidth = isCompact ? 76.0 : 230.0;
 
     final currentUser = FirebaseAuth.instance.currentUser;
     final userData = ref.watch(userDataProvider).valueOrNull;
@@ -203,7 +209,9 @@ class InstagramTabletSidebar extends ConsumerWidget {
     final bgColor = isDark ? const Color(0xFF101018) : Colors.white;
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOutCubic,
       width: sidebarWidth,
       height: double.infinity,
       decoration: BoxDecoration(
@@ -212,83 +220,170 @@ class InstagramTabletSidebar extends ConsumerWidget {
           right: BorderSide(color: borderColor, width: 1),
         ),
       ),
-      child: SafeArea(
-        right: false,
-        child: Column(
-          crossAxisAlignment: isCompact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-          children: [
-            // 1. Logo no Topo
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isCompact ? 14 : 20,
-                vertical: 20,
-              ),
-              child: isCompact
-                  ? GestureDetector(
-                      onTap: () => _handleNavigate(context, 0),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.asset(
-                            'assets/img/logo.png',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    )
-                  : GestureDetector(
-                      onTap: () => _handleNavigate(context, 0),
-                      child: Row(
+      child: ClipRect(
+        child: SafeArea(
+          right: false,
+          child: Column(
+            crossAxisAlignment: isCompact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            children: [
+              // 1. Logo no Topo + Botão de Abrir/Recolher Menu Lateral
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 14 : 16,
+                  vertical: 18,
+                ),
+                child: isCompact
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
+                          GestureDetector(
+                            onTap: () => _handleNavigate(context, 0),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.asset(
+                                  'assets/img/logo.png',
+                                  fit: BoxFit.cover,
                                 ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.asset(
-                                'assets/img/logo.png',
-                                fit: BoxFit.cover,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 11),
-                          Text(
-                            'KeryxApp',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 19.5,
-                              fontWeight: FontWeight.w800,
-                              color: Theme.of(context).colorScheme.onSurface,
-                              letterSpacing: -0.4,
+                          const SizedBox(height: 12),
+                          Tooltip(
+                            message: 'Abrir menu lateral',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  ref.read(sidebarExpandedProvider.notifier).state = true;
+                                },
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.06)
+                                        : Colors.black.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : Colors.black.withValues(alpha: 0.08),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.menu_rounded,
+                                    size: 20,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _handleNavigate(context, 0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.15),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.asset(
+                                      'assets/img/logo.png',
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'KeryxApp',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.clip,
+                                  softWrap: false,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 18.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    letterSpacing: -0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Tooltip(
+                            message: 'Recolher menu lateral',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  ref.read(sidebarExpandedProvider.notifier).state = false;
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.06)
+                                        : Colors.black.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : Colors.black.withValues(alpha: 0.08),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.menu_open_rounded,
+                                    size: 20,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-            ),
+              ),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
             // 2. Itens de Navegação das Outras Telas
             Expanded(
@@ -449,12 +544,14 @@ class InstagramTabletSidebar extends ConsumerWidget {
 
                   const SizedBox(height: 4),
 
-                  // Item Mais (Menu Hambúrguer estilo Instagram)
-                  PopupMenuButton<String>(
+                    PopupMenuButton<String>(
                     tooltip: 'Mais opções',
                     offset: const Offset(10, -120),
                     onSelected: (val) {
-                      if (val == 'theme') {
+                      if (val == 'toggle_sidebar') {
+                        final current = ref.read(sidebarExpandedProvider) ?? (screenWidth >= 1150);
+                        ref.read(sidebarExpandedProvider.notifier).state = !current;
+                      } else if (val == 'theme') {
                         _showThemeDialog(context, ref);
                       } else if (val == 'notifications') {
                         showModalBottomSheet(
@@ -468,6 +565,24 @@ class InstagramTabletSidebar extends ConsumerWidget {
                       }
                     },
                     itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        value: 'toggle_sidebar',
+                        child: Row(
+                          children: [
+                            Icon(
+                              isCompact ? Icons.menu_open_rounded : Icons.menu_rounded,
+                              size: 20,
+                              color: AppTheme.kPrimaryGold,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              isCompact ? 'Abrir menu lateral' : 'Recolher menu lateral',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(),
                       const PopupMenuItem(
                         value: 'theme',
                         child: Row(
@@ -519,6 +634,9 @@ class InstagramTabletSidebar extends ConsumerWidget {
                             const SizedBox(width: 12),
                             Text(
                               'Mais',
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                              softWrap: false,
                               style: GoogleFonts.outfit(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w600,
@@ -536,8 +654,9 @@ class InstagramTabletSidebar extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildNavItem({
     required BuildContext context,
@@ -609,6 +728,9 @@ class InstagramTabletSidebar extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
                       style: GoogleFonts.outfit(
                         fontSize: 14.5,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
