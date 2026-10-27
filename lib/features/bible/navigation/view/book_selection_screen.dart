@@ -851,11 +851,11 @@ class _TabbedBookListState extends ConsumerState<_TabbedBookList> {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: ResponsiveLayout.isExpanded(context)
-                    ? 260
-                    : 200,
+                    ? 220
+                    : 180,
                 childAspectRatio: ResponsiveLayout.isExpanded(context)
-                    ? 2.1
-                    : (ResponsiveLayout.isMedium(context) ? 1.8 : 1.3),
+                    ? 1.4
+                    : (ResponsiveLayout.isMedium(context) ? 1.3 : 1.18),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
@@ -997,20 +997,12 @@ class _BookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = isCompleted
-        ? const Color(0xFF00E676) // Verde Premium para concluído
-        : (isReading
-              ? AppTheme.kPrimaryGold
-              : Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.05));
-
     final isHighlighted = isReading || isCompleted;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: _getGroupColor(group),
           borderRadius: BorderRadius.circular(16),
@@ -1019,80 +1011,99 @@ class _BookCard extends StatelessWidget {
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  abbrev,
-                  style: GoogleFonts.outfit(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  name,
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                const Spacer(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      isReading ? '$readCount / $chapters cap.' : '$chapters cap.',
+                      abbrev,
                       style: GoogleFonts.outfit(
-                        fontSize: 10,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                        height: 1.05,
                       ),
                     ),
-                    if (isReading || isCompleted)
-                      Text(
-                        isCompleted ? "CONCLUÍDO" : "LENDO",
-                        style: GoogleFonts.outfit(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: 1.2,
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      name,
+                      style: GoogleFonts.outfit(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        height: 1.1,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
-                if (isReading || isCompleted) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 4,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: progressFactor,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              blurRadius: 4,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            isReading ? '$readCount/$chapters cap.' : '$chapters cap.',
+                            style: GoogleFonts.outfit(
+                              fontSize: 9.5,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isReading || isCompleted) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            isCompleted ? "CONCLUÍDO" : "LENDO",
+                            style: GoogleFonts.outfit(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (isReading || isCompleted) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        height: 3,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: progressFactor,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  ],
+                ),
               ],
             ),
             if (isHighlighted && onClearProgress != null)
