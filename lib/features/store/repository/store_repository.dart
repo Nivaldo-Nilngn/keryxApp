@@ -23,6 +23,7 @@ class StoreRepository {
   
   final B2Service _b2Service = B2Service();
   final Map<String, http.Client> _activeDownloads = {};
+  List<StoreItem>? _cachedPackages;
   
   void cancelDownload(String filename) {
     final client = _activeDownloads.remove(filename);
@@ -126,24 +127,10 @@ class StoreRepository {
     return name.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
   }
   
-  // Para fonts e journals: agrupa por subpasta
-  Map<String, List<Map<String, dynamic>>> _groupBySubfolder(
-      List<Map<String, dynamic>> files, String category) {
-    final groups = <String, List<Map<String, dynamic>>>{};
-    
-    for (final file in files) {
-      final fileName = file['fileName'] as String;
-      final parts = fileName.split('/');
-      if (parts.length >= 2) {
-        final subfolder = parts[1]; // nome da subpasta (ex: "DejaVu")
-        groups.putIfAbsent(subfolder, () => []).add(file);
-      }
-    }
-    
-    return groups;
-  }
-  
   Future<List<StoreItem>> getAvailablePackages() async {
+    if (_cachedPackages != null && _cachedPackages!.isNotEmpty) {
+      return _cachedPackages!;
+    }
     
     try {
       final items = <StoreItem>[];
@@ -180,6 +167,7 @@ class StoreRepository {
         return a.name.compareTo(b.name);
       });
       
+      _cachedPackages = items;
       return items;
     } catch (e) {
       debugPrint('❌ Erro ao ler SQLite/JSON da loja: $e');

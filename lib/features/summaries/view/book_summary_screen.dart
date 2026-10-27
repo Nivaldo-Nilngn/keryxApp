@@ -11,15 +11,6 @@ import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const Color _surfaceBase = Color(0xFF080C14);
-const Color _surfaceElevated = Color(0xFF111827);
-const Color _surfaceCard = Color(0xFF182234);
-const Color _textPrimary = Color(0xFFF8FAFC);
-const Color _textSecondary = Color(0xFF94A3B8);
-const Color _textMuted = Color(0xFF64748B);
-const Color _secondaryColor = Color(0xFFFFB95F);
-const Color _primaryContainer = Color(0xFF4F46E5);
-
 class BookSummaryScreen extends ConsumerStatefulWidget {
   final BibleBook book;
   const BookSummaryScreen({super.key, required this.book});
@@ -29,7 +20,6 @@ class BookSummaryScreen extends ConsumerStatefulWidget {
 }
 
 class _BookSummaryScreenState extends ConsumerState<BookSummaryScreen> {
-  final bool _isNavVisible = true;
   bool _isDetailsExpanded = false;
 
   @override
@@ -473,33 +463,6 @@ class _BookSummaryScreenState extends ConsumerState<BookSummaryScreen> {
           ],
         ),
       ),
-    );
-  }
-
-
-  Widget _buildImpactText(String title, String content) {
-    if (content.isEmpty || content == 'Desconhecido') return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            color: AppTheme.kPrimaryGold,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          content,
-          style: GoogleFonts.outfit(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-            height: 1.6,
-            fontSize: 15,
-          ),
-        ),
-      ],
     );
   }
 }

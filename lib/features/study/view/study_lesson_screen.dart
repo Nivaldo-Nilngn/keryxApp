@@ -30,8 +30,6 @@ class StudyLessonScreen extends ConsumerStatefulWidget {
 }
 
 class _StudyLessonScreenState extends ConsumerState<StudyLessonScreen> {
-  final bool _isNavVisible = true;
-
   @override
   Widget build(BuildContext context) {
     final authUser = ref.watch(authStateProvider).value;

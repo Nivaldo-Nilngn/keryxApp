@@ -9,7 +9,6 @@ import 'package:keryx_app/core/services/ai_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:keryx_app/features/sermons/view_model/sermon_view_model.dart';
-import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 
 class SermonCreatorScreen extends ConsumerStatefulWidget {
@@ -28,9 +27,6 @@ class _SermonCreatorScreenState extends ConsumerState<SermonCreatorScreen> {
   final Map<String, quill.QuillController> _quillControllers = {};
   final Map<String, FocusNode> _focusNodes = {};
   final Map<String, ScrollController> _scrollControllers = {};
-
-  // Layer link for floating toolbar
-  final LayerLink _toolbarLayerLink = LayerLink();
   OverlayEntry? _toolbarEntry;
 
   // Track focused field to show toolbar
@@ -306,8 +302,17 @@ class _SermonCreatorScreenState extends ConsumerState<SermonCreatorScreen> {
         "ABERTURA", 
         Icons.chat_bubble_outline_rounded,
         trailing: IconButton(
-          onPressed: () => _generateSermonWithWorker(),
-          icon: const Icon(Icons.flash_on, size: 16, color: Colors.blueAccent),
+          onPressed: _isGenerating ? null : () => _generateSermonWithWorker(),
+          icon: _isGenerating
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent),
+                  ),
+                )
+              : const Icon(Icons.flash_on, size: 16, color: Colors.blueAccent),
           tooltip: "Estudo IA",
           visualDensity: VisualDensity.compact,
         ),
@@ -573,89 +578,6 @@ class _SermonCreatorScreenState extends ConsumerState<SermonCreatorScreen> {
     _toolbarEntry = null;
   }
 
-  TextStyle _getStyle(String? fontFamily, double? fontSize, int? colorValue) {
-    Color? color = colorValue != null && colorValue != Colors.transparent.toARGB32() ? Color(colorValue) : null;
-    double size = fontSize ?? 14;
-    
-    if (CustomFontLoader.loadedFontFamilies.contains(fontFamily)) {
-      return TextStyle(fontFamily: fontFamily, fontSize: size, color: color);
-    }
-    
-    switch (fontFamily) {
-      case 'Inter': return GoogleFonts.inter(fontSize: size, color: color);
-      case 'Roboto': return GoogleFonts.roboto(fontSize: size, color: color);
-      case 'Playfair Display': return GoogleFonts.playfairDisplay(fontSize: size, color: color);
-      case 'Montserrat': return GoogleFonts.montserrat(fontSize: size, color: color);
-      default: return GoogleFonts.outfit(fontSize: size, color: color);
-    }
-  }
-
-  Widget _buildWordPadContextMenu(
-    BuildContext context, 
-    EditableTextState editableTextState,
-    TextEditingController controller, {
-    required String textAlign,
-    required double fontSize,
-    required String fontFamily,
-    required int colorValue,
-    Function(String)? onAlignChanged, 
-    Function(double)? onSizeChanged,
-    Function(String)? onFontChanged,
-    Function(int)? onColorChanged,
-    required Function(String) onChanged,
-  }) {
-    final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
-
-    // Add WordPad Custom Actions
-    buttonItems.insert(0, ContextMenuButtonItem(
-      label: 'Negrito',
-      onPressed: () {
-        _wrapSelection(controller, "**", "**");
-        onChanged(controller.text);
-        editableTextState.hideToolbar();
-      },
-    ));
-    buttonItems.insert(1, ContextMenuButtonItem(
-      label: 'Itálico',
-      onPressed: () {
-        _wrapSelection(controller, "*", "*");
-        onChanged(controller.text);
-        editableTextState.hideToolbar();
-      },
-    ));
-    buttonItems.insert(2, ContextMenuButtonItem(
-      label: 'Lista',
-      onPressed: () {
-        _prefixLine(controller, "* ");
-        onChanged(controller.text);
-        editableTextState.hideToolbar();
-      },
-    ));
-    buttonItems.insert(3, ContextMenuButtonItem(
-      label: 'Estilos ✨',
-      onPressed: () {
-        editableTextState.hideToolbar();
-        _showFormattingSheet(
-          context,
-          align: textAlign,
-          size: fontSize,
-          font: fontFamily,
-          color: colorValue,
-          onAlignChanged: onAlignChanged,
-          onSizeChanged: onSizeChanged,
-          onFontChanged: onFontChanged,
-          onColorChanged: onColorChanged,
-          onChanged: () => onChanged(controller.text),
-        );
-      },
-    ));
-
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: editableTextState.contextMenuAnchors,
-      buttonItems: buttonItems,
-    );
-  }
-
   Widget _buildRichPreview(String? content) {
     if (content == null || content.isEmpty) {
       return Center(
@@ -719,7 +641,8 @@ class _SermonCreatorScreenState extends ConsumerState<SermonCreatorScreen> {
       return (endIndex == -1) ? text.substring(actualStart).trim() : text.substring(actualStart, endIndex).trim();
     }
 
-    final title = findSection("[TÍTULO]", "[") ?? "Esboço de Sermão";
+    final parsedTitle = findSection("[TÍTULO]", "[");
+    final title = parsedTitle.isNotEmpty ? parsedTitle : "Esboço de Sermão";
     final contextText = findSection("[CONTEXTO HISTÓRICO]", "[");
     final application = findSection("[APLICAÇÃO PRÁTICA]", "EndSectionNotExists"); // Pega até o fim
 
@@ -803,321 +726,6 @@ class _SermonCreatorScreenState extends ConsumerState<SermonCreatorScreen> {
       ),
     );
   }
-  void _showFormattingSheet(
-    BuildContext context, {
-    required String align, 
-    required double size, 
-    required String font,
-    required int color,
-    Function(String)? onAlignChanged, 
-    Function(double)? onSizeChanged,
-    Function(String)? onFontChanged,
-    Function(int)? onColorChanged,
-    required VoidCallback onChanged,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                   const Icon(Icons.auto_fix_high_rounded, color: Color(0xFF4B45D8)),
-                   const SizedBox(width: 12),
-                   Text("Estilo do Bloco", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
-                   const Spacer(),
-                   IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text("ALINHAMENTO", style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1.2)),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildSheetIcon(Icons.format_align_left, align == 'left', () {
-                    onAlignChanged?.call('left');
-                    onChanged();
-                    setSheetState(() => align = 'left');
-                  }),
-                  _buildSheetIcon(Icons.format_align_center, align == 'center', () {
-                    onAlignChanged?.call('center');
-                    onChanged();
-                    setSheetState(() => align = 'center');
-                  }),
-                  _buildSheetIcon(Icons.format_align_right, align == 'right', () {
-                    onAlignChanged?.call('right');
-                    onChanged();
-                    setSheetState(() => align = 'right');
-                  }),
-                  _buildSheetIcon(Icons.format_align_justify, align == 'justify', () {
-                    onAlignChanged?.call('justify');
-                    onChanged();
-                    setSheetState(() => align = 'justify');
-                  }),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("TAMANHO FONTE", style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1.2)),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _buildSheetIcon(Icons.remove, false, () {
-                              if (size > 8) {
-                                onSizeChanged?.call(size - 1);
-                                onChanged();
-                                setSheetState(() => size--);
-                              }
-                            }),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Text("${size.toInt()}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            ),
-                            _buildSheetIcon(Icons.add, false, () {
-                              onSizeChanged?.call(size + 1);
-                              onChanged();
-                              setSheetState(() => size++);
-                            }),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("FONTE", style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1.2)),
-                        const SizedBox(height: 12),
-                        _buildFontButton(font, (f) {
-                          onFontChanged?.call(f);
-                          onChanged();
-                          setSheetState(() => font = f);
-                        }),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text("COR DO TEXTO", style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1.2)),
-              const SizedBox(height: 12),
-              _buildColorButton(color, (c) {
-                onColorChanged?.call(c);
-                onChanged();
-                setSheetState(() => color = c);
-              }),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSheetIcon(IconData icon, bool active, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFF4B45D8) : Colors.grey.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: active ? Colors.white : Colors.grey[700], size: 20),
-      ),
-    );
-  }
-
-  Widget _buildFormattingToolbar(
-    String currentAlign, 
-    double currentSize, 
-    String currentFont,
-    int currentColor,
-    TextEditingController controller,
-    Function(String)? onAlignChanged, 
-    Function(double)? onSizeChanged,
-    Function(String)? onFontChanged,
-    Function(int)? onColorChanged,
-  ) {
-    // This is now legacy/unused but kept for internal builders maybe
-    return const SizedBox.shrink();
-  }
-
-  void _wrapSelection(TextEditingController controller, String prefix, String suffix) {
-    final text = controller.text;
-    final selection = controller.selection;
-    if (selection.start == -1) return;
-
-    final selectedText = selection.textInside(text);
-    final newText = text.replaceRange(selection.start, selection.end, "$prefix$selectedText$suffix");
-    
-    controller.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection(
-        baseOffset: selection.start + prefix.length,
-        extentOffset: selection.end + prefix.length,
-      ),
-    );
-  }
-
-  void _prefixLine(TextEditingController controller, String prefix) {
-    final text = controller.text;
-    final selection = controller.selection;
-    if (selection.start == -1) return;
-
-    // Find the start of the current line
-    int start = selection.start;
-    while (start > 0 && text[start - 1] != '\n') {
-      start--;
-    }
-
-    final newText = text.replaceRange(start, start, prefix);
-    controller.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: selection.start + prefix.length),
-    );
-  }
-
-  Widget _buildFontButton(String currentFont, Function(String)? onFontChanged) {
-    return PopupMenuButton<String>(
-      tooltip: "Fonte",
-      onSelected: (val) async {
-        if (val == '+ Importar Fonte') {
-          final newFont = await CustomFontLoader.importCustomFont();
-          if (newFont != null && onFontChanged != null) {
-            onFontChanged(newFont);
-          }
-        } else {
-          if (onFontChanged != null) {
-            onFontChanged(val);
-          }
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(currentFont, style: TextStyle(fontSize: 12, fontFamily: currentFont)),
-            const Icon(Icons.arrow_drop_down, size: 16),
-          ],
-        ),
-      ),
-      itemBuilder: (context) => [
-        ...CustomFontLoader.googleFonts,
-        ...CustomFontLoader.loadedFontFamilies.where((f) => !CustomFontLoader.googleFonts.contains(f)),
-        '+ Importar Fonte'
-      ].map((f) => PopupMenuItem(
-        value: f, 
-        child: f == '+ Importar Fonte'
-          ? const Text('+ Importar Fonte', style: TextStyle(fontWeight: FontWeight.bold))
-          : Text(f, style: CustomFontLoader.loadedFontFamilies.contains(f) 
-            ? TextStyle(fontFamily: f, fontSize: 14) 
-            : GoogleFonts.getFont(f, fontSize: 14))
-      )).toList(),
-    );
-  }
-
-  Widget _buildColorButton(int currentColor, Function(int)? onColorChanged) {
-    final Color actualColor = currentColor == Colors.transparent.toARGB32() ? Colors.grey : Color(currentColor);
-    return PopupMenuButton<int>(
-      tooltip: "Cor do Texto",
-      onSelected: onColorChanged,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 16, 
-              height: 16, 
-              decoration: BoxDecoration(color: actualColor, shape: BoxShape.circle),
-              child: currentColor == Colors.transparent.toARGB32() ? const Icon(Icons.close, size: 10, color: Colors.white) : null,
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.arrow_drop_down, size: 16),
-          ],
-        ),
-      ),
-      itemBuilder: (context) => [
-        Colors.transparent.toARGB32(),
-        const Color(0xFF1A1A1A).toARGB32(),
-        const Color(0xFF4B45D8).toARGB32(),
-        const Color(0xFFE91E63).toARGB32(),
-        const Color(0xFF4CAF50).toARGB32(),
-        const Color(0xFFFF9800).toARGB32(),
-        const Color(0xFF00BCD4).toARGB32(),
-        const Color(0xFF9C27B0).toARGB32(),
-      ].map((c) => PopupMenuItem(
-        value: c, 
-        child: Row(
-          children: [
-            Container(
-              width: 24, 
-              height: 24, 
-              decoration: BoxDecoration(
-                color: c == Colors.transparent.toARGB32() ? Colors.grey[200] : Color(c), 
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-              ),
-              child: c == Colors.transparent.toARGB32() ? const Icon(Icons.close, size: 14, color: Colors.black) : null,
-            ),
-            const SizedBox(width: 12),
-            Text(c == Colors.transparent.toARGB32() ? "Padrão" : "Cor"),
-          ],
-        ),
-      )).toList(),
-    );
-  }
-
-  Widget _buildToolbarIcon(IconData icon, bool active, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: IconButton(
-        icon: Icon(icon, size: 20, color: active ? const Color(0xFF4B45D8) : Colors.grey[600]),
-        onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-        tooltip: _getTooltip(icon),
-      ),
-    );
-  }
-
-  String _getTooltip(IconData icon) {
-    if (icon == Icons.format_bold) return "Negrito";
-    if (icon == Icons.format_italic) return "Itálico";
-    if (icon == Icons.format_list_bulleted) return "Lista";
-    if (icon == Icons.format_list_numbered) return "Numeração";
-    if (icon == Icons.format_align_left) return "Esquerda";
-    if (icon == Icons.format_align_center) return "Centralizar";
-    if (icon == Icons.format_align_right) return "Direita";
-    if (icon == Icons.format_align_justify) return "Justificar";
-    return "";
-  }
-
 
   Future<void> _pickBiblePassage({required Function(String passage) onSelected}) async {
     // Agora pedimos apenas o nome da passagem manualmente por enquanto ou simplificamos

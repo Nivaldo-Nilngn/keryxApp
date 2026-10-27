@@ -526,7 +526,6 @@ class _LazyVerseTextWidget extends ConsumerStatefulWidget {
   final double? fontSize;
 
   const _LazyVerseTextWidget({
-    super.key,
     required this.item,
     required this.version,
     required this.isDark,

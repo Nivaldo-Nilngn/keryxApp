@@ -658,8 +658,6 @@ class BibleService {
     String version,
     String query,
   ) async {
-    final lowerQuery = query.toLowerCase();
-
     // 1. Tenta SQLite (Mobile)
     final db = await _getDb(version);
     if (db != null) {
@@ -1089,43 +1087,6 @@ class BibleService {
       _emptyCloudVersions.add(key);
       return null;
     }
-  }
-
-  Future<List<Map<String, dynamic>>> _getCrossVersionsFromCloudflare(
-    int bookId,
-    int chapter,
-    int verse,
-    List<String> versions,
-  ) async {
-    try {
-      final resp = await http.post(
-        Uri.parse(_workerUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'action': 'getCrossVersions',
-          'book_id': bookId,
-          'chapter': chapter,
-          'verse': verse,
-          'versions': versions.map((v) => v.toUpperCase()).toList(),
-        }),
-      );
-
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        final List<dynamic> results = data['results'] ?? [];
-        return results
-            .map(
-              (m) => {
-                'version': m['version'],
-                'text': _cleanVerseText(m['text'] as String),
-              },
-            )
-            .toList();
-      }
-    } catch (e) {
-      print("Worker Error (getCrossVersions): $e");
-    }
-    return [];
   }
 
   /// Busca comentário para um versículo (Local -> Cloud + Cache)

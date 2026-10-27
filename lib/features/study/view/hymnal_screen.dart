@@ -252,7 +252,6 @@ class _HymnalScreenState extends ConsumerState<HymnalScreen> {
   Widget _buildHymnItem(Map<String, dynamic> hymn) {
     final number = hymn['displayId'] as String;
     final title = hymn['displayTitle'] as String;
-    final id = hymn['id'].toString();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

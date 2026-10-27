@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:keryx_app/core/widgets/responsive_layout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart';
-import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart' show showStrongBottomSheet;
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/study/view/dictionary_detail_screen.dart';
 
@@ -1125,72 +1123,6 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-class _LetterGridItem extends ConsumerWidget {
-  final String letter;
-  final String dictId;
-  final VoidCallback onTap;
-
-  const _LetterGridItem({
-    required this.letter,
-    required this.dictId,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final countAsync = ref.watch(
-      dictionaryLetterCountProvider((dictId: dictId, letter: letter)),
-    );
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              letter,
-              style: GoogleFonts.outfit(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            countAsync.when(
-              data: (count) => Text(
-                count.toString(),
-                style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 12),
-              ),
-              loading: () => SizedBox(
-                width: 10,
-                height: 10,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              error: (_, __) => const SizedBox(),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

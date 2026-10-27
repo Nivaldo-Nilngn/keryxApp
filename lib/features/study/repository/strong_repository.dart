@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/material.dart';
 import 'package:keryx_app/core/services/database_service.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 

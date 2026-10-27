@@ -21,8 +21,6 @@ class StudyPlanDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _StudyPlanDetailScreenState extends ConsumerState<StudyPlanDetailScreen> {
-  final bool _isNavVisible = true;
-
   @override
   Widget build(BuildContext context) {
     // Se não temos o objeto plan, assistimos o catálogo para encontrá-lo

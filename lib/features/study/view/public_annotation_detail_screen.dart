@@ -10,8 +10,6 @@ import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/features/study/view_model/note_cards_provider.dart';
 import 'package:keryx_app/features/study/view_model/public_annotations_provider.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
-import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
-import 'package:keryx_app/core/state/navigation_state.dart';
 
 class PublicAnnotationDetailScreen extends ConsumerStatefulWidget {
   final NoteCard note;

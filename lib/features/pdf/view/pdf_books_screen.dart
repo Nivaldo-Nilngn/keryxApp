@@ -10,39 +10,18 @@ import 'package:keryx_app/core/services/pdf_service.dart';
 import 'package:keryx_app/core/utils/search_helper.dart';
 import 'package:keryx_app/features/pdf/view/pdf_details_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:keryx_app/core/services/telegram/telegram_download_service.dart';
-import 'package:keryx_app/core/services/telegram/telegram_bootstrap.dart';
 import 'package:keryx_app/core/services/telegram/cloudflare_pdf_service.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
 import 'package:keryx_app/core/services/book_cover_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/view/book_reader_screen.dart';
 import 'package:keryx_app/features/store/view/html_book_reader_screen.dart';
-import 'package:keryx_app/features/pdf/view/pdf_viewer_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// ─────────────────────────────────────────────────────────────────────────────
-// Modelo
-// ─────────────────────────────────────────────────────────────────────────────
-class OneDriveBook {
-  final String id;
-  final String name;
-  final String? downloadUrl;
-  final int size;
-
-  OneDriveBook({
-    required this.id,
-    required this.name,
-    this.downloadUrl,
-    required this.size,
-  });
-}
-
 String cleanPdfName(String raw) {
   String n = raw;
   n = n.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
@@ -70,18 +49,10 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
   late TabController _tabController;
   // final _graphService = GraphService(); // 👈
   final _pdfService = PdfService();
-  List<OneDriveBook> _allDriveBooks = [];
-  List<OneDriveBook> _driveBooks = [];
   List<Map<String, String>> _localBooks = [];
   List<Map<String, dynamic>> _cloudPdfs = [];
-  bool _isLoadingDrive = false;
-  bool _isFetchingAll = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-
-  final ScrollController _scroll = ScrollController();
-  Timer? _debounce;
-  String? _driveError;
 
   List<Map<String, dynamic>> _telegramBooks = [];
   bool _isLoadingTelegram = false;
@@ -142,9 +113,6 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     }).length + cloudCount;
   }
 
-  // Fila de Downloads (apenas em memória para este exemplo)
-  final List<_QueueEntry> _downloadQueue = [];
-
   int _libraryAreaIndex = 0; // 0 = E-books, 1 = PDFs
 
   @override
@@ -152,26 +120,13 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      // if (_tabController.index == 1 && !_tabController.indexIsChanging) _loadDrive();
       if (_tabController.index == 1 && !_tabController.indexIsChanging) _loadTelegram();
     });
-    _scroll.addListener(_onScroll);
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.trim());
-      _debounce?.cancel();
-      _debounce = Timer(const Duration(milliseconds: 450), () {
-        if (_tabController.index == 1) _applyFilters();
-      });
     });
-    // _graphService.clearLegacyCache();
     _loadLocalBooks();
-    // _loadDrive();
     _loadTelegram();
-  }
-
-  bool get _isAdmin {
-    final email = FirebaseAuth.instance.currentUser?.email?.toLowerCase().trim();
-    return email == 'nivaldo.nilngn@gmail.com';
   }
 
   Future<void> _deleteReadingProgress(String bookName) async {
@@ -196,95 +151,10 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     }
   }
 
-  Future<void> _confirmDeleteFromOneDrive(OneDriveBook book) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
-            SizedBox(width: 8),
-            Text(
-              'Excluir do OneDrive?',
-              style: GoogleFonts.outfit(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Atenção, Administrador:\n\nTem certeza de que deseja apagar permanentemente o arquivo:\n\n"${cleanPdfName(book.name)}"\n\ndo seu OneDrive na nuvem? Ele será removido do catálogo de todos os usuários.',
-          style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Theme.of(context).colorScheme.onSurface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: Text('Excluir da Nuvem', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true || !mounted) return;
-
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => Center(
-          child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
-        ),
-      );
-
-      // await _graphService.deleteDriveItem(book.id);
-      await _pdfService.deleteBook(book.name);
-
-      if (mounted) {
-        Navigator.pop(context); // Fecha loading
-        setState(() {
-          _allDriveBooks.removeWhere((b) => b.id == book.id);
-          _driveBooks.removeWhere((b) => b.id == book.id);
-        });
-        _loadLocalBooks();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Livro excluído com sucesso do OneDrive!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Fecha loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao excluir do OneDrive: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   void dispose() {
     _searchController.dispose();
     _tabController.dispose();
-    _scroll.dispose();
-    _debounce?.cancel();
     super.dispose();
   }
 
@@ -310,15 +180,6 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     }
   }
 
-
-  List<OneDriveBook> _toBooks(List items) => items
-      .map((i) => OneDriveBook(
-            id: i['id'] ?? '',
-            name: i['name'] ?? '',
-            size: i['size'] ?? 0,
-          ))
-      .toList();
-
   Future<void> _loadTelegram() async {
     if (_telegramBooks.isNotEmpty) return;
     if (mounted) setState(() { _isLoadingTelegram = true; _telegramError = null; });
@@ -339,55 +200,8 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     }
   }
 
-  Future<void> _loadDrive({bool force = false}) async {
-    if (_isFetchingAll) return;
-    if (!force && _allDriveBooks.isNotEmpty) {
-      _applyFilters();
-      return;
-    }
 
-    setState(() {
-      _isLoadingDrive = true;
-      _driveError = null;
-      _allDriveBooks = [];
-    });
 
-    _isFetchingAll = true;
-    try {
-      /*
-      String? next;
-      do {
-        final r = await _graphService.getPdfPage(nextLink: next, pageSize: 100);
-        if (!mounted) return;
-        _allDriveBooks.addAll(_toBooks(r['items'] as List));
-        next = r['nextLink'] as String?;
-        _applyFilters();
-      } while (next != null);
-      */
-    } catch (e) {
-      if (mounted) setState(() => _driveError = e.toString());
-    } finally {
-      _isFetchingAll = false;
-      if (mounted) {
-        setState(() => _isLoadingDrive = false);
-        _applyFilters();
-      }
-    }
-  }
-
-  void _applyFilters() {
-    final normQuery = SearchHelper.normalize(_searchQuery);
-    
-    // Filter Acervo
-    _driveBooks = _allDriveBooks.where((b) {
-      final normName = SearchHelper.normalize(b.name);
-      if (_searchQuery.isNotEmpty && !normName.contains(normQuery)) return false;
-      return _matchCategory(normName);
-    }).toList();
-
-    setState(() {});
-  }
-  
   bool _matchCategory(String normName) {
     if (_selectedCategory == 'Para Você' || _selectedCategory == 'Todos') return true;
     if (_selectedCategory == 'Bíblias' && normName.contains('biblia')) return true;
@@ -409,49 +223,6 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       }
     }
     return false;
-  }
-
-  void _onScroll() {
-    // Pagination removed, loading all in background
-  }
-
-  void _startDownload(OneDriveBook book) async {
-    if (PdfDownloadManager().isDownloading(book.name)) return;
-    
-    try {
-      /*
-      final freshData = await _graphService.getDirectAccessData(book.id);
-      final url = freshData['url'];
-      final auth = freshData['Authorization'];
-      if (url == null) return;
-
-      PdfDownloadManager().startDownload(
-        url: url,
-        fileName: book.name,
-        headers: auth != null ? {'Authorization': auth} : null,
-        expectedSize: book.size,
-        refreshAccess: () => _graphService.getDirectAccessData(book.id),
-        onCompleted: () {
-          if (mounted) {
-            _loadLocalBooks();
-          }
-        },
-        onError: (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Falha ao baixar ${book.name}: $e')),
-            );
-          }
-        },
-      );
-      */
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Falha ao obter link de ${book.name}: $e')),
-        );
-      }
-    }
   }
 
   @override
@@ -615,7 +386,6 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                               onTap: () {
                                 setState(() {
                                   _selectedCategory = item.name;
-                                  _applyFilters();
                                 });
                               },
                               borderRadius: BorderRadius.circular(20),
@@ -1686,7 +1456,6 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
         onTap: () {
           setState(() {
             _selectedCategory = category;
-            _applyFilters();
           });
           _tabController.animateTo(1);
         },
@@ -1794,127 +1563,6 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
           ],
         ),
       ),
-    );
-  }
-
-
-  Widget _buildAcervoTab() {
-
-    return Column(
-      children: [
-        if (_downloadQueue.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              children: _downloadQueue.map((e) => _QueueCard(entry: e)).toList(),
-            ),
-          ),
-        Expanded(
-          child: _driveBooks.isEmpty && _isLoadingDrive
-              ? Center(child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
-                    SizedBox(height: 16),
-                    Text('Carregando o acervo...',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7))),
-                  ],
-                ))
-              : _driveBooks.isEmpty && _driveError != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.wifi_off_rounded, size: 64, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24)),
-                            SizedBox(height: 16),
-                            Text('Não foi possível carregar o acervo',
-                                style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontSize: 18)),
-                            SizedBox(height: 8),
-                            Text(_driveError!,
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), fontSize: 12)),
-                            SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () async {
-                                await _loadDrive(force: true);
-                              },
-                              icon: Icon(Icons.refresh),
-                              label: Text('Tentar novamente'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : _driveBooks.isEmpty
-                      ? _buildEmptyState(
-                          _searchQuery.isNotEmpty ? 'Nenhum resultado' : 'OneDrive Vazio', 
-                          _searchQuery.isNotEmpty ? 'Nenhum PDF encontrado com esse nome.' : 'Não encontramos arquivos PDF no seu OneDrive.', 
-                          _searchQuery.isNotEmpty ? Icons.search_off : Icons.cloud_off_rounded)
-                  : RefreshIndicator(
-                      onRefresh: () => _loadDrive(force: true),
-                      child: GridView.builder(
-                        controller: _scroll,
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 100),
-                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 180,
-                          mainAxisSpacing: 20,
-                          crossAxisSpacing: 20,
-                          childAspectRatio: 0.65,
-                        ),
-                        itemCount: _driveBooks.length,
-                        itemBuilder: (context, index) {
-                          final book = _driveBooks[index];
-                          final alreadyDownloaded = _localBooks.any((l) => l['name'] == book.name);
-                          final localBook = alreadyDownloaded 
-                              ? _localBooks.firstWhere((l) => l['name'] == book.name) 
-                              : null;
-
-                          return _BookCard(
-                            key: ValueKey(book.id),
-                            name: book.name,
-                            isLocal: false,
-                            alreadyDownloaded: alreadyDownloaded,
-                            path: localBook?['path'],
-                            bookSize: book.size,
-                            onDelete: _isAdmin ? () => _confirmDeleteFromOneDrive(book) : null,
-                            onTap: (metadata) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PdfDetailsScreen(
-                                    name: book.name,
-                                    cleanName: cleanPdfName(book.name),
-                                    isLocal: false,
-                                    alreadyDownloaded: alreadyDownloaded,
-                                    localPath: localBook?['path'],
-                                    metadata: metadata,
-                                    bookId: book.id,
-                                    bookSize: book.size,
-                                    onDownload: () => _startDownload(book),
-                                    onDownloadCompleted: () => _loadLocalBooks(),
-                                    onDeletedFromDrive: () {
-                                      setState(() {
-                                        _allDriveBooks.removeWhere((b) => b.id == book.id);
-                                        _driveBooks.removeWhere((b) => b.id == book.id);
-                                      });
-                                      _loadLocalBooks();
-                                    },
-                                  ),
-                                ),
-                              ).then((_) {
-                                _loadLocalBooks();
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    ),
-        ),
-      ],
     );
   }
 
@@ -2356,48 +2004,4 @@ class _BookCardState extends State<_BookCard> {
   }
 }
 
-class _QueueEntry {
-  final OneDriveBook book;
-  double? progress;
-  _QueueEntry({required this.book});
-}
 
-class _QueueCard extends StatefulWidget {
-  final _QueueEntry entry;
-  const _QueueCard({required this.entry});
-
-  @override
-  State<_QueueCard> createState() => _QueueCardState();
-}
-
-class _QueueCardState extends State<_QueueCard> {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Baixando ${widget.entry.book.name}...',
-            style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
-          ),
-          if (widget.entry.progress == null || widget.entry.progress! >= 0) ...[
-            SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: widget.entry.progress,
-              backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-              valueColor: AlwaysStoppedAnimation(Theme.of(context).colorScheme.primary),
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ]
-        ],
-      ),
-    );
-  }
-}

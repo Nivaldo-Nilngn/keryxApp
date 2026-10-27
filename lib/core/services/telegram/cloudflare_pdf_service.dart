@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -11,15 +10,20 @@ class CloudflarePdfService {
   CloudflarePdfService._();
   static final instance = CloudflarePdfService._();
 
-  // Substitua pela URL final do seu Worker da Cloudflare quando criar
-  final String _workerUrl = 'https://biblia-ia-esboco.nivaldo-nilngn.workers.dev/pdfs';
+  List<Map<String, dynamic>>? _cachedPdfs;
 
   Future<List<Map<String, dynamic>>> fetchPdfs() async {
+    if (_cachedPdfs != null && _cachedPdfs!.isNotEmpty) {
+      return _cachedPdfs!;
+    }
+
     try {
       if (kIsWeb) {
         debugPrint('🌐 Lendo banco_telegram.json dos assets para web...');
         final String jsonStr = await rootBundle.loadString('assets/data/banco_telegram.json');
-        return await compute(_decodeAndMapPdfs, jsonStr);
+        final result = await compute(_decodeAndMapPdfs, jsonStr);
+        _cachedPdfs = result;
+        return result;
       }
 
       final databasesPath = await getDatabasesPath();
@@ -49,7 +53,9 @@ class CloudflarePdfService {
       final List<Map<String, dynamic>> livrosData = await db.query('livros');
       
       // Mapeamento usando Isolate (desafoga a UI)
-      return await compute(_mapPdfs, livrosData);
+      final result = await compute(_mapPdfs, livrosData);
+      _cachedPdfs = result;
+      return result;
     } catch (e) {
       debugPrint('Erro SQLite Telegram: $e');
       throw Exception('Falha ao ler banco_telegram.db local');

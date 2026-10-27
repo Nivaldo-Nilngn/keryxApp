@@ -186,8 +186,6 @@ class B2Service {
   }
   
   // Obtém bucketId a partir do nome
-  String? _cachedBucketId;
-  
   Future<String> _getBucketId() async {
     if (_bucketId != null) {
       debugPrint('✅ Usando bucketId da autenticação: $_bucketId');

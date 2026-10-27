@@ -25,7 +25,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/reading/view/text_settings_bottom_sheet.dart';
-import 'package:keryx_app/features/study/view/dictionary_screen.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/study/view/study_hub_panel.dart';
@@ -36,7 +35,6 @@ import 'package:keryx_app/features/study/view/annotations_screen.dart'
 import 'package:keryx_app/features/study/view/favorites_screen.dart'
     as keryx_favorites;
 import 'package:keryx_app/features/bible/reading/providers/reading_state_provider.dart';
-import 'package:keryx_app/core/services/tts/tts_service.dart';
 import 'package:keryx_app/core/services/tts/tts_player_provider.dart';
 import 'package:keryx_app/features/bible/view/tts_settings_sheet.dart' as keryx_tts;
 
@@ -65,16 +63,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     r'^\s*(?:<[^>]+>\s*)*[\(\[]?(\d+(?:[-|,]\d+)?)[\)\]]?(?:<[^>]+>\s*)*\s+',
   );
   static final RegExp _tagRegex = RegExp(r'<[^>]+>');
-  static final RegExp _leadingDigitsRegex = RegExp(r'^(\d+)\s+(.*)$', dotAll: true);
-  static final RegExp _parensRegex = RegExp(r'\(([A-Za-z0-9_\-]+)\)');
   static final RegExp _punctuationRegex = RegExp(r'[.,;]');
 
   final ScrollController _scrollController = ScrollController();
   final Map<int, GlobalKey> _verseKeys = {};
   late int _currentChapter;
   late BibleBook _currentBook;
-  final bool _isNavVisible = true;
-  bool _showTheology = false;
   String? _activeStrong;
   bool _pendingAutoPlay = false;
   String? _activeStrongWord;
@@ -83,18 +77,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   Timer? _sessionDebounceTimer;
   bool _isRecordingSession = false;
   String? _lastRecordedSessionKey;
-  int _lastTrackedVerse = 1;
   String? _selectedSubVersion;
   int? _targetVerseToScroll;
   bool _hasPrefetchedNext = false;
-
-  bool get _isReadingChapter {
-    // Apenas lemos o estado sem escutar para não quebrar nos helpers (o build já escuta)
-    final ttsState = ref.read(ttsPlayerProvider);
-    return ttsState.isPlaying &&
-        ttsState.bookId == _currentBook.id.toString() &&
-        ttsState.chapter == _currentChapter;
-  }
 
   @override
   void initState() {
@@ -215,7 +200,6 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       _currentChapter = next;
       _hasPrefetchedNext = false;
       ref.read(readingSelectionProvider.notifier).clearSelection();
-      _showTheology = false;
     });
     _updateLastRead();
   }
@@ -267,11 +251,6 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
   Future<void> _openSelector({SelectorStage? initialStage}) async {
     final currentVersion = ref.read(selectedVersionProvider);
-    final availableBooks = ref
-        .read(booksProvider)
-        .valueOrNull
-        ?.map((b) => b.id)
-        .toSet();
 
     final result =
         await showModalBottomSheet<
@@ -307,7 +286,6 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
           _targetVerseToScroll = result.verse;
         }
         ref.read(readingSelectionProvider.notifier).clearSelection();
-        _showTheology = false;
       });
       _updateLastRead();
     }
@@ -637,412 +615,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 );
 }
 
-  String _formatVerseRange(List<int> sorted) {
-    if (sorted.isEmpty) return '1';
-    if (sorted.length == 1) return '${sorted.first}';
-    bool consecutive = true;
-    for (int i = 0; i < sorted.length - 1; i++) {
-      if (sorted[i + 1] != sorted[i] + 1) {
-        consecutive = false;
-        break;
-      }
-    }
-    return consecutive
-        ? '${sorted.first}-${sorted.last}'
-        : sorted.join(', ');
-  }
-
-  Widget _buildComparisonVerseText(String text, BuildContext context) {
-    final clean = text.trim();
-    final fontSettings = ref.watch(fontSettingsProvider);
-    final userFontSize = fontSettings.fontSize;
-    final numFontSize = (userFontSize * 0.88).clamp(13.0, 22.0);
-
-    if (!clean.contains('\n\n')) {
-      return Text(
-        BibleTextParser.cleanToPlainText(clean),
-        style: GoogleFonts.outfit(
-          fontSize: userFontSize,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
-          height: 1.6,
-          fontWeight: FontWeight.w400,
-        ),
-      );
-    }
-
-    final paragraphs = clean.split('\n\n');
-    final spans = <InlineSpan>[];
-    for (int pIdx = 0; pIdx < paragraphs.length; pIdx++) {
-      final p = paragraphs[pIdx].trim();
-      final match = _leadingDigitsRegex.firstMatch(p);
-      if (match != null) {
-        final num = match.group(1)!;
-        final content = BibleTextParser.cleanToPlainText(match.group(2)!);
-        spans.add(TextSpan(
-          text: '$num ',
-          style: GoogleFonts.outfit(
-            fontSize: numFontSize,
-            fontWeight: FontWeight.w800,
-            color: AppTheme.kPrimaryGold,
-          ),
-        ));
-        spans.add(TextSpan(
-          text: content,
-          style: GoogleFonts.outfit(
-            fontSize: userFontSize,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
-            height: 1.6,
-            fontWeight: FontWeight.w400,
-          ),
-        ));
-      } else {
-        spans.add(TextSpan(
-          text: BibleTextParser.cleanToPlainText(p),
-          style: GoogleFonts.outfit(
-            fontSize: userFontSize,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
-            height: 1.6,
-            fontWeight: FontWeight.w400,
-          ),
-        ));
-      }
-      if (pIdx < paragraphs.length - 1) {
-        spans.add(const TextSpan(text: '\n\n'));
-      }
-    }
-
-    return Text.rich(TextSpan(children: spans));
-  }
-
   void _showComparisonSheet(List<int> selectedVerseNumbers) {
     showVerseComparisonScreen(
       context,
       currentBook: _currentBook,
       currentChapter: _currentChapter,
       selectedVerseNumbers: selectedVerseNumbers,
-    );
-  }
-
-  void _legacyComparisonSheet(List<int> selectedVerseNumbers) {
-    final sortedVerses = selectedVerseNumbers.toList()..sort();
-    final verseRangeText = _formatVerseRange(sortedVerses);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      constraints: const BoxConstraints(maxWidth: double.infinity),
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-          border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
-              blurRadius: 40,
-              spreadRadius: 10,
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 40,
-                    child: IconButton(
-                      onPressed: () {
-                        final isStrong = ref.read(isStrongAvailableProvider);
-                        showTextSettingsBottomSheet(context, isStrongVersion: isStrong);
-                      },
-                      tooltip: 'Configurações de Leitura & Fonte',
-                      icon: Icon(
-                        Icons.tune_rounded,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Text(
-                          'COMPARAÇÃO',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.kPrimaryGold,
-                            letterSpacing: 2.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_currentBook.name} $_currentChapter:$verseRangeText',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 40,
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: Icon(
-                        Icons.close_rounded,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.30),
-                      ),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.topRight,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Divider(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.1),
-              height: 1,
-            ),
-            Expanded(
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final storeState = ref.watch(downloadedStorePackagesProvider);
-                  final isVersionDownloadedLocally = (String v) {
-                    if (v == 'NVI' || v == 'ARA_S') return true;
-                    if (storeState.isDownloaded('$v.sqlite') || 
-                        storeState.isDownloaded('$v.mybible') || 
-                        storeState.isDownloaded('$v.bbl.mybible') || 
-                        storeState.isDownloaded('$v.db')) {
-                      return true;
-                    }
-                    return storeState.availablePackages.any((p) =>
-                        p.category == StoreCategory.bibles &&
-                        storeState.isDownloaded(p.filename) &&
-                        (p.filename.toUpperCase().contains(v.toUpperCase())));
-                  };
-
-                  final localVersions = <String>[];
-                  for (final v in BibleService.availableVersions) {
-                    if (isVersionDownloadedLocally(v)) {
-                      localVersions.add(v);
-                    }
-                  }
-                  for (final v in ['NVI', 'ARA_S']) {
-                    if (!localVersions.contains(v)) {
-                      localVersions.add(v);
-                    }
-                  }
-
-                  final userBibles = storeState.availablePackages.where(
-                    (p) =>
-                        p.category == StoreCategory.bibles &&
-                        storeState.isDownloaded(p.filename),
-                  );
-
-                  for (var bible in userBibles) {
-                    String rawFilename = bible.filename.split('/').last;
-                    if (rawFilename.contains('ARA+STRONG - ATUALIZADA + STRONG')) {
-                      continue; // Skip to avoid duplicate with ARA_S
-                    }
-
-                    // Tenta extrair a sigla entre parênteses, ex: "Almeida Revista e Atualizada (ARA).bbl.mybible" -> "ARA"
-                    final match = _parensRegex.firstMatch(rawFilename);
-                    String key;
-                    if (match != null && match.group(1) != null) {
-                      key = match.group(1)!.trim().toUpperCase();
-                      if (key == 'ARA-S') key = 'ARA_S';
-                    } else {
-                      String stripped = rawFilename;
-                      for (final ext in ['.bbl.mybible', '.mybible', '.sqlite', '.db']) {
-                        if (stripped.toLowerCase().endsWith(ext)) {
-                          stripped = stripped.substring(0, stripped.length - ext.length);
-                          break;
-                        }
-                      }
-                      key = stripped.trim().toUpperCase();
-                    }
-
-                    final existingKey = BibleMetadata.versionNames.keys.cast<String?>().firstWhere(
-                      (k) => k?.toUpperCase() == key.toUpperCase(),
-                      orElse: () => null,
-                    );
-
-                    final finalKey = existingKey ?? key;
-
-                    if (!localVersions.contains(finalKey)) {
-                      localVersions.add(finalKey);
-                    }
-                  }
-
-                  final comparison = ref.watch(
-                    compareVersesProvider((
-                      bookId: _currentBook.id.toString(),
-                      chapter: _currentChapter,
-                      versesStr: sortedVerses.join(','),
-                      versionsStr: localVersions.join(','),
-                    )),
-                  );
-
-                  return comparison.when(
-                    data: (results) => ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-                      itemCount: results.length,
-                      itemBuilder: (context, i) {
-                        final item = results[i];
-                        final text = (item['text'] as String);
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 20),
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).brightness == Brightness.light
-                                ? Colors.grey[50]!
-                                : const Color(0xFF16162C),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    Theme.of(context).brightness ==
-                                        Brightness.light
-                                    ? Colors.black.withValues(alpha: 0.04)
-                                    : Colors.black.withValues(alpha: 0.3),
-                                blurRadius:
-                                    Theme.of(context).brightness ==
-                                        Brightness.light
-                                    ? 10
-                                    : 15,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                            border: Border.all(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.light
-                                  ? Colors.grey.withValues(alpha: 0.15)
-                                  : AppTheme.kPrimaryGold.withValues(
-                                      alpha: 0.15,
-                                    ),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildComparisonVerseText(text, context),
-                              const SizedBox(height: 16),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.light
-                                        ? AppTheme.kPrimaryGold
-                                        : null,
-                                    gradient:
-                                        Theme.of(context).brightness ==
-                                            Brightness.light
-                                        ? null
-                                        : LinearGradient(
-                                            colors: [
-                                              AppTheme.kPrimaryGold.withValues(
-                                                alpha: 0.15,
-                                              ),
-                                              AppTheme.kPrimaryGold.withValues(
-                                                alpha: 0.05,
-                                              ),
-                                            ],
-                                            begin: Alignment.centerLeft,
-                                            end: Alignment.centerRight,
-                                          ),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color:
-                                          Theme.of(context).brightness ==
-                                              Brightness.light
-                                          ? Colors.transparent
-                                          : AppTheme.kPrimaryGold.withValues(
-                                              alpha: 0.2,
-                                            ),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    () {
-                                      final v = item['version'] as String;
-                                      final match = _parensRegex.firstMatch(v);
-                                      if (match != null && match.group(1) != null) {
-                                        return match.group(1)!.toUpperCase();
-                                      }
-                                      return v;
-                                    }(),
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(context).brightness ==
-                                              Brightness.light
-                                          ? Colors.white
-                                          : AppTheme.kPrimaryGold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    loading: () => const Center(
-                      child: CircularProgressIndicator(
-                        color: AppTheme.kPrimaryGold,
-                      ),
-                    ),
-                    error: (e, _) =>
-                        Center(child: Text('Erro ao carregar: $e')),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1469,239 +1047,6 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     );
   }
 
-  void _showNotesSheet(BibleVerse verse, String verseKey) {
-    final controller = TextEditingController(
-      text: ref.read(annotationsProvider)[verseKey] ?? '',
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      constraints: const BoxConstraints(maxWidth: double.infinity),
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-          border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.1),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.edit_note_rounded,
-                      color: AppTheme.kPrimaryGold,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'MINHAS ANOTAÇÕES',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.kPrimaryGold,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      Text(
-                        '${_currentBook.name} $_currentChapter:${verse.number}',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Divider(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.1),
-              height: 32,
-            ),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.1),
-                ),
-              ),
-              child: TextField(
-                controller: controller,
-                maxLines: 6,
-                autofocus: true,
-                style: GoogleFonts.outfit(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-                decoration: InputDecoration(
-                  hintText:
-                      'O que Deus falou com você através deste versículo?',
-                  hintStyle: GoogleFonts.outfit(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.24),
-                    fontSize: 14,
-                  ),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-              child: ElevatedButton(
-                onPressed: () {
-                  ref
-                      .read(annotationsProvider.notifier)
-                      .saveAnnotation(verseKey, controller.text);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Sua anotação foi salva com sucesso!',
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                      backgroundColor: const Color(0xFF10B981),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.kPrimaryGold,
-                  foregroundColor: Colors.black,
-                  minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  'SALVAR ANOTAÇÃO',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmallIconButton(IconData icon, Color color, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withValues(alpha: 0.1)),
-          ),
-          child: Icon(icon, color: color, size: 22),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPillButton(String text, bool active, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: active
-                ? AppTheme.kPrimaryGold
-                : Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
-            border: active
-                ? null
-                : Border.all(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.1),
-                  ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            style: GoogleFonts.outfit(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: active
-                  ? Colors.black
-                  : Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.60),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTopSection(dynamic chapter) {
     final version = ref.watch(selectedVersionProvider);
     final storeState = ref.watch(downloadedStorePackagesProvider);
@@ -2005,12 +1350,6 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               ref
                   .read(readingSelectionProvider.notifier)
                   .toggleVerse(verse.number);
-              if (ref
-                  .read(readingSelectionProvider)
-                  .selectedVerses
-                  .isEmpty) {
-                _showTheology = false;
-              }
             },
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 250),
@@ -2285,41 +1624,6 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
         });
       },
     );
-  }
-
-  /// Constrói o WidgetSpan clicável verde para palavras com número Strong.
-  /// Mantido para compatibilidade caso seja referenciado em outros lugares.
-  WidgetSpan _buildStrongWordSpan(String word, String tag, BibleVerse verse) {
-    return WidgetSpan(
-      alignment: PlaceholderAlignment.middle,
-      child: GestureDetector(
-        onTap: () => showStrongBottomSheet(context, tag, word),
-        child: Text(
-          word,
-          style: GoogleFonts.outfit(
-            fontSize: 18,
-            color: const Color(0xFF4ADE80),
-            fontWeight: FontWeight.bold,
-            decoration: TextDecoration.underline,
-            decorationColor: const Color(0xFF4ADE80).withValues(alpha: 0.3),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _normalizeStrongId(String tag) {
-    String normalized = tag.toUpperCase();
-    if (normalized.startsWith('WH')) {
-      return normalized.replaceFirst('WH', 'H');
-    } else if (normalized.startsWith('WG')) {
-      return normalized.replaceFirst('WG', 'G');
-    } else if (normalized.startsWith('SH')) {
-      return normalized.replaceFirst('SH', 'H');
-    } else if (normalized.startsWith('SG')) {
-      return normalized.replaceFirst('SG', 'G');
-    }
-    return normalized;
   }
 
   Widget _buildFootnoteBox(String noteContent) {

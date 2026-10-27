@@ -16,7 +16,6 @@ import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:http/http.dart' as http;
 import 'package:keryx_app/features/store/repository/b2_service.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
-import 'package:keryx_app/core/theme/app_theme.dart';
 
 // ── Paleta ──────────────────────────────────────────────────────────────────
 // Utiliza-se Theme.of(context) em vez de cores hardcoded para suportar temas claro e escuro.
@@ -508,29 +507,6 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _parseBlocks(String html) {
-    final List<Map<String, dynamic>> blocks = [];
-    final paras = html.split(RegExp(r'</?p>|</p>\s*<p>')).where((s) => s.trim().isNotEmpty).toList();
-    for (final para in paras) {
-      final isChorus = para.contains('<strong>') || para.contains('<em>');
-      final clean = para
-          .replaceAll(RegExp(r'<[^>]+>'), '')
-          .replaceAll('&amp;', '&')
-          .replaceAll('&lt;', '<')
-          .replaceAll('&gt;', '>')
-          .replaceAll('&nbsp;', ' ')
-          .replaceAll('\n', ' ')
-          .trim();
-      if (clean.isEmpty) continue;
-      final rawLines = para.replaceAll(RegExp(r'<[^>]+>'), '\n').split('\n')
-          .map((l) => l.replaceAll(RegExp(r'&[a-z]+;'), ' ').trim())
-          .where((l) => l.isNotEmpty)
-          .toList();
-      blocks.add({'isChorus': isChorus, 'lines': rawLines.isEmpty ? [clean] : rawLines});
-    }
-    return blocks;
-  }
-
   String _formatDuration(Duration d) {
     final mins = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final secs = d.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -550,7 +526,6 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final blocks = _parseBlocks(hymn.html);
     final numStr = hymn.number.padLeft(3, '0');
     final hasPrev = _currentIndex > 0;
     final hasNext = _currentIndex < widget.hymns.length - 1;

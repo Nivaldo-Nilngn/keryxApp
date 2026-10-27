@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
 /// Splash screen do Keryx.
 ///
@@ -41,8 +40,6 @@ class KeryxSplashScreen extends StatefulWidget {
 
 class _KeryxSplashScreenState extends State<KeryxSplashScreen>
     with TickerProviderStateMixin {
-  static const _bgDeep = Color(0xFF0F0F1E);
-  static const _bgGlow = Color(0xFF1B1B3A);
   static const _ringSize = 172.0;
   static const _logoSize = 108.0;
 

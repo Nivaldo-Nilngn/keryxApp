@@ -9,7 +9,6 @@ import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
 import 'package:keryx_app/features/bible/model/bible_model.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
-import 'package:keryx_app/features/summaries/view/book_summary_screen.dart';
 import 'package:keryx_app/features/reading/repository/reading_repository.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
@@ -90,19 +89,6 @@ class _BookSelectionScreenState extends ConsumerState<BookSelectionScreen> {
         });
       }
     }
-  }
-
-  Color _getGroupColor(String g) {
-    final lower = g.toLowerCase();
-    if (lower.contains('pentateuco')) return const Color(0xFFD97706);
-    if (lower.contains('históricos')) return const Color(0xFF059669);
-    if (lower.contains('poéticos')) return const Color(0xFF2563EB);
-    if (lower.contains('profetas maiores')) return const Color(0xFF7C3AED);
-    if (lower.contains('profetas menores')) return const Color(0xFF9333EA);
-    if (lower.contains('evangelhos')) return const Color(0xFFDC2626);
-    if (lower.contains('epístolas')) return const Color(0xFF0D9488);
-    if (lower.contains('proféticos')) return const Color(0xFF4F46E5);
-    return const Color(0xFF374151);
   }
 
   @override
@@ -623,18 +609,6 @@ class _BookSelectionScreenState extends ConsumerState<BookSelectionScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSectionLabel(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.outfit(
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
-        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-        letterSpacing: 1.5,
-      ),
     );
   }
 }

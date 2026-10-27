@@ -282,12 +282,21 @@ class _OutlineEditorScreenState extends ConsumerState<OutlineEditorScreen> {
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
-        onPressed: _save,
+        onPressed: _isSaving ? null : _save,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF4B45D8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: const Text('PRÓXIMO PASSO', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+        child: _isSaving
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text('PRÓXIMO PASSO', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
       ),
     );
   }

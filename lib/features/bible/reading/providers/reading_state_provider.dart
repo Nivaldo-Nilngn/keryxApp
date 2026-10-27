@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/features/bible/model/bible_model.dart';
-import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 
 class ReadingSelectionState {
   final BibleBook? book;
