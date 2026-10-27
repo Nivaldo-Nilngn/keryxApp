@@ -2207,10 +2207,10 @@ class _BookCardState extends State<_BookCard> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.star_rounded, color: Colors.amber, size: 12),
-                                  const SizedBox(width: 2),
+                                  const Icon(Icons.picture_as_pdf_rounded, color: AppTheme.kPrimaryGold, size: 12),
+                                  const SizedBox(width: 3),
                                   Text(
-                                    '4,8',
+                                    'PDF',
                                     style: GoogleFonts.outfit(
                                       color: Theme.of(context).colorScheme.onSurface,
                                       fontSize: 10,

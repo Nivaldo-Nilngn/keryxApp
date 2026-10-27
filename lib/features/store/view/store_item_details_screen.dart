@@ -147,13 +147,13 @@ class StoreItemDetailsScreen extends ConsumerWidget {
                 // Stats Row
                 Row(
                   children: [
-                    _buildStatColumn(context, '4,8 ★', '15 mil avaliações'),
+                    _buildStatColumn(context, item.categoryDisplayName, 'Categoria'),
                     _buildDivider(context),
-                    _buildStatColumn(context, item.sizeBytes != null ? '${(item.sizeBytes! / 1024 / 1024).toStringAsFixed(1)} MB' : 'N/A', 'Tamanho'),
+                    _buildStatColumn(context, item.sizeBytes != null ? '${(item.sizeBytes! / 1024 / 1024).toStringAsFixed(1)} MB' : 'Offline', 'Tamanho'),
                     _buildDivider(context),
                     _buildStatColumn(context, 'Livre', 'Classificação'),
                     _buildDivider(context),
-                    _buildStatColumn(context, '10 mil+', 'Downloads'),
+                    _buildStatColumn(context, 'Vitalício', 'Acesso'),
                   ],
                 ),
                 
@@ -624,7 +624,7 @@ class StoreItemDetailsScreen extends ConsumerWidget {
                       Row(
                         children: [
                           Text(
-                            '4,8 ★',
+                            simItem.categoryDisplayName,
                             style: GoogleFonts.outfit(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,

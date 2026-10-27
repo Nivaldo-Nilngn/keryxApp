@@ -325,6 +325,28 @@ class _LegalTermsScreenState extends ConsumerState<LegalTermsScreen>
               '• Respostas geradas por IA podem conter imprecisões e devem ser sempre conferidas diretamente nas Escrituras Sagradas.\n'
               '• As respostas não substituem aconselhamento pastoral, psicológico, médico ou orientação jurídica profissional.',
         ),
+        const SizedBox(height: 12),
+
+        _buildInfoCard(
+          isDark: isDark,
+          title: '5. Ausência de Promessas Mágicas e Uso Responsável',
+          content:
+              'O KeryxApp é uma plataforma estritamente dedicada ao estudo bíblico, pesquisa teológica e reflexão espiritual.\n\n'
+              '• O aplicativo não faz promessas de curas milagrosas infalíveis, enriquecimento financeiro ou soluções materiais automáticas.\n'
+              '• A fé, oração e práticas devocionais são de foro íntimo de cada indivíduo.\n'
+              '• O uso de recursos do app não substitui acompanhamento médico, psicológico ou pastoral qualificado.',
+        ),
+        const SizedBox(height: 12),
+
+        _buildInfoCard(
+          isDark: isDark,
+          title: '6. Autenticidade e Repúdio a Avaliações Artificiais',
+          content:
+              'Prezamos pela mais absoluta verdade e integridade moral:\n\n'
+              '• Não utilizamos depoimentos falsos, avaliações compradas ou contadores artificiais de popularidade.\n'
+              '• Todas as notas, comentários e avaliações do aplicativo provêm exclusivamente de usuários autênticos e voluntários das lojas oficiais (Google Play e Apple App Store).\n'
+              '• O usuário tem total liberdade para expressar sua opinião legítima e respeitosa nos canais oficiais.',
+        ),
       ],
     );
   }
@@ -370,6 +392,21 @@ class _LegalTermsScreenState extends ConsumerState<LegalTermsScreen>
           title: '4. Política de Cancelamento e Reembolso',
           content:
               'Em conformidade com o Código de Defesa do Consumidor para compras digitais, caso você encontre incompatibilidade técnica comprovada com seu dispositivo e não seja possível acessar o material, você poderá solicitar suporte ou reembolso em até 7 dias corridos após a aquisição através do e-mail oficial.',
+        ),
+        const SizedBox(height: 12),
+
+        _buildInfoCard(
+          isDark: isDark,
+          title: '5. Direitos Autorais e Licenças das Traduções Bíblicas e Obras',
+          content:
+              'Todas as Escrituras, comentários e recursos respeitam rigorosamente a legislação de propriedade intelectual e direitos autorais:\n\n'
+              '• Almeida Corrigida Fiel (ACF): © Sociedade Bíblica Trinitariana do Brasil.\n'
+              '• Nova Versão Internacional (NVI): © Biblica, Inc.\n'
+              '• Almeida Revista e Atualizada (ARA) e Revista e Corrigida (ARC): © Sociedade Bíblica do Brasil (SBB).\n'
+              '• King James Atualizada (KJA): © Sociedade Bíblica Ibero-Americana / Abba Press.\n'
+              '• Bíblia Livre (BLIVRE): Licença Creative Commons Atribuição-CompartilhaIgual 3.0.\n'
+              '• Obras Históricas em Domínio Público: Traduções clássicas (JFA 1819, KJV 1611, Tradução Brasileira 1917, Textos originais em Grego e Hebraico) e comentários clássicos (Matthew Henry, Spurgeon, Adam Clarke) integram o patrimônio público para livre difusão cultural e religiosa.\n'
+              '• Imagens e Elementos Visuais: Fotografias de interface são livres de royalties (licenças Unsplash/Pexels) ou desenvolvidas com exclusividade para o KeryxApp.',
         ),
       ],
     );

@@ -513,13 +513,13 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
 
           final statsRow = Row(
             children: [
-              _buildStatColumn(context, '4,8 ★', '15 mil avaliações'),
+              _buildStatColumn(context, 'PDF', 'Formato'),
               _buildDivider(context),
-              _buildStatColumn(context, widget.bookSize != null ? '${(widget.bookSize! / 1024 / 1024).toStringAsFixed(1)} MB' : 'N/A', 'Tamanho'),
+              _buildStatColumn(context, widget.bookSize != null ? '${(widget.bookSize! / 1024 / 1024).toStringAsFixed(1)} MB' : 'Offline', 'Tamanho'),
               _buildDivider(context),
               _buildStatColumn(context, 'Livre', 'Classificação'),
               _buildDivider(context),
-              _buildStatColumn(context, '10 mil+', 'Downloads'),
+              _buildStatColumn(context, 'Vitalício', 'Acesso'),
             ],
           );
 
@@ -1034,7 +1034,7 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
                       Row(
                         children: [
                           Text(
-                            '4,8 ★',
+                            'PDF Digital',
                             style: GoogleFonts.outfit(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
