@@ -4,6 +4,7 @@ import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/model/community_post.dart';
 import 'package:keryx_app/features/community/model/community_comment.dart';
 import 'package:keryx_app/features/community/service/community_service.dart';
+import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 
 class CommunityCommentsBottomSheet extends StatefulWidget {
   final CommunityPost post;
@@ -248,15 +249,11 @@ class _CommunityCommentsBottomSheetState
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
+        CommunityUserAvatar(
+          photoUrl: comment.userAvatar,
+          name: comment.userName,
+          userId: comment.userId,
           radius: 16,
-          backgroundColor: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-          backgroundImage: comment.userAvatar != null && comment.userAvatar!.isNotEmpty
-              ? NetworkImage(comment.userAvatar!)
-              : null,
-          child: (comment.userAvatar == null || comment.userAvatar!.isEmpty)
-              ? const Icon(Icons.person, color: AppTheme.kPrimaryGold, size: 16)
-              : null,
         ),
         const SizedBox(width: 10),
         Expanded(

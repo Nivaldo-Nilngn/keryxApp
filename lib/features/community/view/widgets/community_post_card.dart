@@ -8,6 +8,7 @@ import 'package:keryx_app/features/community/model/community_post.dart';
 import 'package:keryx_app/features/community/view_model/community_feed_provider.dart';
 import 'package:keryx_app/features/community/view/widgets/community_comments_bottom_sheet.dart';
 import 'package:keryx_app/core/utils/bible_reference_helper.dart';
+import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 
 class CommunityPostCard extends ConsumerStatefulWidget {
   final CommunityPost post;
@@ -97,15 +98,12 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
             padding: const EdgeInsets.fromLTRB(14, 12, 8, 10),
             child: Row(
               children: [
-                CircleAvatar(
+                CommunityUserAvatar(
+                  photoUrl: post.userAvatar,
+                  name: post.userName,
+                  userId: post.userId,
                   radius: 20,
-                  backgroundColor: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                  backgroundImage: post.userAvatar != null && post.userAvatar!.isNotEmpty
-                      ? NetworkImage(post.userAvatar!)
-                      : null,
-                  child: (post.userAvatar == null || post.userAvatar!.isEmpty)
-                      ? const Icon(Icons.person, color: AppTheme.kPrimaryGold, size: 20)
-                      : null,
+                  isOfficial: post.userName.toLowerCase().contains('keryx') || post.userBadge == 'Oficial',
                 ),
                 const SizedBox(width: 10),
                 Expanded(

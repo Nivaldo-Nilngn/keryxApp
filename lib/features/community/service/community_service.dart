@@ -14,7 +14,12 @@ class CommunityService {
       FirebaseAuth.instance.currentUser?.displayName ??
       FirebaseAuth.instance.currentUser?.email?.split('@').first ??
       'Membro Keryx';
-  String? get _currentUserAvatar => FirebaseAuth.instance.currentUser?.photoURL;
+  String? get _currentUserAvatar {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+    return user.photoURL ??
+        (user.providerData.isNotEmpty ? user.providerData.first.photoURL : null);
+  }
 
   /// Busca os stories do dia
   Future<List<CommunityStory>> fetchStories() async {
@@ -44,12 +49,17 @@ class CommunityService {
     String? verseText,
     String? reflection,
     String backgroundStyle = 'gold_gradient',
+    String? authorAvatar,
+    String? authorName,
   }) async {
     final storyId = 'story_${DateTime.now().millisecondsSinceEpoch}';
+    final resolvedName = authorName ?? _currentUserName;
+    final resolvedAvatar = authorAvatar ?? _currentUserAvatar;
+
     final newStory = CommunityStory(
       id: storyId,
-      authorName: _currentUserName,
-      authorAvatar: _currentUserAvatar,
+      authorName: resolvedName,
+      authorAvatar: resolvedAvatar,
       title: title,
       bibleReference: bibleReference,
       verseText: verseText,
@@ -67,8 +77,8 @@ class CommunityService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'id': storyId,
-              'author_name': _currentUserName,
-              'author_avatar': _currentUserAvatar,
+              'author_name': resolvedName,
+              'author_avatar': resolvedAvatar,
               'title': title,
               'bible_reference': bibleReference,
               'verse_text': verseText,
@@ -124,13 +134,18 @@ class CommunityService {
     String? mediaUrl,
     String mediaType = 'verse_card',
     String cardTheme = 'gold',
+    String? userAvatar,
+    String? userName,
   }) async {
     final postId = 'post_${DateTime.now().millisecondsSinceEpoch}';
+    final resolvedName = userName ?? _currentUserName;
+    final resolvedAvatar = userAvatar ?? _currentUserAvatar;
+
     final newPost = CommunityPost(
       id: postId,
       userId: _currentUserId ?? 'anon',
-      userName: _currentUserName,
-      userAvatar: _currentUserAvatar,
+      userName: resolvedName,
+      userAvatar: resolvedAvatar,
       userBadge: 'Membro',
       mediaUrl: mediaUrl,
       mediaType: mediaType,

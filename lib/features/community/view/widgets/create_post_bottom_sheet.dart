@@ -7,6 +7,8 @@ import 'package:keryx_app/features/community/view_model/community_feed_provider.
 import 'package:keryx_app/features/bible/model/bible_model.dart';
 import 'package:keryx_app/features/bible/navigation/view/bible_selector_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
+import 'package:keryx_app/core/services/auth_service.dart';
+import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 
 class CreatePostBottomSheet extends ConsumerStatefulWidget {
   final String initialCategory;
@@ -270,6 +272,17 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
     final finalCaption = caption;
 
     final service = ref.read(communityServiceProvider);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final userData = ref.read(userDataProvider).valueOrNull;
+    final resolvedPhoto = (userData?['photoUrl'] as String?)?.trim() ??
+        currentUser?.photoURL?.trim() ??
+        (currentUser?.providerData.isNotEmpty == true
+            ? currentUser!.providerData.first.photoURL?.trim()
+            : null);
+    final resolvedName = (userData?['name'] as String?)?.trim() ??
+        currentUser?.displayName ??
+        currentUser?.email?.split('@').first ??
+        'Você';
 
     // 1. Cria o post no Feed
     final post = await service.createPost(
@@ -277,6 +290,8 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
       bibleReference: _includeVerse && refText.isNotEmpty ? refText : null,
       bibleText: _includeVerse && verse.isNotEmpty ? verse : null,
       cardTheme: _selectedTheme,
+      userAvatar: resolvedPhoto,
+      userName: resolvedName,
     );
 
     // 2. Se marcado para Stories ou categoria 'verse', cria também nos Stories de 24h
@@ -291,6 +306,8 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
           verseText: _includeVerse && verse.isNotEmpty ? verse : null,
           reflection: finalCaption.isNotEmpty ? finalCaption : null,
           backgroundStyle: '${_selectedTheme}_gradient',
+          authorAvatar: resolvedPhoto,
+          authorName: resolvedName,
         );
         if (createdStory != null && mounted) {
           ref.read(communityFeedProvider.notifier).addLocalStory(createdStory);
@@ -333,10 +350,16 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF14141E) : Colors.white;
     final currentUser = FirebaseAuth.instance.currentUser;
-    final userName = currentUser?.displayName ??
+    final userData = ref.watch(userDataProvider).valueOrNull;
+    final userName = (userData?['name'] as String?)?.trim() ??
+        currentUser?.displayName ??
         currentUser?.email?.split('@').first ??
         'Você';
-    final userPhoto = currentUser?.photoURL;
+    final userPhoto = (userData?['photoUrl'] as String?)?.trim() ??
+        currentUser?.photoURL?.trim() ??
+        (currentUser?.providerData.isNotEmpty == true
+            ? currentUser!.providerData.first.photoURL?.trim()
+            : null);
 
     return Material(
       color: Colors.transparent,
@@ -1225,13 +1248,10 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
             child: Row(
               children: [
-                CircleAvatar(
+                CommunityUserAvatar(
+                  photoUrl: userPhoto,
+                  name: userName,
                   radius: 16,
-                  backgroundColor: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
-                  backgroundImage: userPhoto != null && userPhoto.isNotEmpty ? NetworkImage(userPhoto) : null,
-                  child: (userPhoto == null || userPhoto.isEmpty)
-                      ? Text(userName.substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.kPrimaryGold))
-                      : null,
                 ),
                 const SizedBox(width: 8),
                 Expanded(

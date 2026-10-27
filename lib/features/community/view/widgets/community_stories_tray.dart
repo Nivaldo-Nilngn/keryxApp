@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/model/community_story.dart';
+import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 import 'package:keryx_app/features/community/view/widgets/story_viewer_screen.dart';
 
-class CommunityStoriesTray extends StatelessWidget {
+class CommunityStoriesTray extends ConsumerWidget {
   final List<CommunityStory> stories;
   final VoidCallback onAddStoryTap;
 
@@ -15,7 +19,7 @@ class CommunityStoriesTray extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -29,8 +33,8 @@ class CommunityStoriesTray extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           if (index == 0) {
-            // Botão Adicionar Story / Meu Versículo
-            return _buildAddStoryButton(context, isDark);
+            // Botão Adicionar Story / Meu Versículo com a foto do usuário atual
+            return _buildAddStoryButton(context, ref, isDark);
           }
 
           final story = stories[index - 1];
@@ -40,7 +44,18 @@ class CommunityStoriesTray extends StatelessWidget {
     );
   }
 
-  Widget _buildAddStoryButton(BuildContext context, bool isDark) {
+  Widget _buildAddStoryButton(BuildContext context, WidgetRef ref, bool isDark) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final userData = ref.watch(userDataProvider).valueOrNull;
+    final userPhoto = (userData?['photoUrl'] as String?)?.trim() ??
+        currentUser?.photoURL?.trim() ??
+        (currentUser?.providerData.isNotEmpty == true
+            ? currentUser!.providerData.first.photoURL?.trim()
+            : null);
+    final userName = (userData?['name'] as String?)?.trim() ??
+        currentUser?.displayName ??
+        'Você';
+
     return GestureDetector(
       onTap: onAddStoryTap,
       child: Column(
@@ -51,40 +66,39 @@ class CommunityStoriesTray extends StatelessWidget {
               Container(
                 width: 56,
                 height: 56,
+                padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isDark ? const Color(0xFF222234) : const Color(0xFFF1F3F5),
                   border: Border.all(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.6),
                     width: 1.8,
                   ),
                 ),
-                child: Center(
-                  child: Icon(
-                    Icons.auto_stories_rounded,
-                    size: 23,
-                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.8),
-                  ),
+                child: CommunityUserAvatar(
+                  photoUrl: userPhoto,
+                  name: userName,
+                  radius: 25,
                 ),
               ),
               Positioned(
                 bottom: 0,
                 right: 0,
                 child: Container(
-                  width: 19,
-                  height: 19,
+                  width: 20,
+                  height: 20,
                   decoration: const BoxDecoration(
                     color: AppTheme.kPrimaryGold,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 3,
+                        color: Colors.black38,
+                        blurRadius: 4,
                         offset: Offset(0, 1),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.add, size: 13, color: Colors.black),
+                  child: const Icon(Icons.add, size: 14, color: Colors.black),
                 ),
               ),
             ],
@@ -144,48 +158,40 @@ class CommunityStoriesTray extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(1.8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isDark ? const Color(0xFF14141E) : Colors.white,
             ),
-            child: Container(
-              padding: const EdgeInsets.all(1.8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDark ? const Color(0xFF14141E) : Colors.white,
-              ),
-              child: CircleAvatar(
-                radius: 25,
-                backgroundColor: isDark ? const Color(0xFF262638) : const Color(0xFFE2E8F0),
-                backgroundImage: story.authorAvatar != null && story.authorAvatar!.isNotEmpty
-                    ? NetworkImage(story.authorAvatar!)
-                    : null,
-                child: (story.authorAvatar == null || story.authorAvatar!.isEmpty)
-                    ? Icon(
-                        isOfficial ? Icons.auto_awesome : Icons.person_rounded,
-                        color: isOfficial ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.primary,
-                        size: 24,
-                      )
-                    : null,
-              ),
+            child: CommunityUserAvatar(
+              photoUrl: story.authorAvatar,
+              name: story.authorName,
+              radius: 25,
+              isOfficial: isOfficial,
             ),
           ),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: 72,
-            child: Text(
-              story.title,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                fontWeight: isOfficial ? FontWeight.bold : FontWeight.w500,
-                color: isOfficial
-                    ? AppTheme.kPrimaryGold
-                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
-              ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: 72,
+          child: Text(
+            story.title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              fontWeight: isOfficial ? FontWeight.bold : FontWeight.w500,
+              color: isOfficial
+                  ? AppTheme.kPrimaryGold
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
             ),
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
   }
 }

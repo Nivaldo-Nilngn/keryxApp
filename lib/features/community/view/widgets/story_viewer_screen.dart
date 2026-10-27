@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/model/community_story.dart';
 import 'package:keryx_app/core/utils/bible_reference_helper.dart';
+import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 
 class StoryViewerScreen extends ConsumerStatefulWidget {
   final List<CommunityStory> stories;
@@ -297,15 +298,11 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     child: Row(
                       children: [
-                        CircleAvatar(
+                        CommunityUserAvatar(
+                          photoUrl: story.authorAvatar,
+                          name: story.authorName,
                           radius: 19,
-                          backgroundColor: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
-                          backgroundImage: story.authorAvatar != null && story.authorAvatar!.isNotEmpty
-                              ? NetworkImage(story.authorAvatar!)
-                              : null,
-                          child: (story.authorAvatar == null || story.authorAvatar!.isEmpty)
-                              ? const Icon(Icons.auto_stories, color: AppTheme.kPrimaryGold, size: 18)
-                              : null,
+                          isOfficial: story.authorName.toLowerCase().contains('keryx'),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
