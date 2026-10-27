@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/view_model/community_feed_provider.dart';
+import 'package:keryx_app/features/bible/model/bible_model.dart';
+import 'package:keryx_app/features/bible/navigation/view/bible_selector_bottom_sheet.dart';
+import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 
 class CreatePostBottomSheet extends ConsumerStatefulWidget {
   final String initialCategory;
@@ -131,6 +134,79 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<void> _openBibleSelector() async {
+    final result = await showModalBottomSheet<
+      ({BibleBook book, int chapter, int? verse, String version})
+    >(
+      context: context,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: double.infinity),
+      backgroundColor: Colors.transparent,
+      builder: (context) => const BibleSelectorBottomSheet(
+        initialStage: SelectorStage.books,
+        fullSelection: true,
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    final bookName = result.book.name;
+    final chapter = result.chapter;
+    final verse = result.verse ?? 1;
+    final version = result.version;
+
+    final refString = '$bookName $chapter:$verse';
+    _referenceController.text = refString;
+    _includeVerse = true;
+
+    // Busca o texto na Bíblia instalada no dispositivo
+    try {
+      final bibleService = ref.read(bibleServiceProvider);
+      String? verseText = await bibleService.getVerseText(
+        version: version,
+        bookId: result.book.id ?? 1,
+        chapter: chapter,
+        verse: verse,
+      );
+
+      // Fallback: se não veio por getVerseText, tenta getChapter
+      if (verseText == null || verseText.trim().isEmpty) {
+        final chapterData = await bibleService.getChapter(
+          version,
+          result.book.abbrev,
+          chapter,
+        );
+        if (chapterData.verses.isNotEmpty) {
+          final found = chapterData.verses.firstWhere(
+            (v) => v.number == verse,
+            orElse: () => chapterData.verses.first,
+          );
+          verseText = found.text;
+        }
+      }
+
+      if (verseText != null && verseText.trim().isNotEmpty) {
+        _verseTextController.text = verseText.trim();
+      }
+
+      setState(() {});
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📖 $refString ($version) selecionado da Bíblia! ✨'),
+            backgroundColor: AppTheme.kPrimaryGold,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Erro ao carregar versículo da Bíblia: $e');
+      setState(() {});
+    }
   }
 
   void _insertHashtag(String tag) {
@@ -623,71 +699,147 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
                             const Divider(height: 1),
                             const SizedBox(height: 12),
 
-                            // Sugestões Rápidas de 1 Toque
-                            Text(
-                              'SUGESTÕES DE VERSÍCULOS',
-                              style: GoogleFonts.outfit(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
-                              ),
+                            // Sugestões Rápidas de 1 Toque + Seletor Completo da Bíblia
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'SUGESTÕES DE VERSÍCULOS',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: _openBibleSelector,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.16),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
+                                        width: 0.9,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.search_rounded, color: AppTheme.kPrimaryGold, size: 13),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Bíblia Completa',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.kPrimaryGold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             SizedBox(
                               height: 36,
-                              child: ListView.separated(
+                              child: ListView(
                                 scrollDirection: Axis.horizontal,
-                                itemCount: _popularVerses.length,
-                                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                                itemBuilder: (context, index) {
-                                  final v = _popularVerses[index];
-                                  final isSelected = _referenceController.text == v['ref'] && _includeVerse;
-                                  return GestureDetector(
-                                    onTap: () => _applyQuickVerse(v),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                children: [
+                                  // Botão em Destaque: Escolher Livro e Versículo na Bíblia
+                                  GestureDetector(
+                                    onTap: _openBibleSelector,
+                                    child: Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? AppTheme.kPrimaryGold
-                                            : (isDark ? const Color(0xFF1E1E2C) : const Color(0xFFF1F5F9)),
-                                        borderRadius: BorderRadius.circular(18),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? AppTheme.kPrimaryGold
-                                              : (isDark ? Colors.white12 : Colors.black12),
-                                          width: 1,
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
                                         ),
+                                        borderRadius: BorderRadius.circular(18),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFD97706).withValues(alpha: 0.3),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
+                                          const Icon(Icons.menu_book_rounded, size: 14, color: Colors.black),
+                                          const SizedBox(width: 5),
                                           Text(
-                                            '📖 ${v['ref']}',
+                                            'Escolher da Bíblia',
                                             style: GoogleFonts.outfit(
                                               fontSize: 11.5,
-                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                              color: isSelected
-                                                  ? Colors.black
-                                                  : Theme.of(context).colorScheme.onSurface,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '• ${v['tag']}',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 10,
-                                              color: isSelected
-                                                  ? Colors.black87
-                                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                                              fontWeight: FontWeight.w900,
+                                              color: Colors.black,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                  );
-                                },
+                                  ),
+
+                                  // Lista de Versículos Populares
+                                  ..._popularVerses.map((v) {
+                                    final isSelected = _referenceController.text == v['ref'] && _includeVerse;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: GestureDetector(
+                                        onTap: () => _applyQuickVerse(v),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? AppTheme.kPrimaryGold
+                                                : (isDark ? const Color(0xFF1E1E2C) : const Color(0xFFF1F5F9)),
+                                            borderRadius: BorderRadius.circular(18),
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? AppTheme.kPrimaryGold
+                                                  : (isDark ? Colors.white12 : Colors.black12),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '📖 ${v['ref']}',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 11.5,
+                                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                                  color: isSelected
+                                                      ? Colors.black
+                                                      : Theme.of(context).colorScheme.onSurface,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '• ${v['tag']}',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 10,
+                                                  color: isSelected
+                                                      ? Colors.black87
+                                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -718,6 +870,11 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
                                   ),
                                   prefixIcon: const Icon(Icons.bookmark_border_rounded, color: AppTheme.kPrimaryGold, size: 18),
                                   prefixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 0),
+                                  suffixIcon: IconButton(
+                                    icon: const Icon(Icons.menu_book_rounded, color: AppTheme.kPrimaryGold, size: 20),
+                                    tooltip: 'Escolher da Bíblia (Livro, Capítulo e Verso)',
+                                    onPressed: _openBibleSelector,
+                                  ),
                                   border: InputBorder.none,
                                   isDense: true,
                                 ),
