@@ -10,6 +10,7 @@ import 'package:keryx_app/features/community/view_model/community_feed_provider.
 import 'package:keryx_app/features/community/view/widgets/community_comments_bottom_sheet.dart';
 import 'package:keryx_app/core/utils/bible_reference_helper.dart';
 import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
+import 'package:keryx_app/features/community/view_model/saved_posts_provider.dart';
 
 class CommunityPostCard extends ConsumerStatefulWidget {
   final CommunityPost post;
@@ -23,6 +24,7 @@ class CommunityPostCard extends ConsumerStatefulWidget {
 class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
     with SingleTickerProviderStateMixin {
   bool _showHeartAnimation = false;
+  bool _isCaptionExpanded = false;
   late AnimationController _heartAnimController;
 
   @override
@@ -118,34 +120,39 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              displayAuthorName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
+                      Flexible(
+                        child: Text(
+                          displayAuthorName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
-                          const SizedBox(width: 6),
-                          _buildBadge(post.userBadge),
-                        ],
+                        ),
                       ),
+                      const SizedBox(width: 5),
                       Text(
-                        _formatTime(post.createdAt),
-                        style: GoogleFonts.outfit(
+                        '•',
+                        style: TextStyle(
                           fontSize: 11,
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
                         ),
                       ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _formatTime(post.createdAt),
+                        style: GoogleFonts.outfit(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildBadge(post.userBadge),
                     ],
                   ),
                 ),
@@ -155,7 +162,7 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     size: 20,
                   ),
-                  onSelected: (val) {
+                  onSelected: (val) async {
                     if (val == 'delete') {
                       ref.read(communityFeedProvider.notifier).deletePost(post.id);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -163,31 +170,64 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
                       );
                     } else if (val == 'share') {
                       _sharePost(post);
+                    } else if (val == 'save') {
+                      final isSaved = ref.read(savedPostsProvider).contains(post.id);
+                      await ref.read(savedPostsProvider.notifier).toggleSave(post.id);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              !isSaved ? 'Publicação salva nos favoritos 🔖' : 'Publicação removida dos salvos',
+                              style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                            duration: const Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: !isSaved ? const Color(0xFF1E293B) : Colors.black87,
+                          ),
+                        );
+                      }
                     }
                   },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'share',
-                      child: Row(
-                        children: [
-                          Icon(Icons.share_outlined, size: 18),
-                          SizedBox(width: 10),
-                          Text('Compartilhar'),
-                        ],
-                      ),
-                    ),
-                    if (isAuthor)
-                      const PopupMenuItem(
-                        value: 'delete',
+                  itemBuilder: (context) {
+                    final isSaved = ref.watch(savedPostsProvider).contains(post.id);
+                    return [
+                      PopupMenuItem(
+                        value: 'save',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
-                            SizedBox(width: 10),
-                            Text('Excluir', style: TextStyle(color: Colors.redAccent)),
+                            Icon(
+                              isSaved ? Icons.bookmark_remove_outlined : Icons.bookmark_add_outlined,
+                              size: 18,
+                              color: isSaved ? AppTheme.kPrimaryGold : null,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(isSaved ? 'Remover dos Salvos' : 'Salvar Publicação'),
                           ],
                         ),
                       ),
-                  ],
+                      const PopupMenuItem(
+                        value: 'share',
+                        child: Row(
+                          children: [
+                            Icon(Icons.share_outlined, size: 18),
+                            SizedBox(width: 10),
+                            Text('Compartilhar'),
+                          ],
+                        ),
+                      ),
+                      if (isAuthor)
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                              SizedBox(width: 10),
+                              Text('Excluir', style: TextStyle(color: Colors.redAccent)),
+                            ],
+                          ),
+                        ),
+                    ];
+                  },
                 ),
               ],
             ),
@@ -240,82 +280,160 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
             ),
           ),
 
-          // 3. Barra de Ações (🙏 Orar, ❤️ Amém, 💬 Comentários, ↗️ Compartilhar)
+          // 3. Barra de Ações Estilo Instagram (❤️ Amém, 💬 Comentar, 🙏 Orar, ↗️ Compartilhar ... 🔖 Salvar)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             child: Row(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Botão Orar 🙏
-                        _buildActionButton(
-                          context: context,
-                          icon: Icons.volunteer_activism_rounded,
-                          label: 'Orar',
-                          count: post.prayingCount,
-                          isActive: post.userPrayed,
-                          activeColor: const Color(0xFF10B981),
-                          onTap: () {
-                            ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'pray');
-                          },
-                        ),
-                        const SizedBox(width: 6),
-
-                        // Botão Amém ❤️
-                        _buildActionButton(
-                          context: context,
-                          icon: post.userAmen ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          label: 'Amém',
-                          count: post.amenCount,
-                          isActive: post.userAmen,
-                          activeColor: const Color(0xFFEF4444),
-                          onTap: () {
-                            ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'amen');
-                          },
-                        ),
-                        const SizedBox(width: 6),
-
-                        // Botão Comentários 💬
-                        _buildActionButton(
-                          context: context,
-                          icon: Icons.chat_bubble_outline_rounded,
-                          label: 'Comentar',
-                          count: post.commentsCount,
-                          isActive: false,
-                          activeColor: Theme.of(context).colorScheme.primary,
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) => CommunityCommentsBottomSheet(post: post),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Botão Compartilhar ↗️
+                // Botão Amém ❤️
                 IconButton(
-                  icon: const Icon(Icons.share_outlined, size: 20),
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  icon: Icon(
+                    post.userAmen ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    color: post.userAmen ? const Color(0xFFEF4444) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
+                    size: 26,
+                  ),
+                  tooltip: 'Amém',
+                  onPressed: () {
+                    ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'amen');
+                  },
+                ),
+                // Botão Comentários 💬
+                IconButton(
+                  icon: Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
+                    size: 23,
+                  ),
+                  tooltip: 'Comentários',
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => CommunityCommentsBottomSheet(post: post),
+                    );
+                  },
+                ),
+                // Botão Orar 🙏
+                IconButton(
+                  icon: Icon(
+                    post.userPrayed ? Icons.volunteer_activism_rounded : Icons.volunteer_activism_outlined,
+                    color: post.userPrayed ? const Color(0xFF10B981) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
+                    size: 24,
+                  ),
+                  tooltip: 'Em oração',
+                  onPressed: () {
+                    ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'pray');
+                  },
+                ),
+                // Botão Compartilhar ↗️ (Aviãozinho Instagram)
+                IconButton(
+                  icon: Icon(
+                    Icons.send_rounded,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
+                    size: 22,
+                  ),
                   tooltip: 'Compartilhar',
                   onPressed: () => _sharePost(post),
+                ),
+                const Spacer(),
+                // Botão Salvar 🔖 (Bookmark Instagram)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final isSaved = ref.watch(savedPostsProvider).contains(post.id);
+                    return IconButton(
+                      icon: Icon(
+                        isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                        color: isSaved ? AppTheme.kPrimaryGold : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
+                        size: 26,
+                      ),
+                      tooltip: isSaved ? 'Salvo' : 'Salvar',
+                      onPressed: () async {
+                        final willBeSaved = !isSaved;
+                        await ref.read(savedPostsProvider.notifier).toggleSave(post.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                willBeSaved ? 'Publicação salva nos favoritos 🔖' : 'Publicação removida dos salvos',
+                                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
+                              ),
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: willBeSaved ? const Color(0xFF1E293B) : Colors.black87,
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  },
                 ),
               ],
             ),
           ),
 
-          // 4. Pílulas de Bênçãos / Reações Rápidas
+          // 4. Resumo de Reações (ex: "14 amém • 7 em oração")
+          if (post.amenCount > 0 || post.prayingCount > 0)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              child: Text(
+                _buildReactionSummaryText(post),
+                style: GoogleFonts.outfit(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+
+          // 5. Legenda Estilo Instagram (**username** texto... mais)
+          if (post.caption.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 3),
+              child: _buildInstagramCaption(context, displayAuthorName, post.caption),
+            ),
+
+          // 6. Prévia de Comentários
+          if (post.commentsCount > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 2, 14, 2),
+              child: GestureDetector(
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => CommunityCommentsBottomSheet(post: post),
+                  );
+                },
+                child: Text(
+                  'Ver todos os ${post.commentsCount} ${post.commentsCount == 1 ? "comentário" : "comentários"}',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+
+          // 7. Rodapé com Data Relativa
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            padding: const EdgeInsets.fromLTRB(14, 2, 14, 6),
+            child: Text(
+              _formatTimeFooter(post.createdAt),
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+
+          // 8. Pílulas de Bênçãos / Reações Rápidas
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 2, 12, 12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -330,45 +448,6 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
               ),
             ),
           ),
-
-          // 5. Legenda e Prévia de Comentários
-          if (post.caption.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
-              child: Text(
-                post.caption,
-                style: GoogleFonts.outfit(
-                  fontSize: 13.5,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  height: 1.4,
-                ),
-              ),
-            ),
-
-          if (post.commentsCount > 0)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 2, 14, 12),
-              child: GestureDetector(
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => CommunityCommentsBottomSheet(post: post),
-                  );
-                },
-                child: Text(
-                  'Ver todos os ${post.commentsCount} comentários...',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            )
-          else
-            const SizedBox(height: 10),
         ],
       ),
     );
@@ -574,51 +653,6 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
     );
   }
 
-  Widget _buildActionButton({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required int count,
-    required bool isActive,
-    required Color activeColor,
-    required VoidCallback onTap,
-  }) {
-    final color = isActive
-        ? activeColor
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65);
-
-    return Semantics(
-      label: '$label: $count',
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: isActive ? activeColor.withValues(alpha: 0.12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 5),
-              Text(
-                count > 0 ? '$count' : label,
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   String _formatTime(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -627,6 +661,79 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
     if (diff.inHours < 24) return 'há ${diff.inHours}h';
     if (diff.inDays < 7) return 'há ${diff.inDays}d';
     return '${dt.day}/${dt.month}';
+  }
+
+  String _buildReactionSummaryText(CommunityPost post) {
+    final parts = <String>[];
+    if (post.amenCount > 0) {
+      parts.add('${post.amenCount} ${post.amenCount == 1 ? "amém" : "améns"}');
+    }
+    if (post.prayingCount > 0) {
+      parts.add('${post.prayingCount} em oração');
+    }
+    return parts.join(' • ');
+  }
+
+  Widget _buildInstagramCaption(BuildContext context, String author, String caption) {
+    final isLong = caption.length > 115;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
+    return RichText(
+      text: TextSpan(
+        style: GoogleFonts.outfit(
+          fontSize: 13.5,
+          color: onSurface,
+          height: 1.38,
+        ),
+        children: [
+          TextSpan(
+            text: '$author ',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          TextSpan(
+            text: isLong && !_isCaptionExpanded
+                ? '${caption.substring(0, 110).trim()}... '
+                : caption,
+          ),
+          if (isLong)
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: GestureDetector(
+                onTap: () => setState(() => _isCaptionExpanded = !_isCaptionExpanded),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Text(
+                    _isCaptionExpanded ? 'menos' : 'mais',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: onSurface.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimeFooter(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'AGORA';
+    if (diff.inMinutes < 60) return 'HÁ ${diff.inMinutes} MINUTOS';
+    if (diff.inHours < 24) return 'HÁ ${diff.inHours} ${diff.inHours == 1 ? "HORA" : "HORAS"}';
+    if (diff.inDays < 7) return 'HÁ ${diff.inDays} ${diff.inDays == 1 ? "DIA" : "DIAS"}';
+    return '${dt.day} DE ${_monthName(dt.month).toUpperCase()}';
+  }
+
+  String _monthName(int m) {
+    const months = [
+      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+    if (m >= 1 && m <= 12) return months[m - 1];
+    return '';
   }
 
   void _sharePost(CommunityPost post) {

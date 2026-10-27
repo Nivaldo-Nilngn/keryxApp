@@ -271,479 +271,709 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
       child: Focus(
         autofocus: true,
         child: Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: const Color(0xFF0C0C12),
           body: GestureDetector(
             onVerticalDragEnd: (details) {
               if ((details.primaryVelocity ?? 0) > 300) {
                 Navigator.pop(context);
               }
             },
-            child: Stack(
-              children: [
-                // 1. Imagem de Fundo (se houver)
-                if (story.mediaUrl != null && story.mediaUrl!.isNotEmpty)
-                  Positioned.fill(
-                    child: Image.network(
-                      story.mediaUrl!,
-                      semanticLabel: 'Imagem de fundo do story de ${story.authorName}',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isDesktop = constraints.maxWidth > 600;
+                final viewport = _buildStoryViewport(
+                  context: context,
+                  story: story,
+                  group: group,
+                  totalStoriesInGroup: totalStoriesInGroup,
+                  isOfficial: isOfficial,
+                  gradientOverlay: gradientOverlay,
+                  isDesktop: isDesktop,
+                );
+
+                if (!isDesktop) {
+                  return viewport;
+                }
+
+                // Layout Desktop / Web Estilo Instagram Web
+                return Stack(
+                  children: [
+                    // Fundo escuro imersivo
+                    Positioned.fill(
+                      child: Container(color: const Color(0xFF0A0A0F)),
                     ),
-                  ),
 
-                // 2. Camada de Gradiente Atmosférico Escuro (garante legibilidade máxima)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(gradient: gradientOverlay),
-                  ),
-                ),
-
-                // 3. Áreas de Toque Laterais para Navegar
-                Positioned.fill(
-                  child: Row(
-                    children: [
-                      // Lado Esquerdo: Voltar (story anterior ou usuário anterior)
-                      Expanded(
-                        flex: 1,
-                        child: Semantics(
-                          label: 'Story anterior',
-                          button: true,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onTap: _advanceToPrevious,
-                            onLongPressStart: (_) {
-                              setState(() => _isPaused = true);
-                              _progressController.stop();
-                            },
-                            onLongPressEnd: (_) {
-                              setState(() => _isPaused = false);
-                              _progressController.forward();
-                            },
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
-                      ),
-                      // Lado Direito: Avançar (próximo story deste usuário ou próximo usuário)
-                      Expanded(
-                        flex: 2,
-                        child: Semantics(
-                          label: 'Próximo story',
-                          button: true,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onTap: _advanceToNext,
-                            onLongPressStart: (_) {
-                              setState(() => _isPaused = true);
-                              _progressController.stop();
-                            },
-                            onLongPressEnd: (_) {
-                              setState(() => _isPaused = false);
-                              _progressController.forward();
-                            },
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-            // 4. Conteúdo Visual Completo
-            SafeArea(
-              child: Column(
-                children: [
-                  // Barras de Progresso Segmentadas no Topo (pertencem ao autor atual)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    child: Row(
-                      children: List.generate(totalStoriesInGroup, (index) {
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            child: AnimatedBuilder(
-                              animation: _progressController,
-                              builder: (context, _) {
-                                double val = 0.0;
-                                if (index < _currentStoryIndex) {
-                                  val = 1.0;
-                                } else if (index == _currentStoryIndex) {
-                                  val = _progressController.value;
-                                }
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(2),
-                                  child: LinearProgressIndicator(
-                                    value: val,
-                                    backgroundColor: Colors.white24,
-                                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.kPrimaryGold),
-                                    minHeight: 3.0,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-
-                  // Header do Story (Autor, Play/Pausa, Fechar)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    child: Row(
-                      children: [
-                        CommunityUserAvatar(
-                          photoUrl: group.resolvedAvatar,
-                          name: group.displayName,
-                          radius: 19,
-                          isOfficial: isOfficial,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      group.displayName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14.5,
-                                      ),
-                                    ),
-                                  ),
-                                  if (totalStoriesInGroup > 1) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white12,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        '${_currentStoryIndex + 1}/$totalStoriesInGroup',
-                                        style: GoogleFonts.outfit(
-                                          color: AppTheme.kPrimaryGold,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              Text(
-                                story.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.outfit(
-                                  color: AppTheme.kPrimaryGold,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 11.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Botão de Pausar / Continuar
-                        IconButton(
-                          icon: Icon(
-                            _isPaused ? Icons.play_circle_outline_rounded : Icons.pause_circle_outline_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          tooltip: _isPaused ? 'Continuar tempo' : 'Pausar tempo',
-                          onPressed: _togglePlayPause,
-                        ),
-                        // Botão de Compartilhar
-                        IconButton(
-                          icon: const Icon(Icons.share_rounded, color: Colors.white, size: 22),
-                          tooltip: 'Compartilhar Story',
-                          onPressed: () => _shareStory(story),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
-                          tooltip: 'Fechar',
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Card Central de Meditação (Preenchimento Visual Nobre)
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 540),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20),
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                                border: Border.all(
-                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
-                                  width: 1.2,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.format_quote_rounded,
-                                size: 28,
-                                color: AppTheme.kPrimaryGold,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-
-                            // Versículo Bíblico em Destaque
-                            if (story.verseText != null && story.verseText!.isNotEmpty)
-                              Text(
-                                '“${story.verseText}”',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.merriweather(
-                                  color: Colors.white,
-                                  fontSize: 18.5,
-                                  height: 1.6,
-                                  fontStyle: FontStyle.italic,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Colors.black54,
-                                      blurRadius: 8,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                            const SizedBox(height: 12),
-
-                            // Badge da Referência
-                            if (story.bibleReference != null && story.bibleReference!.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.5),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Text(
-                                  story.bibleReference!,
-                                  style: GoogleFonts.outfit(
-                                    color: AppTheme.kPrimaryGold,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-
-                            // Reflexão Devocional Acolhedora
-                            if (story.reflection != null && story.reflection!.isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              Divider(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                height: 1,
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                story.reflection!,
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.outfit(
-                                  color: Colors.white.withValues(alpha: 0.90),
-                                  fontSize: 14,
-                                  height: 1.5,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                    // Botão Fechar no Canto Superior Direito (Desktop)
+                    Positioned(
+                      top: 18,
+                      right: 22,
+                      child: IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 30),
+                        tooltip: 'Fechar (Esc)',
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ),
-                  ),
 
-                  const Spacer(),
-
-                  // Controles de Navegação e Botão ABRIR NA BÍBLIA
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Setas de navegação discretas
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            if (_currentStoryIndex > 0 || _currentGroupIndex > 0)
-                              TextButton.icon(
-                                onPressed: _advanceToPrevious,
-                                icon: const Icon(Icons.arrow_back_ios_rounded, size: 14, color: Colors.white70),
-                                label: Text(
-                                  _currentStoryIndex > 0 ? 'Anterior' : 'Autor anterior',
-                                  style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12),
-                                ),
-                              )
-                            else
-                              const SizedBox(width: 80),
-
-                            // Indicador de Story do Autor
-                            Text(
-                              'Story ${_currentStoryIndex + 1} de $totalStoriesInGroup',
-                              style: GoogleFonts.outfit(
-                                color: Colors.white54,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-
-                            if (_currentStoryIndex < totalStoriesInGroup - 1 ||
-                                _currentGroupIndex < widget.groups.length - 1)
-                              TextButton.icon(
-                                onPressed: _advanceToNext,
-                                label: Text(
-                                  _currentStoryIndex < totalStoriesInGroup - 1
-                                      ? 'Próximo'
-                                      : 'Próximo autor',
-                                  style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12),
-                                ),
-                                icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white70),
-                              )
-                            else
-                              const SizedBox(width: 80),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Chips de Reação Rápida ao Story
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildQuickReaction('🙏 Amém!'),
-                            const SizedBox(width: 8),
-                            _buildQuickReaction('❤️ Glória a Deus!'),
-                            const SizedBox(width: 8),
-                            _buildQuickReaction('🙌 Bênção!'),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Botão ABRIR NA BÍBLIA e COMPARTILHAR STORY
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  BibleReferenceHelper.openReference(
-                                    context,
-                                    ref,
-                                    story.bibleReference,
-                                  );
-                                },
-                                icon: const Icon(Icons.menu_book_rounded, size: 18, color: Colors.black),
-                                label: Text(
-                                  'ABRIR NA BÍBLIA',
-                                  style: GoogleFonts.outfit(
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                    color: Colors.black,
+                    // Navegação Lateral e Story Centralizado em Formato 9:16
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Seta Esquerda (Anterior)
+                          if (_currentStoryIndex > 0 || _currentGroupIndex > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 20),
+                              child: Material(
+                                color: Colors.white.withValues(alpha: 0.16),
+                                shape: const CircleBorder(),
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: _advanceToPrevious,
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
                                   ),
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.kPrimaryGold,
-                                  minimumSize: const Size(0, 50),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                              ),
+                            )
+                          else
+                            const SizedBox(width: 66),
+
+                          // Quadro 9:16 Centralizado do Story
+                          Container(
+                            width: 420,
+                            height: (constraints.maxHeight * 0.94).clamp(620.0, 840.0),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.14),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.75),
+                                  blurRadius: 40,
+                                  offset: const Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: viewport,
+                          ),
+
+                          // Seta Direita (Próximo)
+                          if (_currentStoryIndex < totalStoriesInGroup - 1 ||
+                              _currentGroupIndex < widget.groups.length - 1)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 20),
+                              child: Material(
+                                color: Colors.white.withValues(alpha: 0.16),
+                                shape: const CircleBorder(),
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: _advanceToNext,
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 22),
                                   ),
-                                  elevation: 4,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Container(
-                              height: 50,
-                              width: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
-                                  width: 1.2,
-                                ),
-                              ),
-                              child: IconButton(
-                                icon: const Icon(Icons.share_rounded, color: Colors.white, size: 21),
-                                tooltip: 'Compartilhar Story',
-                                onPressed: () => _shareStory(story),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            )
+                          else
+                            const SizedBox(width: 66),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                );
+              },
             ),
-          ],
-        ),
-      ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildQuickReaction(String text) {
-    return GestureDetector(
+  Widget _buildStoryViewport({
+    required BuildContext context,
+    required CommunityStory story,
+    required UserStoriesGroup group,
+    required int totalStoriesInGroup,
+    required bool isOfficial,
+    required LinearGradient gradientOverlay,
+    required bool isDesktop,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(isDesktop ? 24 : 0),
+      child: Stack(
+        children: [
+          // 1. Imagem de Fundo (se houver)
+          if (story.mediaUrl != null && story.mediaUrl!.isNotEmpty)
+            Positioned.fill(
+              child: Image.network(
+                story.mediaUrl!,
+                semanticLabel: 'Imagem de fundo do story de ${story.authorName}',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+
+          // 2. Camada de Gradiente Atmosférico Escuro
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(gradient: gradientOverlay),
+            ),
+          ),
+
+          // 3. Áreas de Toque Laterais para Navegar (30% esquerda / 70% direita)
+          Positioned.fill(
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _advanceToPrevious,
+                    onLongPressStart: (_) {
+                      setState(() => _isPaused = true);
+                      _progressController.stop();
+                    },
+                    onLongPressEnd: (_) {
+                      setState(() => _isPaused = false);
+                      _progressController.forward();
+                    },
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _advanceToNext,
+                    onLongPressStart: (_) {
+                      setState(() => _isPaused = true);
+                      _progressController.stop();
+                    },
+                    onLongPressEnd: (_) {
+                      setState(() => _isPaused = false);
+                      _progressController.forward();
+                    },
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 4. Conteúdo Visual Completo com Story Perfeitamente Centralizado
+          SafeArea(
+            child: Column(
+              children: [
+                // Barras de Progresso Segmentadas no Topo
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Row(
+                    children: List.generate(totalStoriesInGroup, (index) {
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: AnimatedBuilder(
+                            animation: _progressController,
+                            builder: (context, _) {
+                              double val = 0.0;
+                              if (index < _currentStoryIndex) {
+                                val = 1.0;
+                              } else if (index == _currentStoryIndex) {
+                                val = _progressController.value;
+                              }
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: LinearProgressIndicator(
+                                  value: val,
+                                  backgroundColor: Colors.white24,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.kPrimaryGold),
+                                  minHeight: 3.0,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+
+                // Header do Story (Autor, Play/Pausa, Compartilhar, Fechar)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      CommunityUserAvatar(
+                        photoUrl: group.resolvedAvatar,
+                        name: group.displayName,
+                        radius: 18,
+                        isOfficial: isOfficial,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    group.displayName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                if (totalStoriesInGroup > 1) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white12,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '${_currentStoryIndex + 1}/$totalStoriesInGroup',
+                                      style: GoogleFonts.outfit(
+                                        color: AppTheme.kPrimaryGold,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            Text(
+                              story.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                color: AppTheme.kPrimaryGold,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Botão Pausar / Continuar
+                      IconButton(
+                        icon: Icon(
+                          _isPaused ? Icons.play_circle_outline_rounded : Icons.pause_circle_outline_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                        tooltip: _isPaused ? 'Continuar tempo' : 'Pausar tempo',
+                        onPressed: _togglePlayPause,
+                      ),
+                      // Botão Compartilhar
+                      IconButton(
+                        icon: const Icon(Icons.share_rounded, color: Colors.white, size: 20),
+                        tooltip: 'Compartilhar Story',
+                        onPressed: () => _shareStory(story),
+                      ),
+                      // Botão Fechar
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+                        tooltip: 'Fechar',
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 5. CONTEÚDO STORY PERFEITAMENTE CENTRALIZADO
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 390),
+                        child: Container(
+                          padding: const EdgeInsets.all(22),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.52),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: AppTheme.kPrimaryGold.withValues(alpha: 0.40),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                blurRadius: 28,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Ícone de Aspas Douradas
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.16),
+                                  border: Border.all(
+                                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.45),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.format_quote_rounded,
+                                  size: 26,
+                                  color: AppTheme.kPrimaryGold,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+
+                              // Versículo Bíblico em Destaque
+                              if (story.verseText != null && story.verseText!.isNotEmpty)
+                                Text(
+                                  '“${story.verseText}”',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.merriweather(
+                                    color: Colors.white,
+                                    fontSize: 17.5,
+                                    height: 1.6,
+                                    fontStyle: FontStyle.italic,
+                                    shadows: const [
+                                      Shadow(
+                                        color: Colors.black87,
+                                        blurRadius: 10,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              const SizedBox(height: 12),
+
+                              // Badge da Referência
+                              if (story.bibleReference != null && story.bibleReference!.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.55),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    story.bibleReference!,
+                                    style: GoogleFonts.outfit(
+                                      color: AppTheme.kPrimaryGold,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+
+                              // Reflexão Devocional Acolhedora
+                              if (story.reflection != null && story.reflection!.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                Divider(
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                  height: 1,
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  story.reflection!,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white.withValues(alpha: 0.92),
+                                    fontSize: 13.5,
+                                    height: 1.5,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 6. BARRA INFERIOR ESTILO INSTAGRAM STORIES (Responder ao story + Reações)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+                  child: Row(
+                    children: [
+                      // Campo Pílula de Responder
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _openStoryReplySheet(story),
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                width: 1,
+                              ),
+                            ),
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Responder a ${group.displayName}...',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                color: Colors.white70,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Reação Rápida Amém ❤️
+                      _buildStoryReactionBtn('❤️', 'Amém'),
+                      const SizedBox(width: 6),
+
+                      // Reação Rápida Orar 🙏
+                      _buildStoryReactionBtn('🙏', 'Orar'),
+                      const SizedBox(width: 6),
+
+                      // Botão Abrir na Bíblia
+                      if (story.bibleReference != null && story.bibleReference!.isNotEmpty)
+                        Container(
+                          height: 40,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: AppTheme.kPrimaryGold.withValues(alpha: 0.20),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.kPrimaryGold.withValues(alpha: 0.6),
+                              width: 1,
+                            ),
+                          ),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.menu_book_rounded, color: AppTheme.kPrimaryGold, size: 20),
+                            tooltip: 'Abrir na Bíblia',
+                            onPressed: () {
+                              Navigator.pop(context);
+                              BibleReferenceHelper.openReference(
+                                context,
+                                ref,
+                                story.bibleReference,
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoryReactionBtn(String emoji, String tooltip) {
+    return InkWell(
       onTap: () {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Reação enviada: $text ✨'),
+            content: Text('Reação $emoji enviada com sucesso! ✨'),
             duration: const Duration(seconds: 1),
             behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF1E293B),
           ),
         );
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 38,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.14),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          emoji,
+          style: const TextStyle(fontSize: 17),
+        ),
+      ),
+    );
+  }
+
+  void _openStoryReplySheet(CommunityStory story) {
+    setState(() => _isPaused = true);
+    _progressController.stop();
+
+    final textController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    CommunityUserAvatar(
+                      photoUrl: _currentGroup?.resolvedAvatar,
+                      name: _currentGroup?.displayName ?? 'Autor',
+                      radius: 16,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Responder a ${_currentGroup?.displayName ?? "story"}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildReplyQuickChip('🙏 Em oração!', textController),
+                      const SizedBox(width: 8),
+                      _buildReplyQuickChip('❤️ Glória a Deus!', textController),
+                      const SizedBox(width: 8),
+                      _buildReplyQuickChip('🙌 Bênção tremenda!', textController),
+                      const SizedBox(width: 8),
+                      _buildReplyQuickChip('✨ Amém!', textController),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: textController,
+                        autofocus: true,
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Envie uma palavra de bênção...',
+                          hintStyle: GoogleFonts.outfit(
+                            fontSize: 14,
+                            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF14141E) : const Color(0xFFF1F5F9),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.send_rounded, color: AppTheme.kPrimaryGold),
+                      onPressed: () {
+                        final msg = textController.text.trim();
+                        if (msg.isNotEmpty) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Mensagem enviada para ${_currentGroup?.displayName ?? "o autor"}! ✨'),
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: const Color(0xFF10B981),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      if (mounted) {
+        setState(() => _isPaused = false);
+        _progressController.forward();
+      }
+    });
+  }
+
+  Widget _buildReplyQuickChip(String text, TextEditingController controller) {
+    return GestureDetector(
+      onTap: () {
+        controller.text = text;
+        controller.selection = TextSelection.fromPosition(TextPosition(offset: text.length));
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.35),
+          color: AppTheme.kPrimaryGold.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white24, width: 1),
+          border: Border.all(color: AppTheme.kPrimaryGold.withValues(alpha: 0.4), width: 1),
         ),
         child: Text(
           text,
           style: GoogleFonts.outfit(
-            color: Colors.white,
             fontSize: 12,
             fontWeight: FontWeight.w600,
+            color: AppTheme.kPrimaryGold,
           ),
         ),
       ),
