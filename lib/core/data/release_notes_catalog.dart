@@ -5,6 +5,54 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.4',
+      buildNumber: 13,
+      title: 'Stories Agrupados, Criação Dedicada & Navegação Bíblica',
+      releaseDate: '26 de Outubro de 2026',
+      highlight:
+          'Stories agrupados por autor com navegação contínua estilo Instagram, modal exclusivo para criar stories de 24h com versículos da Bíblia, e botão Abrir na Bíblia com rolagem direta para o versículo selecionado.',
+      items: [
+        // ── Novos Recursos (Implementações) ─────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Stories Agrupados por Autor',
+          description:
+              'Cada usuário ou canal agora aparece apenas uma vez na bandeja do topo com seu avatar e nome. Ao abrir, todos os stories do mesmo autor passam em sequência antes de avançar para o próximo autor.',
+          customIcon: Icons.auto_awesome_motion_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Novo Modal Exclusivo de Criar Stories',
+          description:
+              'Interface dedicada para meditação bíblica de 24 horas, com seletor completo de livros e versículos da Bíblia instalada, reflexão devocional e estilos de gradiente atmosférico.',
+          customIcon: Icons.add_circle_outline_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Navegação Direta ao Versículo na Leitura',
+          description:
+              'Ao tocar em "Abrir na Bíblia" em qualquer post ou story, a tela de leitura abre exatamente no livro e capítulo correto e rola suavemente até o versículo selecionado.',
+          customIcon: Icons.menu_book_rounded,
+        ),
+
+        // ── Modificações & Melhorias ─────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Separação Clara entre Feed e Stories',
+          description:
+              'O formulário do Feed agora é 100% focado em postagens da comunidade (orações, reflexões e testemunhos), sem misturar com a bandeja de stories.',
+          customIcon: Icons.dashboard_customize_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Avatares Universais & Correção CORS Web',
+          description:
+              'Avatares do Google agora carregam perfeitamente na versão Web sem bloqueios de CORS, além de gerarem iniciais com belos gradientes quando não houver foto.',
+          customIcon: Icons.account_circle_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.3',
       buildNumber: 12,
       title: 'Comunidade Conectada, Tela Otimizada & Mais Segurança',

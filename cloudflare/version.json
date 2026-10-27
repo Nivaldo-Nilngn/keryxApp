@@ -1,12 +1,11 @@
 {
-  "latest_version": 12,
-  "version_name": "2.0.3",
+  "latest_version": 13,
+  "version_name": "2.0.4",
   "release_date": "2026-10-26",
-  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.3/keryxApp.apk",
+  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.4/keryxApp.apk",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.3: Compartilhe pedidos de oração e testemunhos no feed da Comunidade em tempo real, aproveite um layout mais limpo e espaçoso no celular e conte com atualizações seguras e verificadas.",
+  "release_notes": "Versão 2.0.4: Stories agrupados por autor com reprodução sequencial estilo Instagram, novo modal exclusivo para criar stories de 24h com versículos bíblicos, separação total entre Feed e Stories, e botão Abrir na Bíblia rolando direto para o versículo selecionado.",
   "force_update": false,
   "min_version": 1,
-  "sha256": "3216ce508766ef2c4d29d991d4ac2eeab64d6e50a039211b004a07623b1f4754"
+  "sha256": null
 }
-
