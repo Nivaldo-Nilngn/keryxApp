@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
+import 'package:keryx_app/core/theme/avatar_frame_options.dart';
 
 class CommunityUserAvatar extends ConsumerWidget {
   final String? photoUrl;
@@ -12,6 +13,7 @@ class CommunityUserAvatar extends ConsumerWidget {
   final double radius;
   final String? userId;
   final bool isOfficial;
+  final String? avatarFrame;
   final VoidCallback? onTap;
 
   const CommunityUserAvatar({
@@ -21,38 +23,109 @@ class CommunityUserAvatar extends ConsumerWidget {
     this.radius = 20,
     this.userId,
     this.isOfficial = false,
+    this.avatarFrame,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. Tenta obter photoUrl passada ou resolve a partir do usuário atual logado se aplicável
-    String? resolvedUrl = photoUrl?.trim();
-    if (resolvedUrl == null || resolvedUrl.isEmpty) {
-      final currentAuthUser = FirebaseAuth.instance.currentUser;
-      if (userId != null && currentAuthUser != null && userId == currentAuthUser.uid) {
-        final userData = ref.watch(userDataProvider).valueOrNull;
-        resolvedUrl = (userData?['photoUrl'] as String?)?.trim() ??
-            currentAuthUser.photoURL?.trim() ??
-            (currentAuthUser.providerData.isNotEmpty
-                ? currentAuthUser.providerData.first.photoURL?.trim()
-                : null);
-      }
+    final currentAuthUser = FirebaseAuth.instance.currentUser;
+    final userData = ref.watch(userDataProvider).valueOrNull;
+    final currentUserName = (userData?['name'] as String?)?.trim() ??
+        currentAuthUser?.displayName?.trim() ??
+        '';
+
+    final bool isCurrentUser = (currentAuthUser != null && userId != null && userId == currentAuthUser.uid) ||
+        (currentUserName.isNotEmpty && name.trim().toLowerCase() == currentUserName.toLowerCase());
+
+    String? resolvedUrl;
+    String effectiveName = name;
+    String? effectiveFrame = avatarFrame;
+
+    if (isCurrentUser) {
+      resolvedUrl = (userData?['photoUrl'] as String?)?.trim() ??
+          currentAuthUser?.photoURL?.trim() ??
+          (currentAuthUser?.providerData.isNotEmpty == true
+              ? currentAuthUser!.providerData.first.photoURL?.trim()
+              : null) ??
+          photoUrl?.trim();
+      effectiveName = currentUserName.isNotEmpty ? currentUserName : name;
+      effectiveFrame = avatarFrame ?? (userData?['avatarFrame'] as String?) ?? 'gold';
+    } else {
+      resolvedUrl = photoUrl?.trim();
     }
 
     final double size = radius * 2;
-    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U';
+    final initial = effectiveName.trim().isNotEmpty ? effectiveName.trim()[0].toUpperCase() : 'U';
 
-    Widget avatarContent = Semantics(
-      label: 'Foto de perfil de $name',
+    final bool hasFrame = effectiveFrame != null && effectiveFrame != 'none' && !isOfficial;
+    final borderThickness = size > 50 ? 2.8 : 1.8;
+    final gapThickness = size > 50 ? 1.8 : 1.0;
+    final innerSize = hasFrame ? (size - (borderThickness + gapThickness) * 2) : size;
+    final safeInnerSize = innerSize > 0 ? innerSize : size;
+
+    final avatarContent = Semantics(
+      label: 'Foto de perfil de $effectiveName',
       image: true,
-      child: _buildContent(context, resolvedUrl, initial, size),
+      child: _buildFramedWrapper(
+        context: context,
+        inner: _buildContent(context, resolvedUrl, initial, safeInnerSize),
+        frameId: effectiveFrame,
+        size: size,
+        borderThickness: borderThickness,
+        gapThickness: gapThickness,
+      ),
     );
 
     if (onTap != null) {
       return GestureDetector(onTap: onTap, child: avatarContent);
     }
     return avatarContent;
+  }
+
+  Widget _buildFramedWrapper({
+    required BuildContext context,
+    required Widget inner,
+    required String? frameId,
+    required double size,
+    required double borderThickness,
+    required double gapThickness,
+  }) {
+    if (frameId == null || frameId == 'none' || isOfficial) {
+      return inner;
+    }
+
+    final frame = AvatarFrameOption.getById(frameId);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(borderThickness),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: frame.colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: frame.shadowColor.withValues(alpha: 0.35),
+            blurRadius: size > 50 ? 8 : 4,
+            offset: const Offset(0, 1.5),
+          ),
+        ],
+      ),
+      child: Container(
+        padding: EdgeInsets.all(gapThickness),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isDark ? const Color(0xFF14141E) : Colors.white,
+        ),
+        child: ClipOval(child: inner),
+      ),
+    );
   }
 
   Widget _buildContent(BuildContext context, String? url, String initial, double size) {

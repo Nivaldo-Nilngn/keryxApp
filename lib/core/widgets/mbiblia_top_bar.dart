@@ -11,6 +11,7 @@ import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/auth/view/login_screen.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
+import 'package:keryx_app/core/theme/avatar_frame_options.dart';
 import 'package:keryx_app/features/home/view/notifications_bottom_sheet.dart';
 import 'package:keryx_app/features/home/view_model/notifications_provider.dart';
 // Import necessário para o AuthWrapper
@@ -452,38 +453,7 @@ class KeryxUserDropdown extends ConsumerWidget {
                                      (user.providerData.isNotEmpty ? user.providerData.first.photoURL : null);
 
             final String frameId = data?['avatarFrame'] ?? 'gold';
-
-            List<Color> frameColors;
-            switch (frameId) {
-              case 'aurora':
-                frameColors = const [Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0xFF3B82F6)];
-                break;
-              case 'fire':
-                frameColors = const [Color(0xFFEF4444), Color(0xFFF97316), Color(0xFFFBBF24)];
-                break;
-              case 'sapphire':
-                frameColors = const [Color(0xFF06B6D4), Color(0xFF3B82F6), Color(0xFF1D4ED8)];
-                break;
-              case 'emerald':
-                frameColors = const [Color(0xFF10B981), Color(0xFF059669)];
-                break;
-              case 'royal':
-                frameColors = const [Color(0xFF7C3AED), Color(0xFFA855F7), Color(0xFFC026D3)];
-                break;
-              case 'midnight':
-                frameColors = const [Color(0xFF38BDF8), Color(0xFF6366F1)];
-                break;
-              case 'silver':
-                frameColors = const [Color(0xFFF1F5F9), Color(0xFF94A3B8)];
-                break;
-              case 'none':
-                frameColors = const [Colors.transparent, Colors.transparent];
-                break;
-              case 'gold':
-              default:
-                frameColors = const [Color(0xFFF59E0B), Color(0xFFD97706)];
-                break;
-            }
+            final frame = AvatarFrameOption.getById(frameId);
 
             return Container(
               width: 34,
@@ -493,13 +463,22 @@ class KeryxUserDropdown extends ConsumerWidget {
                 shape: BoxShape.circle,
                 gradient: frameId != 'none'
                     ? LinearGradient(
-                        colors: frameColors,
+                        colors: frame.colors,
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )
                     : null,
                 border: frameId == 'none'
                     ? Border.all(color: Colors.white24, width: 1.2)
+                    : null,
+                boxShadow: frameId != 'none'
+                    ? [
+                        BoxShadow(
+                          color: frame.shadowColor.withValues(alpha: 0.35),
+                          blurRadius: 6,
+                          offset: const Offset(0, 1.5),
+                        ),
+                      ]
                     : null,
               ),
               child: Container(

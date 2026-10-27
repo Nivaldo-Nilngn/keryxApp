@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import '../services/auth_service.dart';
 import '../services/release_notes_service.dart';
 import '../theme/app_theme.dart';
+import '../theme/avatar_frame_options.dart';
 import 'package:keryx_app/features/legal/view/legal_terms_screen.dart';
 
 class _PresetAvatar {
@@ -21,22 +22,6 @@ class _PresetAvatar {
     required this.name,
     required this.category,
     required this.url,
-  });
-}
-
-class _AvatarFrameOption {
-  final String id;
-  final String name;
-  final List<Color> colors;
-  final Color shadowColor;
-  final String emoji;
-
-  const _AvatarFrameOption({
-    required this.id,
-    required this.name,
-    required this.colors,
-    required this.shadowColor,
-    required this.emoji,
   });
 }
 
@@ -81,73 +66,10 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
   bool _showUrlField = false;
   String _selectedCategory = 'all';
 
-  static const List<_AvatarFrameOption> _frameOptions = [
-    _AvatarFrameOption(
-      id: 'gold',
-      name: 'Ouro Real',
-      colors: [Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFFDE68A)],
-      shadowColor: Color(0xFFD97706),
-      emoji: '🟡',
-    ),
-    _AvatarFrameOption(
-      id: 'aurora',
-      name: 'Aurora',
-      colors: [Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0xFF3B82F6)],
-      shadowColor: Color(0xFF8B5CF6),
-      emoji: '🟣',
-    ),
-    _AvatarFrameOption(
-      id: 'fire',
-      name: 'Pentecostes',
-      colors: [Color(0xFFEF4444), Color(0xFFF97316), Color(0xFFFBBF24)],
-      shadowColor: Color(0xFFEF4444),
-      emoji: '🔥',
-    ),
-    _AvatarFrameOption(
-      id: 'sapphire',
-      name: 'Safira',
-      colors: [Color(0xFF06B6D4), Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-      shadowColor: Color(0xFF06B6D4),
-      emoji: '💎',
-    ),
-    _AvatarFrameOption(
-      id: 'emerald',
-      name: 'Esmeralda',
-      colors: [Color(0xFF10B981), Color(0xFF059669), Color(0xFF047857)],
-      shadowColor: Color(0xFF10B981),
-      emoji: '🌿',
-    ),
-    _AvatarFrameOption(
-      id: 'royal',
-      name: 'Púrpura',
-      colors: [Color(0xFF7C3AED), Color(0xFFA855F7), Color(0xFFC026D3)],
-      shadowColor: Color(0xFF7C3AED),
-      emoji: '👑',
-    ),
-    _AvatarFrameOption(
-      id: 'midnight',
-      name: 'Estelar',
-      colors: [Color(0xFF38BDF8), Color(0xFF6366F1), Color(0xFF0284C7)],
-      shadowColor: Color(0xFF38BDF8),
-      emoji: '🌌',
-    ),
-    _AvatarFrameOption(
-      id: 'silver',
-      name: 'Prata',
-      colors: [Color(0xFFF1F5F9), Color(0xFF94A3B8), Color(0xFFE2E8F0)],
-      shadowColor: Colors.white24,
-      emoji: '⚪',
-    ),
-    _AvatarFrameOption(
-      id: 'none',
-      name: 'Nenhum',
-      colors: [Colors.transparent, Colors.transparent],
-      shadowColor: Colors.transparent,
-      emoji: '🚫',
-    ),
-  ];
+  static List<AvatarFrameOption> get _frameOptions => AvatarFrameOption.options;
 
   static const List<_PresetAvatar> _presetAvatares = [
+    // ── PERSONAGENS BÍBLICOS (40 Heróis e Mulheres da Fé) ──
     _PresetAvatar(
       id: 'david',
       name: 'Davi',
@@ -209,6 +131,188 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
       url: 'https://api.dicebear.com/7.x/notionists/png?seed=Daniel&backgroundColor=e2e8f0',
     ),
     _PresetAvatar(
+      id: 'moses',
+      name: 'Moisés',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Moses&backgroundColor=e0f2fe',
+    ),
+    _PresetAvatar(
+      id: 'abraham',
+      name: 'Abraão',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Abraham&backgroundColor=fef9c3',
+    ),
+    _PresetAvatar(
+      id: 'noah',
+      name: 'Noé',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Noah&backgroundColor=d1fae5',
+    ),
+    _PresetAvatar(
+      id: 'peter',
+      name: 'Pedro',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Peter&backgroundColor=fae8ff',
+    ),
+    _PresetAvatar(
+      id: 'elijah',
+      name: 'Elias',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Elijah&backgroundColor=ffedd5',
+    ),
+    _PresetAvatar(
+      id: 'elisha',
+      name: 'Eliseu',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Elisha&backgroundColor=f1f5f9',
+    ),
+    _PresetAvatar(
+      id: 'joshua',
+      name: 'Josué',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Joshua&backgroundColor=fef08a',
+    ),
+    _PresetAvatar(
+      id: 'joseph',
+      name: 'José',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Joseph&backgroundColor=f3e8ff',
+    ),
+    _PresetAvatar(
+      id: 'solomon',
+      name: 'Salomão',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Solomon&backgroundColor=fef3c7',
+    ),
+    _PresetAvatar(
+      id: 'mary',
+      name: 'Maria',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Mary&backgroundColor=fce7f3',
+    ),
+    _PresetAvatar(
+      id: 'deborah',
+      name: 'Débora',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Deborah&backgroundColor=fef3c7',
+    ),
+    _PresetAvatar(
+      id: 'hannah',
+      name: 'Ana',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Hannah&backgroundColor=ede9fe',
+    ),
+    _PresetAvatar(
+      id: 'rebekah',
+      name: 'Rebeca',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Rebekah&backgroundColor=ffedd5',
+    ),
+    _PresetAvatar(
+      id: 'priscilla',
+      name: 'Priscila',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Priscilla&backgroundColor=dcfce7',
+    ),
+    _PresetAvatar(
+      id: 'abigail',
+      name: 'Abigail',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Abigail&backgroundColor=fae8ff',
+    ),
+    _PresetAvatar(
+      id: 'lydia',
+      name: 'Lídia',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Lydia&backgroundColor=fae8ff',
+    ),
+    _PresetAvatar(
+      id: 'naomi',
+      name: 'Noemi',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Naomi&backgroundColor=e0f2fe',
+    ),
+    _PresetAvatar(
+      id: 'elizabeth',
+      name: 'Isabel',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Elizabeth&backgroundColor=fee2e2',
+    ),
+    _PresetAvatar(
+      id: 'dorcas',
+      name: 'Dorcas',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Dorcas&backgroundColor=fef9c3',
+    ),
+    _PresetAvatar(
+      id: 'isaiah',
+      name: 'Isaías',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Isaiah&backgroundColor=e0f2fe',
+    ),
+    _PresetAvatar(
+      id: 'jeremiah',
+      name: 'Jeremias',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Jeremiah&backgroundColor=ffedd5',
+    ),
+    _PresetAvatar(
+      id: 'ezekiel',
+      name: 'Ezequiel',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Ezekiel&backgroundColor=ede9fe',
+    ),
+    _PresetAvatar(
+      id: 'nehemiah',
+      name: 'Neemias',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Nehemiah&backgroundColor=dbeafe',
+    ),
+    _PresetAvatar(
+      id: 'stephen',
+      name: 'Estêvão',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Stephen&backgroundColor=fef9c3',
+    ),
+    _PresetAvatar(
+      id: 'luke',
+      name: 'Lucas',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Luke&backgroundColor=dbeafe',
+    ),
+    _PresetAvatar(
+      id: 'james',
+      name: 'Tiago',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=James&backgroundColor=dcfce7',
+    ),
+    _PresetAvatar(
+      id: 'barnabas',
+      name: 'Barnabé',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Barnabas&backgroundColor=f1f5f9',
+    ),
+    _PresetAvatar(
+      id: 'silas',
+      name: 'Silas',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Silas&backgroundColor=e0e7ff',
+    ),
+    _PresetAvatar(
+      id: 'isaac',
+      name: 'Isaque',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Isaac&backgroundColor=e0e7ff',
+    ),
+    _PresetAvatar(
+      id: 'jacob',
+      name: 'Jacó',
+      category: 'characters',
+      url: 'https://api.dicebear.com/7.x/notionists/png?seed=Jacob&backgroundColor=fee2e2',
+    ),
+
+    // ── FÉ & DEVOÇÃO ──
+    _PresetAvatar(
       id: 'bible_light',
       name: 'Palavra Viva',
       category: 'faith',
@@ -233,6 +337,90 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
       url: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=256&h=256&q=80',
     ),
     _PresetAvatar(
+      id: 'covenant_cross',
+      name: 'Aliança da Cruz',
+      category: 'faith',
+      url: 'https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'bread_life',
+      name: 'Pão da Vida',
+      category: 'faith',
+      url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+
+    // ── SÍMBOLOS SAGRADOS ──
+    _PresetAvatar(
+      id: 'lion_judah',
+      name: 'Leão de Judá',
+      category: 'symbols',
+      url: 'https://images.unsplash.com/photo-1543946207-39bd91e70ca7?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'peace_dove',
+      name: 'Espírito de Paz',
+      category: 'symbols',
+      url: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'lamb_god',
+      name: 'Cordeiro da Paz',
+      category: 'symbols',
+      url: 'https://images.unsplash.com/photo-1484557052118-f32bd25b45b5?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'olive_branch',
+      name: 'Oliveira Florida',
+      category: 'symbols',
+      url: 'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'holy_fire',
+      name: 'Fogo Santo',
+      category: 'symbols',
+      url: 'https://images.unsplash.com/photo-1496337589254-7e19d01cec44?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'anchor_hope',
+      name: 'Âncora Segura',
+      category: 'symbols',
+      url: 'https://images.unsplash.com/photo-1524338198850-8a2ff63aaceb?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+
+    // ── LOUVOR & ADORAÇÃO ──
+    _PresetAvatar(
+      id: 'harp_worship',
+      name: 'Harpa e Louvor',
+      category: 'worship',
+      url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'acoustic_praise',
+      name: 'Cordas de Gratidão',
+      category: 'worship',
+      url: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'worship_choir',
+      name: 'Vozes ao Altíssimo',
+      category: 'worship',
+      url: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'worship_heart',
+      name: 'Adoração Viva',
+      category: 'worship',
+      url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'music_ministry',
+      name: 'Instrumento Sagrado',
+      category: 'worship',
+      url: 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+
+    // ── CRIAÇÃO DIVINA ──
+    _PresetAvatar(
       id: 'mount_sinai',
       name: 'Monte da Fé',
       category: 'nature',
@@ -246,7 +434,7 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
     ),
     _PresetAvatar(
       id: 'sunrise_grace',
-      name: 'Amanhecer',
+      name: 'Amanhecer da Graça',
       category: 'nature',
       url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=256&h=256&q=80',
     ),
@@ -255,6 +443,18 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
       name: 'Lugar Secreto',
       category: 'nature',
       url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'restful_waters',
+      name: 'Águas de Descanso',
+      category: 'nature',
+      url: 'https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=256&h=256&q=80',
+    ),
+    _PresetAvatar(
+      id: 'peaceful_garden',
+      name: 'Jardim da Paz',
+      category: 'nature',
+      url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=256&h=256&q=80',
     ),
   ];
 
@@ -406,10 +606,8 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
         : 'U';
 
     final filteredPresets = _presetAvatares.where((p) {
-      if (_selectedCategory == 'characters') return p.category == 'characters';
-      if (_selectedCategory == 'faith') return p.category == 'faith';
-      if (_selectedCategory == 'nature') return p.category == 'nature';
-      return true;
+      if (_selectedCategory == 'all') return true;
+      return p.category == _selectedCategory;
     }).toList();
 
     final avatarImage = _buildAvatarWidget(_previewPhoto, initial);
@@ -745,6 +943,10 @@ class _EditProfileContentState extends ConsumerState<_EditProfileContent> {
                       _buildCategoryChip('👤 Personagens', 'characters', isDark),
                       const SizedBox(width: 6),
                       _buildCategoryChip('📖 Fé & Devoção', 'faith', isDark),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip('🕊️ Símbolos', 'symbols', isDark),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip('🎶 Louvor', 'worship', isDark),
                       const SizedBox(width: 6),
                       _buildCategoryChip('🌄 Criação', 'nature', isDark),
                     ],

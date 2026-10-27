@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/model/community_post.dart';
 import 'package:keryx_app/features/community/view_model/community_feed_provider.dart';
@@ -68,8 +69,17 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
   Widget build(BuildContext context) {
     final post = widget.post;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final isAuthor = currentUserId != null && currentUserId == post.userId;
+    final currentAuthUser = FirebaseAuth.instance.currentUser;
+    final userData = ref.watch(userDataProvider).valueOrNull;
+    final currentUserName = (userData?['name'] as String?)?.trim() ??
+        currentAuthUser?.displayName?.trim() ??
+        '';
+    final currentUserId = currentAuthUser?.uid;
+    final isAuthor = (currentUserId != null && currentUserId == post.userId) ||
+        (currentUserName.isNotEmpty && post.userName.trim().toLowerCase() == currentUserName.toLowerCase());
+    final displayAuthorName = isAuthor && currentUserName.isNotEmpty ? currentUserName : post.userName;
+    final displayAvatar = isAuthor ? (userData?['photoUrl'] ?? post.userAvatar) : post.userAvatar;
+    final displayFrame = isAuthor ? (userData?['avatarFrame'] as String?) : null;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -99,10 +109,11 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
             child: Row(
               children: [
                 CommunityUserAvatar(
-                  photoUrl: post.userAvatar,
-                  name: post.userName,
+                  photoUrl: displayAvatar,
+                  name: displayAuthorName,
                   userId: post.userId,
                   radius: 20,
+                  avatarFrame: displayFrame,
                   isOfficial: post.userName.toLowerCase().contains('keryx') || post.userBadge == 'Oficial',
                 ),
                 const SizedBox(width: 10),
@@ -114,7 +125,7 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
                         children: [
                           Flexible(
                             child: Text(
-                              post.userName,
+                              displayAuthorName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.outfit(

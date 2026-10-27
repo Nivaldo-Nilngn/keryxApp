@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
+import 'package:keryx_app/core/theme/avatar_frame_options.dart';
 import 'package:keryx_app/features/community/model/community_story.dart';
 import 'package:keryx_app/features/community/model/user_stories_group.dart';
 import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
@@ -40,7 +41,7 @@ class CommunityStoriesTray extends ConsumerWidget {
           }
 
           final group = groups[index - 1];
-          return _buildStoryGroupItem(context, group, groups, index - 1, isDark);
+          return _buildStoryGroupItem(context, ref, group, groups, index - 1, isDark);
         },
       ),
     );
@@ -57,6 +58,8 @@ class CommunityStoriesTray extends ConsumerWidget {
     final userName = (userData?['name'] as String?)?.trim() ??
         currentUser?.displayName ??
         'Você';
+    final userFrameId = (userData?['avatarFrame'] as String?) ?? 'gold';
+    final frame = AvatarFrameOption.getById(userFrameId);
 
     return GestureDetector(
       onTap: onAddStoryTap,
@@ -68,19 +71,44 @@ class CommunityStoriesTray extends ConsumerWidget {
               Container(
                 width: 56,
                 height: 56,
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(2.2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isDark ? const Color(0xFF222234) : const Color(0xFFF1F3F5),
-                  border: Border.all(
-                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.6),
-                    width: 1.8,
-                  ),
+                  gradient: userFrameId != 'none'
+                      ? LinearGradient(
+                          colors: frame.colors,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  border: userFrameId == 'none'
+                      ? Border.all(
+                          color: isDark ? Colors.white24 : Colors.black12,
+                          width: 1.5,
+                        )
+                      : null,
+                  boxShadow: userFrameId != 'none'
+                      ? [
+                          BoxShadow(
+                            color: frame.shadowColor.withValues(alpha: 0.45),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
-                child: CommunityUserAvatar(
-                  photoUrl: userPhoto,
-                  name: userName,
-                  radius: 25,
+                child: Container(
+                  padding: const EdgeInsets.all(1.6),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDark ? const Color(0xFF14141E) : Colors.white,
+                  ),
+                  child: CommunityUserAvatar(
+                    photoUrl: userPhoto,
+                    name: userName,
+                    radius: 24,
+                    avatarFrame: 'none',
+                  ),
                 ),
               ),
               Positioned(
@@ -127,6 +155,7 @@ class CommunityStoriesTray extends ConsumerWidget {
 
   Widget _buildStoryGroupItem(
     BuildContext context,
+    WidgetRef ref,
     UserStoriesGroup group,
     List<UserStoriesGroup> allGroups,
     int groupIndex,
@@ -134,6 +163,42 @@ class CommunityStoriesTray extends ConsumerWidget {
   ) {
     final isOfficial = group.isOfficial;
     final hasMultipleStories = group.stories.length > 1;
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final userData = ref.watch(userDataProvider).valueOrNull;
+    final currentUserName = (userData?['name'] as String?)?.trim() ??
+        currentUser?.displayName?.trim() ??
+        '';
+    final isCurrentUser = currentUserName.isNotEmpty &&
+        group.displayName.trim().toLowerCase() == currentUserName.toLowerCase();
+
+    final userPhoto = (userData?['photoUrl'] as String?)?.trim() ??
+        currentUser?.photoURL?.trim();
+    final userFrameId = (userData?['avatarFrame'] as String?) ?? 'gold';
+    final frame = AvatarFrameOption.getById(userFrameId);
+
+    final effectiveAvatar = isCurrentUser && userPhoto != null && userPhoto.isNotEmpty
+        ? userPhoto
+        : group.resolvedAvatar;
+    final effectiveName = isCurrentUser ? currentUserName : group.displayName;
+
+    final ringGradient = isOfficial
+        ? const LinearGradient(
+            colors: [Color(0xFFFFD700), Color(0xFFFFA500), Color(0xFFEE5A24)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : (isCurrentUser && userFrameId != 'none'
+            ? LinearGradient(
+                colors: frame.colors,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : const LinearGradient(
+                colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF59E0B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ));
 
     return GestureDetector(
       onTap: () {
@@ -158,17 +223,7 @@ class CommunityStoriesTray extends ConsumerWidget {
                 padding: const EdgeInsets.all(2.4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: isOfficial
-                      ? const LinearGradient(
-                          colors: [Color(0xFFFFD700), Color(0xFFFFA500), Color(0xFFEE5A24)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : const LinearGradient(
-                          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF59E0B)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                  gradient: ringGradient,
                 ),
                 child: Container(
                   padding: const EdgeInsets.all(1.8),
@@ -177,10 +232,11 @@ class CommunityStoriesTray extends ConsumerWidget {
                     color: isDark ? const Color(0xFF14141E) : Colors.white,
                   ),
                   child: CommunityUserAvatar(
-                    photoUrl: group.resolvedAvatar,
-                    name: group.displayName,
+                    photoUrl: effectiveAvatar,
+                    name: effectiveName,
                     radius: 25,
                     isOfficial: isOfficial,
+                    avatarFrame: 'none',
                   ),
                 ),
               ),
