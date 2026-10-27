@@ -68,6 +68,110 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     );
   }
 
+  Widget _buildCriarButton() {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: _openCreatePostModal,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFD97706).withValues(alpha: 0.35),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add_rounded, color: Colors.black, size: 19),
+              const SizedBox(width: 4),
+              Text(
+                'Criar',
+                style: GoogleFonts.outfit(
+                  color: Colors.black,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderContent(CommunityFeedState state) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6.5),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.people_alt_rounded, color: Colors.white, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Comunidade',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
+                fontSize: 19,
+                color: Theme.of(context).colorScheme.onSurface,
+                letterSpacing: -0.3,
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  state.posts.isNotEmpty
+                      ? 'Em comunhão • ${state.posts.length} ${state.posts.length == 1 ? "publicação" : "publicações"}'
+                      : 'Em comunhão',
+                  style: GoogleFonts.outfit(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(communityFeedProvider);
@@ -128,141 +232,87 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                           }
                         },
                       ),
-                title: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6.5),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.people_alt_rounded, color: Colors.white, size: 18),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Comunidade',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 19,
-                              color: Theme.of(context).colorScheme.onSurface,
-                              letterSpacing: -0.3,
+                title: isTablet
+                    ? Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Row(
+                              children: [
+                                _buildHeaderContent(state),
+                                const Spacer(),
+                                _buildCriarButton(),
+                              ],
                             ),
                           ),
-                          Row(
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Color(0xFF10B981),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                state.posts.isNotEmpty
-                                    ? 'Em comunhão • ${state.posts.length} ${state.posts.length == 1 ? "publicação" : "publicações"}'
-                                    : 'Em comunhão',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF10B981),
-                                ),
-                              ),
-                            ],
+                        ),
+                      )
+                    : _buildHeaderContent(state),
+                actions: isTablet
+                    ? null
+                    : [
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 14),
+                            child: _buildCriarButton(),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+              ),
+
+              // 2. Stories Tray no Topo (Centralizado com o Feed)
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: CommunityStoriesTray(
+                      stories: state.stories,
+                      onAddStoryTap: _openCreateStoryModal,
+                    ),
                   ),
-                  actions: [
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 14),
-                        child: Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
-                          child: InkWell(
-                            onTap: _openCreatePostModal,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Ink(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFD97706).withValues(alpha: 0.35),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                ),
+              ),
+
+              // 3. Barra de Categorias / Filtros (Centralizada com o Feed)
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: Container(
+                      height: 36,
+                      margin: const EdgeInsets.only(top: 2, bottom: 6),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minWidth: (constraints.maxWidth - 28) > 0 ? (constraints.maxWidth - 28) : 0,
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.add_rounded, color: Colors.black, size: 19),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Criar',
-                                    style: GoogleFonts.outfit(
-                                      color: Colors.black,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.4,
-                                    ),
-                                  ),
+                                  _buildCategoryChip('✨ Tudo', 'all', isDark),
+                                  const SizedBox(width: 8),
+                                  _buildCategoryChip('🙏 Pedidos de Oração', 'prayer', isDark),
+                                  const SizedBox(width: 8),
+                                  _buildCategoryChip('📖 Versículos', 'verse', isDark),
+                                  const SizedBox(width: 8),
+                                  _buildCategoryChip('🕊️ Testemunhos', 'testimony', isDark),
                                 ],
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
-                  ],
-                ),
-
-                // 2. Stories Tray no Topo
-                SliverToBoxAdapter(
-                  child: CommunityStoriesTray(
-                    stories: state.stories,
-                    onAddStoryTap: _openCreateStoryModal,
                   ),
                 ),
-
-
-
-                // 4. Barra de Categorias / Filtros
-                SliverToBoxAdapter(
-                  child: Container(
-                    height: 36,
-                    margin: const EdgeInsets.only(top: 2, bottom: 6),
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        _buildCategoryChip('✨ Tudo', 'all', isDark),
-                        const SizedBox(width: 8),
-                        _buildCategoryChip('🙏 Pedidos de Oração', 'prayer', isDark),
-                        const SizedBox(width: 8),
-                        _buildCategoryChip('📖 Versículos', 'verse', isDark),
-                        const SizedBox(width: 8),
-                        _buildCategoryChip('🕊️ Testemunhos', 'testimony', isDark),
-                      ],
-                    ),
-                  ),
-                ),
+              ),
 
                 // 5. Conteúdo Principal do Feed
                 if (state.isLoading && state.posts.isEmpty)

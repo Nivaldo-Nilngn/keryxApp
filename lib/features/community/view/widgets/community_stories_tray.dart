@@ -28,20 +28,31 @@ class CommunityStoriesTray extends ConsumerWidget {
     return Container(
       height: 94,
       margin: const EdgeInsets.only(top: 2, bottom: 4),
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: groups.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            // Botão Adicionar Story / Meu Versículo com a foto do usuário atual
-            return _buildAddStoryButton(context, ref, isDark);
-          }
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final items = <Widget>[
+            _buildAddStoryButton(context, ref, isDark),
+            for (int i = 0; i < groups.length; i++) ...[
+              const SizedBox(width: 12),
+              _buildStoryGroupItem(context, ref, groups[i], groups, i, isDark),
+            ],
+          ];
 
-          final group = groups[index - 1];
-          return _buildStoryGroupItem(context, ref, group, groups, index - 1, isDark);
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: (constraints.maxWidth - 28) > 0 ? (constraints.maxWidth - 28) : 0,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: items,
+              ),
+            ),
+          );
         },
       ),
     );
