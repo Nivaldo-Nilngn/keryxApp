@@ -261,11 +261,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                       ],
               ),
 
-              // 2. Stories Tray no Topo (Centralizado com o Feed)
+              // 2. Stories Tray no Topo (Alinhado com a largura do Feed)
               SliverToBoxAdapter(
                 child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
+                  child: SizedBox(
+                    width: isTablet ? 720 : double.infinity,
                     child: CommunityStoriesTray(
                       stories: state.stories,
                       onAddStoryTap: _openCreateStoryModal,
@@ -274,12 +274,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 ),
               ),
 
-              // 3. Barra de Categorias / Filtros (Centralizada com o Feed)
+              // 3. Barra de Categorias / Filtros (Alinhada com a largura do Feed)
               SliverToBoxAdapter(
                 child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
+                  child: SizedBox(
+                    width: isTablet ? 720 : double.infinity,
                     child: Container(
+                      width: double.infinity,
                       height: 36,
                       margin: const EdgeInsets.only(top: 2, bottom: 6),
                       child: SingleChildScrollView(

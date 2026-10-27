@@ -37,46 +37,51 @@ class CommunityStoriesTray extends ConsumerWidget {
     final otherGroups = <UserStoriesGroup>[];
 
     for (final group in groups) {
-      final isMe = (currentUserName.isNotEmpty &&
-              group.displayName.trim().toLowerCase() == currentUserName.toLowerCase()) ||
-          (currentUser != null &&
-              currentUser.displayName != null &&
-              currentUser.displayName!.trim().isNotEmpty &&
-              group.displayName.trim().toLowerCase() ==
-                  currentUser.displayName!.trim().toLowerCase());
+      final gName = group.displayName.trim().toLowerCase();
+      final isMe = (currentUserName.isNotEmpty && gName == currentUserName.toLowerCase()) ||
+          (currentUser?.displayName != null &&
+              gName == currentUser!.displayName!.trim().toLowerCase()) ||
+          (currentUser?.email != null &&
+              gName == currentUser!.email!.split('@').first.trim().toLowerCase());
 
       if (isMe) {
-        myStoriesGroup = group;
+        if (myStoriesGroup == null) {
+          myStoriesGroup = group;
+        } else {
+          myStoriesGroup = UserStoriesGroup(
+            authorName: myStoriesGroup.authorName,
+            authorAvatar: myStoriesGroup.authorAvatar ?? group.authorAvatar,
+            stories: [...myStoriesGroup.stories, ...group.stories],
+          );
+        }
       } else {
         otherGroups.add(group);
       }
     }
 
+    final items = <Widget>[
+      _buildUserStoryButton(context, ref, myStoriesGroup, isDark),
+      for (int i = 0; i < otherGroups.length; i++) ...[
+        const SizedBox(width: 12),
+        _buildStoryGroupItem(context, ref, otherGroups[i], otherGroups, i, isDark),
+      ],
+    ];
+
     return Container(
+      width: double.infinity,
       height: 94,
       margin: const EdgeInsets.only(top: 2, bottom: 4),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final items = <Widget>[
-            _buildUserStoryButton(context, ref, myStoriesGroup, isDark),
-            for (int i = 0; i < otherGroups.length; i++) ...[
-              const SizedBox(width: 12),
-              _buildStoryGroupItem(context, ref, otherGroups[i], otherGroups, i, isDark),
-            ],
-          ];
-
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: items,
-            ),
-          );
-        },
+      alignment: Alignment.centerLeft,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: items,
+        ),
       ),
     );
   }

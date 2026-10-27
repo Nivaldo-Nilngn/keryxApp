@@ -33,13 +33,48 @@ class CommunityService {
           final list = (data['stories'] as List)
               .map((s) => CommunityStory.fromJson(s as Map<String, dynamic>))
               .toList();
-          return list;
+          if (list.isNotEmpty) return list;
         }
       }
     } catch (e) {
       debugPrint('⚠️ [CommunityService] Erro ao carregar stories: $e');
     }
-    return [];
+    return _getFallbackStories();
+  }
+
+  List<CommunityStory> _getFallbackStories() {
+    return [
+      CommunityStory(
+        id: 'story_v_today',
+        authorName: 'Keryx Oficial',
+        title: 'Versículo do Dia',
+        bibleReference: 'Salmos 23:1',
+        verseText: 'O SENHOR é o meu pastor, nada me faltará.',
+        reflection: 'O cuidado de Deus não falha nem nos dias mais difíceis.',
+        backgroundStyle: 'gold_gradient',
+        createdAt: DateTime.now(),
+      ),
+      CommunityStory(
+        id: 'story_prayer',
+        authorName: 'Comunhão Keryx',
+        title: 'Momento de Oração',
+        bibleReference: 'Filipenses 4:6',
+        verseText: 'Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus.',
+        reflection: 'Entregue sua ansiedade nas mãos do Pai.',
+        backgroundStyle: 'indigo_gradient',
+        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+      ),
+      CommunityStory(
+        id: 'story_grace',
+        authorName: 'Devocional Diário',
+        title: 'Graça & Paz',
+        bibleReference: 'Efésios 2:8',
+        verseText: 'Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus.',
+        reflection: 'A graça é o abraço de misericórdia de Deus.',
+        backgroundStyle: 'emerald_gradient',
+        createdAt: DateTime.now().subtract(const Duration(hours: 4)),
+      ),
+    ];
   }
 
   /// Publica um novo story bíblico no Cloudflare D1
