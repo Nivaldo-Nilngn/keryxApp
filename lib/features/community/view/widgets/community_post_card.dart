@@ -319,20 +319,12 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
           if (post.caption.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
-              child: RichText(
-                text: TextSpan(
-                  style: GoogleFonts.outfit(
-                    fontSize: 13.5,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    height: 1.4,
-                  ),
-                  children: [
-                    TextSpan(
-                      text: '${post.userName}  ',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    TextSpan(text: post.caption),
-                  ],
+              child: Text(
+                post.caption,
+                style: GoogleFonts.outfit(
+                  fontSize: 13.5,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  height: 1.4,
                 ),
               ),
             ),
