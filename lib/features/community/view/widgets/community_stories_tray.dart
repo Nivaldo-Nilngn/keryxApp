@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/model/community_story.dart';
+import 'package:keryx_app/features/community/model/user_stories_group.dart';
 import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 import 'package:keryx_app/features/community/view/widgets/story_viewer_screen.dart';
 
@@ -21,6 +22,7 @@ class CommunityStoriesTray extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final groups = UserStoriesGroup.fromStories(stories);
 
     return Container(
       height: 94,
@@ -29,7 +31,7 @@ class CommunityStoriesTray extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: stories.length + 1,
+        itemCount: groups.length + 1,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           if (index == 0) {
@@ -37,8 +39,8 @@ class CommunityStoriesTray extends ConsumerWidget {
             return _buildAddStoryButton(context, ref, isDark);
           }
 
-          final story = stories[index - 1];
-          return _buildStoryItem(context, story, index - 1, isDark);
+          final group = groups[index - 1];
+          return _buildStoryGroupItem(context, group, groups, index - 1, isDark);
         },
       ),
     );
@@ -123,9 +125,15 @@ class CommunityStoriesTray extends ConsumerWidget {
     );
   }
 
-  Widget _buildStoryItem(BuildContext context, CommunityStory story, int storyIndex, bool isDark) {
-    final isOfficial = story.authorName.toLowerCase().contains('keryx') ||
-        story.title.toLowerCase().contains('versículo do dia');
+  Widget _buildStoryGroupItem(
+    BuildContext context,
+    UserStoriesGroup group,
+    List<UserStoriesGroup> allGroups,
+    int groupIndex,
+    bool isDark,
+  ) {
+    final isOfficial = group.isOfficial;
+    final hasMultipleStories = group.stories.length > 1;
 
     return GestureDetector(
       onTap: () {
@@ -134,8 +142,8 @@ class CommunityStoriesTray extends ConsumerWidget {
           PageRouteBuilder(
             opaque: false,
             pageBuilder: (_, __, ___) => StoryViewerScreen(
-              stories: stories,
-              initialIndex: storyIndex,
+              groups: allGroups,
+              initialGroupIndex: groupIndex,
             ),
           ),
         );
@@ -143,55 +151,93 @@ class CommunityStoriesTray extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(2.4),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: isOfficial
-                  ? const LinearGradient(
-                      colors: [Color(0xFFFFD700), Color(0xFFFFA500), Color(0xFFEE5A24)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : const LinearGradient(
-                      colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF59E0B)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(2.4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: isOfficial
+                      ? const LinearGradient(
+                          colors: [Color(0xFFFFD700), Color(0xFFFFA500), Color(0xFFEE5A24)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF59E0B)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(1.8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDark ? const Color(0xFF14141E) : Colors.white,
+                  ),
+                  child: CommunityUserAvatar(
+                    photoUrl: group.resolvedAvatar,
+                    name: group.displayName,
+                    radius: 25,
+                    isOfficial: isOfficial,
+                  ),
+                ),
+              ),
+
+              // Badge sutil se o usuário tiver múltiplos stories ativos
+              if (hasMultipleStories)
+                Positioned(
+                  top: -1,
+                  right: -1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.kPrimaryGold,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF14141E) : Colors.white,
+                        width: 1.2,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 3,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
                     ),
+                    child: Text(
+                      '${group.stories.length}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-          child: Container(
-            padding: const EdgeInsets.all(1.8),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isDark ? const Color(0xFF14141E) : Colors.white,
-            ),
-            child: CommunityUserAvatar(
-              photoUrl: story.authorAvatar,
-              name: story.authorName,
-              radius: 25,
-              isOfficial: isOfficial,
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          width: 72,
-          child: Text(
-            story.title,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.outfit(
-              fontSize: 11,
-              fontWeight: isOfficial ? FontWeight.bold : FontWeight.w500,
-              color: isOfficial
-                  ? AppTheme.kPrimaryGold
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: 72,
+            child: Text(
+              group.displayName,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                fontWeight: isOfficial ? FontWeight.bold : FontWeight.w600,
+                color: isOfficial
+                    ? AppTheme.kPrimaryGold
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.90),
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
   }
 }

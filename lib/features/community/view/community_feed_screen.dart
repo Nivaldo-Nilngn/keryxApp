@@ -6,6 +6,7 @@ import 'package:keryx_app/features/community/view_model/community_feed_provider.
 import 'package:keryx_app/features/community/view/widgets/community_stories_tray.dart';
 import 'package:keryx_app/features/community/view/widgets/community_post_card.dart';
 import 'package:keryx_app/features/community/view/widgets/create_post_bottom_sheet.dart';
+import 'package:keryx_app/features/community/view/widgets/create_story_bottom_sheet.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 
@@ -52,6 +53,15 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => CreatePostBottomSheet(initialCategory: initialCategory),
+    );
+  }
+
+  void _openCreateStoryModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const CreateStoryBottomSheet(),
     );
   }
 
@@ -213,7 +223,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 SliverToBoxAdapter(
                   child: CommunityStoriesTray(
                     stories: state.stories,
-                    onAddStoryTap: () => _openCreatePostModal(initialCategory: 'verse'),
+                    onAddStoryTap: _openCreateStoryModal,
                   ),
                 ),
 

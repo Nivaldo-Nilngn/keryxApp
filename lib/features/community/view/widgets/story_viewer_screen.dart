@@ -4,19 +4,34 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/model/community_story.dart';
+import 'package:keryx_app/features/community/model/user_stories_group.dart';
 import 'package:keryx_app/core/utils/bible_reference_helper.dart';
 import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 
 class StoryViewerScreen extends ConsumerStatefulWidget {
-  final List<CommunityStory> stories;
-  final int initialIndex;
+  final List<UserStoriesGroup> groups;
+  final int initialGroupIndex;
+  final int initialStoryIndex;
 
   StoryViewerScreen({
     super.key,
+    List<UserStoriesGroup>? groups,
     List<CommunityStory>? stories,
     CommunityStory? story,
-    this.initialIndex = 0,
-  }) : stories = stories ?? (story != null ? [story] : []);
+    this.initialGroupIndex = 0,
+    this.initialStoryIndex = 0,
+  }) : groups = groups ??
+            (stories != null && stories.isNotEmpty
+                ? UserStoriesGroup.fromStories(stories)
+                : (story != null
+                    ? [
+                        UserStoriesGroup(
+                          authorName: story.authorName,
+                          authorAvatar: story.authorAvatar,
+                          stories: [story],
+                        )
+                      ]
+                    : []));
 
   @override
   ConsumerState<StoryViewerScreen> createState() => _StoryViewerScreenState();
@@ -25,14 +40,44 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
 class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _progressController;
-  late int _currentIndex;
+  late int _currentGroupIndex;
+  late int _currentStoryIndex;
   bool _isPaused = false;
-  static const int _storyDurationSeconds = 25; // 25s para leitura meditativa com calma
+  static const int _storyDurationSeconds = 25; // 25s para meditação bíblica serena
+
+  UserStoriesGroup? get _currentGroup {
+    if (widget.groups.isEmpty ||
+        _currentGroupIndex < 0 ||
+        _currentGroupIndex >= widget.groups.length) {
+      return null;
+    }
+    return widget.groups[_currentGroupIndex];
+  }
+
+  CommunityStory? get _currentStory {
+    final group = _currentGroup;
+    if (group == null ||
+        group.stories.isEmpty ||
+        _currentStoryIndex < 0 ||
+        _currentStoryIndex >= group.stories.length) {
+      return null;
+    }
+    return group.stories[_currentStoryIndex];
+  }
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex.clamp(0, widget.stories.isEmpty ? 0 : widget.stories.length - 1);
+    _currentGroupIndex = widget.initialGroupIndex.clamp(
+      0,
+      widget.groups.isEmpty ? 0 : widget.groups.length - 1,
+    );
+    final group = _currentGroup;
+    _currentStoryIndex = widget.initialStoryIndex.clamp(
+      0,
+      group == null || group.stories.isEmpty ? 0 : group.stories.length - 1,
+    );
+
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: _storyDurationSeconds),
@@ -51,41 +96,67 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
   }
 
   void _onProgressCompleted() {
-    if (_currentIndex < widget.stories.length - 1) {
-      _goToNextStory();
-    } else {
-      // NÃO fecha a tela automaticamente! Permanece no último story pausado para contemplação.
-      _progressController.stop();
-      if (mounted) setState(() => _isPaused = true);
-    }
+    _advanceToNext();
   }
 
-  void _goToNextStory() {
-    if (_currentIndex < widget.stories.length - 1) {
+  void _advanceToNext() {
+    final group = _currentGroup;
+    if (group == null) return;
+
+    // Se ainda há stories deste usuário, avança para o próximo story dele
+    if (_currentStoryIndex < group.stories.length - 1) {
       setState(() {
-        _currentIndex++;
+        _currentStoryIndex++;
         _isPaused = false;
       });
       _progressController.reset();
       _progressController.forward();
     } else {
-      // No último story, pausa e mantém aberto para meditação
-      _progressController.stop();
-      setState(() => _isPaused = true);
+      // Acabaram os stories deste usuário! Vai para o próximo usuário
+      if (_currentGroupIndex < widget.groups.length - 1) {
+        setState(() {
+          _currentGroupIndex++;
+          _currentStoryIndex = 0;
+          _isPaused = false;
+        });
+        _progressController.reset();
+        _progressController.forward();
+      } else {
+        // Último story do último usuário: pausa para contemplação
+        _progressController.stop();
+        if (mounted) setState(() => _isPaused = true);
+      }
     }
   }
 
-  void _goToPreviousStory() {
-    if (_currentIndex > 0) {
+  void _advanceToPrevious() {
+    final group = _currentGroup;
+    if (group == null) return;
+
+    // Se não está no primeiro story do usuário, volta para o anterior dele
+    if (_currentStoryIndex > 0) {
       setState(() {
-        _currentIndex--;
+        _currentStoryIndex--;
         _isPaused = false;
       });
       _progressController.reset();
       _progressController.forward();
     } else {
-      _progressController.reset();
-      _progressController.forward();
+      // Está no primeiro story deste usuário: volta para o usuário anterior (no último story dele)
+      if (_currentGroupIndex > 0) {
+        setState(() {
+          _currentGroupIndex--;
+          final prevGroup = widget.groups[_currentGroupIndex];
+          _currentStoryIndex = prevGroup.stories.isNotEmpty ? prevGroup.stories.length - 1 : 0;
+          _isPaused = false;
+        });
+        _progressController.reset();
+        _progressController.forward();
+      } else {
+        // Primeiro story do primeiro usuário: apenas reinicia a barra
+        _progressController.reset();
+        _progressController.forward();
+      }
     }
   }
 
@@ -130,12 +201,15 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.stories.isEmpty) {
+    final group = _currentGroup;
+    final story = _currentStory;
+
+    if (group == null || story == null) {
       return const Scaffold(backgroundColor: Colors.black);
     }
 
-    final story = widget.stories[_currentIndex];
-    final totalStories = widget.stories.length;
+    final totalStoriesInGroup = group.stories.length;
+    final isOfficial = group.isOfficial;
 
     LinearGradient gradientOverlay;
     switch (story.backgroundStyle) {
@@ -206,7 +280,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                 ),
               ),
 
-            // 2. Camada de Gradiente Atmosférico Escuro (garante 100% de contraste)
+            // 2. Camada de Gradiente Atmosférico Escuro (garante legibilidade máxima)
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(gradient: gradientOverlay),
@@ -217,12 +291,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
             Positioned.fill(
               child: Row(
                 children: [
-                  // Lado Esquerdo: Voltar
+                  // Lado Esquerdo: Voltar (story anterior ou usuário anterior)
                   Expanded(
                     flex: 1,
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
-                      onTap: _goToPreviousStory,
+                      onTap: _advanceToPrevious,
                       onLongPressStart: (_) {
                         setState(() => _isPaused = true);
                         _progressController.stop();
@@ -234,12 +308,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                       child: const SizedBox.expand(),
                     ),
                   ),
-                  // Lado Direito: Avançar
+                  // Lado Direito: Avançar (próximo story deste usuário ou próximo usuário)
                   Expanded(
                     flex: 2,
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
-                      onTap: _goToNextStory,
+                      onTap: _advanceToNext,
                       onLongPressStart: (_) {
                         setState(() => _isPaused = true);
                         _progressController.stop();
@@ -259,11 +333,11 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
             SafeArea(
               child: Column(
                 children: [
-                  // Barras de Progresso Segmentadas no Topo
+                  // Barras de Progresso Segmentadas no Topo (pertencem ao autor atual)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     child: Row(
-                      children: List.generate(totalStories, (index) {
+                      children: List.generate(totalStoriesInGroup, (index) {
                         return Expanded(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -271,9 +345,9 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                               animation: _progressController,
                               builder: (context, _) {
                                 double val = 0.0;
-                                if (index < _currentIndex) {
+                                if (index < _currentStoryIndex) {
                                   val = 1.0;
-                                } else if (index == _currentIndex) {
+                                } else if (index == _currentStoryIndex) {
                                   val = _progressController.value;
                                 }
                                 return ClipRRect(
@@ -299,26 +373,54 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                     child: Row(
                       children: [
                         CommunityUserAvatar(
-                          photoUrl: story.authorAvatar,
-                          name: story.authorName,
+                          photoUrl: group.resolvedAvatar,
+                          name: group.displayName,
                           radius: 19,
-                          isOfficial: story.authorName.toLowerCase().contains('keryx'),
+                          isOfficial: isOfficial,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                story.authorName,
-                                style: GoogleFonts.outfit(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      group.displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14.5,
+                                      ),
+                                    ),
+                                  ),
+                                  if (totalStoriesInGroup > 1) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white12,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${_currentStoryIndex + 1}/$totalStoriesInGroup',
+                                        style: GoogleFonts.outfit(
+                                          color: AppTheme.kPrimaryGold,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               Text(
                                 story.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.outfit(
                                   color: AppTheme.kPrimaryGold,
                                   fontWeight: FontWeight.w600,
@@ -480,21 +582,21 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            if (_currentIndex > 0)
+                            if (_currentStoryIndex > 0 || _currentGroupIndex > 0)
                               TextButton.icon(
-                                onPressed: _goToPreviousStory,
+                                onPressed: _advanceToPrevious,
                                 icon: const Icon(Icons.arrow_back_ios_rounded, size: 14, color: Colors.white70),
                                 label: Text(
-                                  'Anterior',
+                                  _currentStoryIndex > 0 ? 'Anterior' : 'Autor anterior',
                                   style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12),
                                 ),
                               )
                             else
                               const SizedBox(width: 80),
 
-                            // Indicador de Story 1 de 4
+                            // Indicador de Story do Autor
                             Text(
-                              '${_currentIndex + 1} de $totalStories',
+                              'Story ${_currentStoryIndex + 1} de $totalStoriesInGroup',
                               style: GoogleFonts.outfit(
                                 color: Colors.white54,
                                 fontSize: 12,
@@ -502,11 +604,14 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                               ),
                             ),
 
-                            if (_currentIndex < totalStories - 1)
+                            if (_currentStoryIndex < totalStoriesInGroup - 1 ||
+                                _currentGroupIndex < widget.groups.length - 1)
                               TextButton.icon(
-                                onPressed: _goToNextStory,
+                                onPressed: _advanceToNext,
                                 label: Text(
-                                  'Próximo',
+                                  _currentStoryIndex < totalStoriesInGroup - 1
+                                      ? 'Próximo'
+                                      : 'Próximo autor',
                                   style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12),
                                 ),
                                 icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white70),
