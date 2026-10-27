@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/widgets/glass_card.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
+import 'package:keryx_app/features/legal/view/legal_terms_screen.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -316,23 +317,81 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'Já tem uma conta? ',
-          style: GoogleFonts.outfit(color: Colors.white38, fontSize: 14),
-        ),
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Text(
-            'Entrar agora',
-            style: GoogleFonts.outfit(
-              color: AppTheme.kPrimaryGold,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Ao cadastrar, você concorda com os ',
+              style: GoogleFonts.outfit(color: Colors.white38, fontSize: 11),
             ),
-          ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LegalTermsScreen(initialTabIndex: 1),
+                  ),
+                );
+              },
+              child: Text(
+                'Termos',
+                style: GoogleFonts.outfit(
+                  color: AppTheme.kPrimaryGold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+            Text(
+              ' e ',
+              style: GoogleFonts.outfit(color: Colors.white38, fontSize: 11),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LegalTermsScreen(initialTabIndex: 0),
+                  ),
+                );
+              },
+              child: Text(
+                'Privacidade (LGPD)',
+                style: GoogleFonts.outfit(
+                  color: AppTheme.kPrimaryGold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Já tem uma conta? ',
+              style: GoogleFonts.outfit(color: Colors.white38, fontSize: 14),
+            ),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Text(
+                'Entrar agora',
+                style: GoogleFonts.outfit(
+                  color: AppTheme.kPrimaryGold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

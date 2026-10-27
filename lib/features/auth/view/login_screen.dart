@@ -7,6 +7,7 @@ import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/widgets/glass_card.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/features/auth/view/signup_screen.dart';
+import 'package:keryx_app/features/legal/view/legal_terms_screen.dart';
 
 
 
@@ -428,7 +429,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         try {
                           await ref.read(authServiceProvider).sendPasswordResetEmail(email);
                           if (ctx.mounted) Navigator.pop(ctx);
-                          if (mounted) {
+                          if (mounted && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Link enviado para $email! Verifique sua caixa de entrada e spam para definir sua senha.'),
@@ -441,7 +442,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         } catch (e) {
                           setDialogState(() => isSending = false);
                           if (ctx.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(
                                 content: Text('Erro ao enviar link: $e'),
                                 backgroundColor: Colors.redAccent,
@@ -684,15 +685,79 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  /// Rodapé no mesmo espírito da splash.
+  /// Rodapé com links de conformidade LGPD e Termos de Uso
   Widget _buildFooter() {
-    return Text(
-      'ιχθύς • Keryx',
-      style: GoogleFonts.outfit(
-        fontSize: 10,
-        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.25),
-        letterSpacing: 3,
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Ao continuar, você aceita os ',
+              style: GoogleFonts.outfit(
+                fontSize: 10.5,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LegalTermsScreen(initialTabIndex: 1),
+                  ),
+                );
+              },
+              child: Text(
+                'Termos',
+                style: GoogleFonts.outfit(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.95),
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+            Text(
+              ' e a ',
+              style: GoogleFonts.outfit(
+                fontSize: 10.5,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LegalTermsScreen(initialTabIndex: 0),
+                  ),
+                );
+              },
+              child: Text(
+                'Privacidade (LGPD)',
+                style: GoogleFonts.outfit(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.95),
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'ιχθύς • Keryx',
+          style: GoogleFonts.outfit(
+            fontSize: 9.5,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.25),
+            letterSpacing: 3,
+          ),
+        ),
+      ],
     );
   }
 }

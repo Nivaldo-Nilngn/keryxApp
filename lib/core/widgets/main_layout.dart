@@ -9,6 +9,7 @@ import 'package:keryx_app/features/study/view/annotations_screen.dart';
 import 'package:keryx_app/features/study/view/favorites_screen.dart';
 import 'package:keryx_app/features/store/view/store_screen.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
+import 'package:keryx_app/core/widgets/cookie_consent_banner.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({super.key});
@@ -94,6 +95,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                   alignment: Alignment.bottomCenter,
                   child: _buildBottomNav(currentIndex),
                 ),
+                const CookieConsentBanner(),
               ],
             ),
           ),
