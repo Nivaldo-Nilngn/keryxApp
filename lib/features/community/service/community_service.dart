@@ -33,13 +33,13 @@ class CommunityService {
           final list = (data['stories'] as List)
               .map((s) => CommunityStory.fromJson(s as Map<String, dynamic>))
               .toList();
-          if (list.isNotEmpty) return list;
+          return list;
         }
       }
     } catch (e) {
-      debugPrint('⚠️ [CommunityService] Erro ao carregar stories (usando fallback): $e');
+      debugPrint('⚠️ [CommunityService] Erro ao carregar stories: $e');
     }
-    return _getFallbackStories();
+    return [];
   }
 
   /// Publica um novo story bíblico no Cloudflare D1
@@ -119,10 +119,10 @@ class CommunityService {
         }
       }
     } catch (e) {
-      debugPrint('⚠️ [CommunityService] Erro ao carregar feed (usando fallback): $e');
+      debugPrint('⚠️ [CommunityService] Erro ao carregar feed: $e');
     }
 
-    return _getFallbackPosts();
+    return [];
   }
 
   /// Publica um novo post no Cloudflare D1
@@ -271,111 +271,4 @@ class CommunityService {
     }
   }
 
-  // ==========================================
-  // FALLBACKS RICOS (Garante UI deslumbrante)
-  // ==========================================
-  List<CommunityStory> _getFallbackStories() {
-    return [
-      CommunityStory(
-        id: 'story_v_today',
-        authorName: 'Keryx Oficial',
-        title: 'Versículo do Dia',
-        bibleReference: 'Salmos 23:1 • ACF',
-        verseText: 'O SENHOR é o meu pastor, nada me faltará.',
-        reflection: 'O cuidado de Deus não falha nem nos dias mais difíceis. Descanse o coração na certeza de que Ele é o Bom Pastor que guia cada um dos seus passos.',
-        mediaUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1080&q=80',
-        backgroundStyle: 'gold_gradient',
-        createdAt: DateTime.now(),
-      ),
-      CommunityStory(
-        id: 'story_prayer',
-        authorName: 'Comunhão Keryx',
-        title: 'Momento de Oração',
-        bibleReference: 'Filipenses 4:6-7 • ACF',
-        verseText: 'Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus pela oração e súplica.',
-        reflection: 'Entregue sua ansiedade nas mãos do Pai. O que você não consegue resolver com as suas próprias forças, Deus transforma através da oração de fé.',
-        mediaUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1080&q=80',
-        backgroundStyle: 'indigo_gradient',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      CommunityStory(
-        id: 'story_grace',
-        authorName: 'Palavra Viva',
-        title: 'Pão Diário',
-        bibleReference: 'Efésios 2:8 • ACF',
-        verseText: 'Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus.',
-        reflection: 'A graça é o abraço de misericórdia de Deus que nos resgatou. Celebre o favor do Senhor sobre a sua casa e sua família hoje!',
-        mediaUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1080&q=80',
-        backgroundStyle: 'emerald_gradient',
-        createdAt: DateTime.now().subtract(const Duration(hours: 4)),
-      ),
-      CommunityStory(
-        id: 'story_strength',
-        authorName: 'Devocional',
-        title: 'Fortaleza',
-        bibleReference: 'Isaías 40:31 • ACF',
-        verseText: 'Mas os que esperam no SENHOR renovarão as forças, subirão com asas como águias.',
-        reflection: 'Esperar no Senhor não é estagnação; é o momento sagrado onde Ele nos capacita para alçar voos espirituais mais altos.',
-        mediaUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1080&q=80',
-        backgroundStyle: 'crimson_gradient',
-        createdAt: DateTime.now().subtract(const Duration(hours: 6)),
-      ),
-    ];
-  }
-
-  List<CommunityPost> _getFallbackPosts() {
-    return [
-      CommunityPost(
-        id: 'fallback_post_1',
-        userId: 'keryx_leader_1',
-        userName: 'Pastor Roberto Silva',
-        userBadge: 'Pastor',
-        caption: 'Que nesta manhã o Senhor renove as tuas forças! Se você estiver passando por lutas e incertezas no trabalho ou na família, descanse o coração nesta promessa gloriosa. Deixe seu pedido de oração nos comentários para estarmos orando por você hoje. 🙏✨',
-        bibleReference: 'Isaías 41:10',
-        bibleVersion: 'ACF',
-        bibleText: 'Não temas, porque eu sou contigo; não te assombres, porque eu sou teu Deus; eu te fortaleço, e te ajudo, e te sustento com a destra da minha justiça.',
-        cardTheme: 'gold',
-        prayingCount: 28,
-        amenCount: 54,
-        commentsCount: 6,
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        userPrayed: false,
-        userAmen: true,
-      ),
-      CommunityPost(
-        id: 'fallback_post_2',
-        userId: 'keryx_user_2',
-        userName: 'Mariana Duarte',
-        userBadge: 'Membro',
-        caption: 'Compartilhando o versículo do meu devocional de hoje cedo. Como a fidelidade de Deus nos cerca todos os dias! Glória a Deus por Sua misericórdia inesgotável!',
-        bibleReference: 'Lamentações 3:22-23',
-        bibleVersion: 'ACF',
-        bibleText: 'As misericórdias do Senhor são a causa de não sermos consumidos, porque as suas misericórdias não têm fim; renovam-se cada manhã; grande é a tua fidelidade.',
-        cardTheme: 'indigo',
-        prayingCount: 15,
-        amenCount: 42,
-        commentsCount: 3,
-        createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-        userPrayed: true,
-        userAmen: true,
-      ),
-      CommunityPost(
-        id: 'fallback_post_3',
-        userId: 'keryx_user_3',
-        userName: 'Ev. Carlos Eduardo',
-        userBadge: 'Líder',
-        caption: 'Irmãos, meditando no Salmo 91. Aquele que habita no esconderijo do Altíssimo à sombra do Onipotente descansará. Vamos interceder pela nossa nação e pelas nossas igrejas locais.',
-        bibleReference: 'Salmos 91:1-2',
-        bibleVersion: 'ACF',
-        bibleText: 'Aquele que habita no esconderijo do Altíssimo, à sombra do Onipotente descansará. Direi do SENHOR: Ele é o meu Deus, o meu refúgio, a minha fortaleza, e nele confiarei.',
-        cardTheme: 'emerald',
-        prayingCount: 39,
-        amenCount: 71,
-        commentsCount: 9,
-        createdAt: DateTime.now().subtract(const Duration(hours: 8)),
-        userPrayed: false,
-        userAmen: false,
-      ),
-    ];
-  }
 }

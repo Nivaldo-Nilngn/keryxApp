@@ -234,53 +234,62 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
-                // Botão Orar 🙏
-                _buildActionButton(
-                  context: context,
-                  icon: Icons.volunteer_activism_rounded,
-                  label: 'Orar',
-                  count: post.prayingCount,
-                  isActive: post.userPrayed,
-                  activeColor: const Color(0xFF10B981),
-                  onTap: () {
-                    ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'pray');
-                  },
-                ),
-                const SizedBox(width: 6),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Botão Orar 🙏
+                        _buildActionButton(
+                          context: context,
+                          icon: Icons.volunteer_activism_rounded,
+                          label: 'Orar',
+                          count: post.prayingCount,
+                          isActive: post.userPrayed,
+                          activeColor: const Color(0xFF10B981),
+                          onTap: () {
+                            ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'pray');
+                          },
+                        ),
+                        const SizedBox(width: 6),
 
-                // Botão Amém ❤️
-                _buildActionButton(
-                  context: context,
-                  icon: post.userAmen ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  label: 'Amém',
-                  count: post.amenCount,
-                  isActive: post.userAmen,
-                  activeColor: const Color(0xFFEF4444),
-                  onTap: () {
-                    ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'amen');
-                  },
-                ),
-                const SizedBox(width: 6),
+                        // Botão Amém ❤️
+                        _buildActionButton(
+                          context: context,
+                          icon: post.userAmen ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          label: 'Amém',
+                          count: post.amenCount,
+                          isActive: post.userAmen,
+                          activeColor: const Color(0xFFEF4444),
+                          onTap: () {
+                            ref.read(communityFeedProvider.notifier).toggleReaction(post.id, 'amen');
+                          },
+                        ),
+                        const SizedBox(width: 6),
 
-                // Botão Comentários 💬
-                _buildActionButton(
-                  context: context,
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: 'Comentar',
-                  count: post.commentsCount,
-                  isActive: false,
-                  activeColor: Theme.of(context).colorScheme.primary,
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => CommunityCommentsBottomSheet(post: post),
-                    );
-                  },
+                        // Botão Comentários 💬
+                        _buildActionButton(
+                          context: context,
+                          icon: Icons.chat_bubble_outline_rounded,
+                          label: 'Comentar',
+                          count: post.commentsCount,
+                          isActive: false,
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => CommunityCommentsBottomSheet(post: post),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-
-                const Spacer(),
 
                 // Botão Compartilhar ↗️
                 IconButton(
@@ -465,19 +474,25 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
         children: [
           Row(
             children: [
-              Icon(Icons.format_quote_rounded, color: accentColor, size: 24),
+              Icon(Icons.format_quote_rounded, color: accentColor, size: 22),
               const SizedBox(width: 8),
               if (widget.post.bibleReference != null)
-                Text(
-                  '${widget.post.bibleReference!} (${widget.post.bibleVersion})',
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: accentColor,
-                    letterSpacing: 0.4,
+                Expanded(
+                  child: Text(
+                    '${widget.post.bibleReference!} (${widget.post.bibleVersion})',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: accentColor,
+                      letterSpacing: 0.4,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              const Spacer(),
+                )
+              else
+                const Spacer(),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: () {
                   BibleReferenceHelper.openReference(
