@@ -227,23 +227,25 @@ class InstagramTabletSidebar extends ConsumerWidget {
                   ? GestureDetector(
                       onTap: () => _handleNavigate(context, 0),
                       child: Container(
-                        padding: const EdgeInsets.all(9),
+                        width: 38,
+                        height: 38,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFD97706).withValues(alpha: 0.35),
-                              blurRadius: 8,
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.auto_stories_rounded, color: Colors.black, size: 22),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            'assets/img/logo.png',
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
                     )
                   : GestureDetector(
@@ -251,16 +253,25 @@ class InstagramTabletSidebar extends ConsumerWidget {
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(7.5),
+                            width: 34,
+                            height: 34,
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: const Icon(Icons.auto_stories_rounded, color: Colors.black, size: 19),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.asset(
+                                'assets/img/logo.png',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 11),
                           Text(
