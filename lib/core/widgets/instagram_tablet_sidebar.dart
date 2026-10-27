@@ -10,6 +10,7 @@ import 'package:keryx_app/features/community/view/widgets/create_post_bottom_she
 import 'package:keryx_app/features/community/view/widgets/create_story_bottom_sheet.dart';
 import 'package:keryx_app/features/home/view/notifications_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
+import 'package:keryx_app/features/community/view/community_user_profile_screen.dart';
 
 /// Menu Lateral Estilo Instagram para Tablets e Telas Maiores
 class InstagramTabletSidebar extends ConsumerWidget {
@@ -386,7 +387,19 @@ class InstagramTabletSidebar extends ConsumerWidget {
                   Tooltip(
                     message: 'Meu Perfil ($userName)',
                     child: InkWell(
-                      onTap: () => showEditProfileModal(context, ref),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CommunityUserProfileScreen(
+                              userId: currentUser?.uid ?? '',
+                              userName: userName,
+                              userAvatar: userPhoto,
+                              avatarFrame: userFrameId,
+                            ),
+                          ),
+                        );
+                      },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         padding: EdgeInsets.symmetric(

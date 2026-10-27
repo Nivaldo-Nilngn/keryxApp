@@ -11,6 +11,7 @@ import 'package:keryx_app/features/community/view/widgets/community_comments_bot
 import 'package:keryx_app/core/utils/bible_reference_helper.dart';
 import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
 import 'package:keryx_app/features/community/view_model/saved_posts_provider.dart';
+import 'package:keryx_app/features/community/view/community_user_profile_screen.dart';
 
 class CommunityPostCard extends ConsumerStatefulWidget {
   final CommunityPost post;
@@ -67,6 +68,21 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
     }
   }
 
+  void _openUserProfile(BuildContext context, String authorName, String? authorAvatar, String? authorFrame) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityUserProfileScreen(
+          userId: widget.post.userId,
+          userName: authorName,
+          userAvatar: authorAvatar,
+          userBadge: widget.post.userBadge,
+          avatarFrame: authorFrame,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
@@ -117,20 +133,24 @@ class _CommunityPostCardState extends ConsumerState<CommunityPostCard>
                   radius: 20,
                   avatarFrame: displayFrame,
                   isOfficial: post.userName.toLowerCase().contains('keryx') || post.userBadge == 'Oficial',
+                  onTap: () => _openUserProfile(context, displayAuthorName, displayAvatar, displayFrame),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Row(
                     children: [
                       Flexible(
-                        child: Text(
-                          displayAuthorName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
+                        child: GestureDetector(
+                          onTap: () => _openUserProfile(context, displayAuthorName, displayAvatar, displayFrame),
+                          child: Text(
+                            displayAuthorName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
                           ),
                         ),
                       ),

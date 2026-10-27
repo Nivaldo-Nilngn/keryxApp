@@ -5,6 +5,7 @@ import 'package:keryx_app/features/community/model/community_post.dart';
 import 'package:keryx_app/features/community/model/community_comment.dart';
 import 'package:keryx_app/features/community/service/community_service.dart';
 import 'package:keryx_app/features/community/view/widgets/community_user_avatar.dart';
+import 'package:keryx_app/features/community/view/community_user_profile_screen.dart';
 
 class CommunityCommentsBottomSheet extends StatefulWidget {
   final CommunityPost post;
@@ -245,6 +246,19 @@ class _CommunityCommentsBottomSheetState
     );
   }
 
+  void _openUserProfile(BuildContext context, CommunityComment comment) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityUserProfileScreen(
+          userId: comment.userId,
+          userName: comment.userName,
+          userAvatar: comment.userAvatar,
+        ),
+      ),
+    );
+  }
+
   Widget _buildCommentTile(CommunityComment comment, bool isDark) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,6 +268,7 @@ class _CommunityCommentsBottomSheetState
           name: comment.userName,
           userId: comment.userId,
           radius: 16,
+          onTap: () => _openUserProfile(context, comment),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -262,12 +277,15 @@ class _CommunityCommentsBottomSheetState
             children: [
               Row(
                 children: [
-                  Text(
-                    comment.userName,
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
+                  GestureDetector(
+                    onTap: () => _openUserProfile(context, comment),
+                    child: Text(
+                      comment.userName,
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
