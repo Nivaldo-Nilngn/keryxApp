@@ -6,7 +6,12 @@ import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/community/view_model/community_feed_provider.dart';
 
 class CreatePostBottomSheet extends ConsumerStatefulWidget {
-  const CreatePostBottomSheet({super.key});
+  final String initialCategory;
+
+  const CreatePostBottomSheet({
+    super.key,
+    this.initialCategory = 'reflection',
+  });
 
   @override
   ConsumerState<CreatePostBottomSheet> createState() =>
@@ -18,9 +23,9 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
   final TextEditingController _referenceController = TextEditingController();
   final TextEditingController _verseTextController = TextEditingController();
 
-  String _selectedCategory = 'reflection'; // 'reflection', 'prayer', 'verse', 'testimony'
+  late String _selectedCategory;
   String _selectedTheme = 'gold'; // 'gold', 'indigo', 'emerald', 'crimson'
-  bool _includeVerse = true;
+  bool _includeVerse = false;
   bool _isPublishing = false;
   bool _showLivePreview = true;
 
@@ -63,21 +68,46 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
     },
   ];
 
-  final List<String> _quickHashtags = [
-    '#Oração',
-    '#Gratidão',
-    '#PalavraViva',
-    '#FéInabalável',
-    '#Milagre',
-    '#DeusÉFiel',
-  ];
+  List<String> get _quickHashtags {
+    switch (_selectedCategory) {
+      case 'prayer':
+        return ['#Oração', '#Intercessão', '#Clamor', '#Cura', '#Família', '#DeusOuve'];
+      case 'verse':
+        return ['#PalavraViva', '#VersículoDoDia', '#Bíblia', '#PãoDiário', '#Meditação', '#Salvação'];
+      case 'testimony':
+        return ['#Testemunho', '#Vitória', '#Milagre', '#Gratidão', '#DeusÉFiel', '#GlóriaADeus'];
+      case 'reflection':
+      default:
+        return ['#Reflexão', '#FéInabalável', '#Gratidão', '#PalavraViva', '#Esperança', '#DeusÉFiel'];
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    // Inicia com um versículo inspirador de exemplo
-    _referenceController.text = 'Salmos 23:1';
-    _verseTextController.text = 'O SENHOR é o meu pastor, nada me faltará.';
+    _selectedCategory = widget.initialCategory;
+    if (_selectedCategory == 'verse') {
+      _includeVerse = true;
+      _referenceController.text = 'Filipenses 4:13';
+      _verseTextController.text = 'Posso todas as coisas em Cristo que me fortalece.';
+    } else {
+      _includeVerse = false;
+    }
+  }
+
+  void _onCategoryChanged(String id) {
+    setState(() {
+      _selectedCategory = id;
+      if (id == 'verse') {
+        _includeVerse = true;
+        if (_referenceController.text.trim().isEmpty) {
+          _referenceController.text = 'Filipenses 4:13';
+          _verseTextController.text = 'Posso todas as coisas em Cristo que me fortalece.';
+        }
+      } else if (id == 'prayer' || id == 'testimony') {
+        _includeVerse = false;
+      }
+    });
   }
 
   @override
@@ -519,83 +549,7 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
 
                     const SizedBox(height: 18),
 
-                    // 4. Seção: Versículos Inspiradores de 1 Toque
-                    Row(
-                      children: [
-                        const Icon(Icons.auto_awesome_rounded, color: AppTheme.kPrimaryGold, size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          'SUGESTÕES DE VERSÍCULOS RÁPIDOS',
-                          style: GoogleFonts.outfit(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 38,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _popularVerses.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final v = _popularVerses[index];
-                          final isSelected = _referenceController.text == v['ref'] && _includeVerse;
-                          return GestureDetector(
-                            onTap: () => _applyQuickVerse(v),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppTheme.kPrimaryGold
-                                    : (isDark ? const Color(0xFF1E1E2C) : const Color(0xFFF1F5F9)),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppTheme.kPrimaryGold
-                                      : (isDark ? Colors.white12 : Colors.black12),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '📖 ${v['ref']}',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                      color: isSelected
-                                          ? Colors.black
-                                          : Theme.of(context).colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '• ${v['tag']}',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 10.5,
-                                      color: isSelected
-                                          ? Colors.black87
-                                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // 5. Bloco de Cartão de Versículo (Ativar / Desativar com Design Limpo)
+                    // 4. Bloco de Cartão de Versículo (Ativar / Desativar com Design Limpo)
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -651,7 +605,15 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
                               Switch.adaptive(
                                 value: _includeVerse,
                                 activeThumbColor: AppTheme.kPrimaryGold,
-                                onChanged: (val) => setState(() => _includeVerse = val),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _includeVerse = val;
+                                    if (val && _referenceController.text.trim().isEmpty) {
+                                      _referenceController.text = 'Filipenses 4:13';
+                                      _verseTextController.text = 'Posso todas as coisas em Cristo que me fortalece.';
+                                    }
+                                  });
+                                },
                               ),
                             ],
                           ),
@@ -659,6 +621,75 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
                           if (_includeVerse) ...[
                             const SizedBox(height: 12),
                             const Divider(height: 1),
+                            const SizedBox(height: 12),
+
+                            // Sugestões Rápidas de 1 Toque
+                            Text(
+                              'SUGESTÕES DE VERSÍCULOS',
+                              style: GoogleFonts.outfit(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 36,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _popularVerses.length,
+                                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                itemBuilder: (context, index) {
+                                  final v = _popularVerses[index];
+                                  final isSelected = _referenceController.text == v['ref'] && _includeVerse;
+                                  return GestureDetector(
+                                    onTap: () => _applyQuickVerse(v),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppTheme.kPrimaryGold
+                                            : (isDark ? const Color(0xFF1E1E2C) : const Color(0xFFF1F5F9)),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? AppTheme.kPrimaryGold
+                                              : (isDark ? Colors.white12 : Colors.black12),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '📖 ${v['ref']}',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 11.5,
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                              color: isSelected
+                                                  ? Colors.black
+                                                  : Theme.of(context).colorScheme.onSurface,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '• ${v['tag']}',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 10,
+                                              color: isSelected
+                                                  ? Colors.black87
+                                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                             const SizedBox(height: 12),
 
                             // Campo da Referência
@@ -799,7 +830,7 @@ class _CreatePostBottomSheetState extends ConsumerState<CreatePostBottomSheet> {
   }) {
     final isSelected = _selectedCategory == id;
     return GestureDetector(
-      onTap: () => setState(() => _selectedCategory = id),
+      onTap: () => _onCategoryChanged(id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7.5),

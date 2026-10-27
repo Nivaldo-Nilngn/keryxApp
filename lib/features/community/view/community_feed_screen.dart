@@ -46,12 +46,12 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     super.dispose();
   }
 
-  void _openCreatePostModal() {
+  void _openCreatePostModal({String initialCategory = 'reflection'}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const CreatePostBottomSheet(),
+      builder: (_) => CreatePostBottomSheet(initialCategory: initialCategory),
     );
   }
 
@@ -213,7 +213,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 SliverToBoxAdapter(
                   child: CommunityStoriesTray(
                     stories: state.stories,
-                    onAddStoryTap: _openCreatePostModal,
+                    onAddStoryTap: () => _openCreatePostModal(initialCategory: 'verse'),
                   ),
                 ),
 
