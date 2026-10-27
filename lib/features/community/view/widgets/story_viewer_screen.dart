@@ -280,7 +280,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
             },
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isDesktop = constraints.maxWidth > 600;
+                final isDesktop = constraints.maxWidth >= 1024;
                 final viewport = _buildStoryViewport(
                   context: context,
                   story: story,
@@ -599,7 +599,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 390),
+                        constraints: const BoxConstraints(maxWidth: 520),
                         child: Container(
                           padding: const EdgeInsets.all(22),
                           decoration: BoxDecoration(
@@ -714,7 +714,10 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                 // 6. BARRA INFERIOR ESTILO INSTAGRAM STORIES (Responder ao story + Reações)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-                  child: Row(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 540),
+                      child: Row(
                     children: [
                       // Campo Pílula de Responder
                       Expanded(
@@ -784,6 +787,8 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                     ],
                   ),
                 ),
+              ),
+            ),
               ],
             ),
           ),

@@ -88,12 +88,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
     return Scaffold(
       backgroundColor: bg,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: Stack(
-            children: [
-              RefreshIndicator(
+      body: Stack(
+        children: [
+          RefreshIndicator(
             color: AppTheme.kPrimaryGold,
             backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
             onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
@@ -301,7 +298,12 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final post = filteredPosts[index];
-                        return CommunityPostCard(post: post);
+                        return Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 720),
+                            child: CommunityPostCard(post: post),
+                          ),
+                        );
                       },
                       childCount: filteredPosts.length,
                     ),
@@ -330,9 +332,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           ),
         ],
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _buildCategoryChip(String label, String value, bool isDark) {
