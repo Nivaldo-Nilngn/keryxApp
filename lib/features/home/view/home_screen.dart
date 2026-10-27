@@ -8,7 +8,6 @@ import 'package:keryx_app/features/pdf/view/pdf_books_screen.dart';
 import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
 import 'package:keryx_app/features/study/view/dictionary_screen.dart';
 import 'package:keryx_app/features/ai/view/chat_assistant_screen.dart';
-import 'package:keryx_app/features/community/view/community_feed_screen.dart';
 import 'package:keryx_app/features/home/service/devocional_service.dart';
 import 'package:keryx_app/features/home/view/devocional_screen.dart';
 import 'package:keryx_app/features/home/view/guide_screen.dart';
@@ -664,10 +663,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 Colors.white,
               ),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CommunityFeedScreen()),
-                );
+                ref.read(navigationProvider.notifier).setIndex(6); // Comunidade
               },
             ),
             _buildToolCard(

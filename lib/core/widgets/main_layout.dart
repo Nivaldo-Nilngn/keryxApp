@@ -8,6 +8,8 @@ import 'package:keryx_app/features/bible/navigation/view/commentary_selection_sc
 import 'package:keryx_app/features/study/view/annotations_screen.dart';
 import 'package:keryx_app/features/study/view/favorites_screen.dart';
 import 'package:keryx_app/features/store/view/store_screen.dart';
+import 'package:keryx_app/features/community/view/community_feed_screen.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/core/widgets/cookie_consent_banner.dart';
 
@@ -33,6 +35,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
   Widget build(BuildContext context) {
     var currentIndex = ref.watch(navigationProvider);
     final canPop = ref.watch(navigationProvider.notifier).canPop;
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
     ref.listen<int>(navigationProvider, (previous, next) {
       if (next == 5 && previous != 5) {
@@ -41,8 +44,6 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         ref.read(searchQueryProvider.notifier).state = '';
       }
     });
-    
-
 
     final screens = [
       const HomeScreen(), // 0
@@ -51,6 +52,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       const AnnotationsScreen(), // 3
       const FavoritesScreen(showTopBar: false), // 4
       const StoreScreen(), // 5
+      const CommunityFeedScreen(isEmbedded: true), // 6
     ];
 
     return PopScope(
@@ -61,45 +63,67 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       },
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: currentIndex == 5 
+        appBar: (isTablet || currentIndex == 5 || currentIndex == 6)
           ? null
           : MBibliaTopBar(
               title: _getTitle(currentIndex),
               showLogo: _showLogo(currentIndex),
               showBackButton: false,
             ),
-        body: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onHorizontalDragStart: (details) {
-            _dragStartX = details.globalPosition.dx;
-          },
-          onHorizontalDragEnd: (details) {
-            final startX = _dragStartX;
-            _dragStartX = null;
-            // Gesto de voltar da borda esquerda (< 50px de margem)
-            if (startX != null && startX < 50 && (details.primaryVelocity ?? 0) > 250) {
-              if (ref.read(navigationProvider.notifier).canGoBack) {
-                ref.read(navigationProvider.notifier).goBack();
-              }
-            }
-          },
-          child: Container(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            child: Stack(
+        body: isTablet
+          ? Row(
               children: [
-                IndexedStack(
-                  index: currentIndex,
-                  children: screens,
+                InstagramTabletSidebar(
+                  currentIndex: currentIndex,
+                  onSelectIndex: (index) {
+                    ref.read(navigationProvider.notifier).setIndex(index);
+                  },
                 ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: _buildBottomNav(currentIndex),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      IndexedStack(
+                        index: currentIndex,
+                        children: screens,
+                      ),
+                      const CookieConsentBanner(),
+                    ],
+                  ),
                 ),
-                const CookieConsentBanner(),
               ],
+            )
+          : GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: (details) {
+                _dragStartX = details.globalPosition.dx;
+              },
+              onHorizontalDragEnd: (details) {
+                final startX = _dragStartX;
+                _dragStartX = null;
+                // Gesto de voltar da borda esquerda (< 50px de margem)
+                if (startX != null && startX < 50 && (details.primaryVelocity ?? 0) > 250) {
+                  if (ref.read(navigationProvider.notifier).canGoBack) {
+                    ref.read(navigationProvider.notifier).goBack();
+                  }
+                }
+              },
+              child: Container(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Stack(
+                  children: [
+                    IndexedStack(
+                      index: currentIndex,
+                      children: screens,
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _buildBottomNav(currentIndex),
+                    ),
+                    const CookieConsentBanner(),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
       ),
     );
   }

@@ -9,9 +9,15 @@ import 'package:keryx_app/features/community/view/widgets/create_post_bottom_she
 import 'package:keryx_app/features/community/view/widgets/create_story_bottom_sheet.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
-  const CommunityFeedScreen({super.key});
+  final bool isEmbedded;
+
+  const CommunityFeedScreen({
+    super.key,
+    this.isEmbedded = false,
+  });
 
   @override
   ConsumerState<CommunityFeedScreen> createState() => _CommunityFeedScreenState();
@@ -86,34 +92,43 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       return true; // 'all'
     }).toList();
 
-    return Scaffold(
-      backgroundColor: bg,
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            color: AppTheme.kPrimaryGold,
-            backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
-            onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
-            child: CustomScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-              slivers: [
-                // 1. SliverAppBar com status vivo
-                SliverAppBar(
-                  floating: true,
-                  pinned: false,
-                  elevation: 0,
-                  backgroundColor: isDark ? const Color(0xFF101018) : const Color(0xFFF9FAFB),
-                  surfaceTintColor: Colors.transparent,
-                  leading: IconButton(
-                    icon: Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  title: Row(
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+
+    Widget bodyContent = Stack(
+      children: [
+        RefreshIndicator(
+          color: AppTheme.kPrimaryGold,
+          backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+          onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            slivers: [
+              // 1. SliverAppBar com status vivo
+              SliverAppBar(
+                floating: true,
+                pinned: false,
+                elevation: 0,
+                backgroundColor: isDark ? const Color(0xFF101018) : const Color(0xFFF9FAFB),
+                surfaceTintColor: Colors.transparent,
+                automaticallyImplyLeading: false,
+                leading: (widget.isEmbedded && isTablet)
+                    ? null
+                    : IconButton(
+                        icon: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        onPressed: () {
+                          if (widget.isEmbedded) {
+                            ref.read(navigationProvider.notifier).setIndex(0);
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
+                      ),
+                title: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(6.5),
@@ -309,29 +324,50 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                     ),
                   ),
 
-                  // Espaçador do rodapé para o bottom nav
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 130),
+                  // Espaçador do rodapé para o bottom nav apenas se necessário
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: (widget.isEmbedded || isTablet) ? 40 : 130),
                   ),
                 ],
               ],
             ),
           ),
 
-          // Bottom Nav Bar Unificada
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CustomBottomNav(
-              currentIndex: 6, // Não seleciona nenhum para permitir voltar
-              onTap: (index) {
-                Navigator.pop(context);
-                ref.read(navigationProvider.notifier).setIndex(index);
-              },
-              onBack: () => Navigator.pop(context),
+          // Bottom Nav Bar Unificada (Apenas em mobile e quando não embutido)
+          if (!widget.isEmbedded && !isTablet)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CustomBottomNav(
+                currentIndex: 6, // Não seleciona nenhum para permitir voltar
+                onTap: (index) {
+                  Navigator.pop(context);
+                  ref.read(navigationProvider.notifier).setIndex(index);
+                },
+                onBack: () => Navigator.pop(context),
+              ),
             ),
-          ),
         ],
-      ),
+      );
+
+    if (!widget.isEmbedded && isTablet) {
+      bodyContent = Row(
+        children: [
+          InstagramTabletSidebar(
+            currentIndex: 6,
+            isRoute: true,
+            onSelectIndex: (index) {
+              Navigator.pop(context);
+              ref.read(navigationProvider.notifier).setIndex(index);
+            },
+          ),
+          Expanded(child: bodyContent),
+        ],
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: bg,
+      body: bodyContent,
     );
   }
 
