@@ -194,8 +194,7 @@ class InstagramTabletSidebar extends ConsumerWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final manualExpanded = ref.watch(sidebarExpandedProvider);
     final isExpanded = manualExpanded ?? (screenWidth >= 1150);
-    final isCompact = !isExpanded;
-    final sidebarWidth = isCompact ? 76.0 : 230.0;
+    final sidebarWidth = isExpanded ? 230.0 : 76.0;
 
     final currentUser = FirebaseAuth.instance.currentUser;
     final userData = ref.watch(userDataProvider).valueOrNull;
@@ -209,475 +208,487 @@ class InstagramTabletSidebar extends ConsumerWidget {
     final bgColor = isDark ? const Color(0xFF101018) : Colors.white;
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeInOutCubic,
-      width: sidebarWidth,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border(
-          right: BorderSide(color: borderColor, width: 1),
+    return RepaintBoundary(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        width: sidebarWidth,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border(
+            right: BorderSide(color: borderColor, width: 1),
+          ),
         ),
-      ),
-      child: ClipRect(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isCurrentlyCompact = constraints.maxWidth < 180;
-            return SafeArea(
-              right: false,
-              child: Column(
-                crossAxisAlignment: isCurrentlyCompact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-                children: [
-                  // 1. Logo no Topo + Botão de Abrir/Recolher Menu Lateral
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isCurrentlyCompact ? 14 : 16,
-                      vertical: 18,
-                    ),
-                    child: isCurrentlyCompact
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              GestureDetector(
-                                onTap: () => _handleNavigate(context, 0),
+        child: ClipRect(
+          child: SafeArea(
+            right: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Topo: Logo + Botão Menu com transição suave
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                  child: SizedBox(
+                    height: isExpanded ? 38 : 90,
+                    child: AnimatedCrossFade(
+                      duration: const Duration(milliseconds: 180),
+                      firstCurve: Curves.easeOut,
+                      secondCurve: Curves.easeOut,
+                      crossFadeState: isExpanded
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      firstChild: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () => _handleNavigate(context, 0),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.asset(
+                                  'assets/img/logo.png',
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Tooltip(
+                            message: 'Abrir menu lateral',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  ref.read(sidebarExpandedProvider.notifier).state = true;
+                                },
+                                borderRadius: BorderRadius.circular(10),
                                 child: Container(
                                   width: 38,
                                   height: 38,
                                   decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.06)
+                                        : Colors.black.withValues(alpha: 0.05),
                                     borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.15),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.asset(
-                                      'assets/img/logo.png',
-                                      fit: BoxFit.cover,
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : Colors.black.withValues(alpha: 0.08),
+                                      width: 1,
                                     ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Tooltip(
-                                message: 'Abrir menu lateral',
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
-                                      ref.read(sidebarExpandedProvider.notifier).state = true;
-                                    },
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Container(
-                                      width: 38,
-                                      height: 38,
-                                      decoration: BoxDecoration(
-                                        color: isDark
-                                            ? Colors.white.withValues(alpha: 0.06)
-                                            : Colors.black.withValues(alpha: 0.05),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: isDark
-                                              ? Colors.white.withValues(alpha: 0.08)
-                                              : Colors.black.withValues(alpha: 0.08),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        Icons.menu_rounded,
-                                        size: 20,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => _handleNavigate(context, 0),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 34,
-                                        height: 34,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withValues(alpha: 0.15),
-                                              blurRadius: 6,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: Image.asset(
-                                            'assets/img/logo.png',
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          'KeryxApp',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          softWrap: false,
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 18.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: Theme.of(context).colorScheme.onSurface,
-                                            letterSpacing: -0.4,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Tooltip(
-                                message: 'Recolher menu lateral',
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
-                                      ref.read(sidebarExpandedProvider.notifier).state = false;
-                                    },
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: isDark
-                                            ? Colors.white.withValues(alpha: 0.06)
-                                            : Colors.black.withValues(alpha: 0.05),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: isDark
-                                              ? Colors.white.withValues(alpha: 0.08)
-                                              : Colors.black.withValues(alpha: 0.08),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        Icons.menu_open_rounded,
-                                        size: 20,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // 2. Itens de Navegação das Outras Telas
-                  Expanded(
-                    child: ListView(
-                      padding: EdgeInsets.symmetric(horizontal: isCurrentlyCompact ? 8 : 12),
-                      children: [
-                        _buildNavItem(
-                          context: context,
-                          icon: Icons.home_rounded,
-                          inactiveIcon: Icons.home_outlined,
-                          label: 'Página inicial',
-                          isSelected: currentIndex == 0,
-                          isCompact: isCurrentlyCompact,
-                          onTap: () => _handleNavigate(context, 0),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildNavItem(
-                          context: context,
-                          icon: Icons.menu_book_rounded,
-                          inactiveIcon: Icons.menu_book_outlined,
-                          label: 'Bíblia',
-                          isSelected: currentIndex == 1,
-                          isCompact: isCurrentlyCompact,
-                          onTap: () => _handleNavigate(context, 1),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildNavItem(
-                          context: context,
-                          icon: Icons.people_alt_rounded,
-                          inactiveIcon: Icons.people_alt_outlined,
-                          label: 'Comunidade',
-                          badgeText: 'Novo',
-                          isSelected: currentIndex == 6,
-                          isCompact: isCurrentlyCompact,
-                          onTap: () => _handleNavigate(context, 6),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildNavItem(
-                          context: context,
-                          icon: Icons.auto_stories_rounded,
-                          inactiveIcon: Icons.auto_stories_outlined,
-                          label: 'Estudos',
-                          isSelected: currentIndex == 2,
-                          isCompact: isCurrentlyCompact,
-                          onTap: () => _handleNavigate(context, 2),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildNavItem(
-                          context: context,
-                          icon: Icons.edit_note_rounded,
-                          inactiveIcon: Icons.edit_note_outlined,
-                          label: 'Anotações',
-                          isSelected: currentIndex == 3,
-                          isCompact: isCurrentlyCompact,
-                          onTap: () => _handleNavigate(context, 3),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildNavItem(
-                          context: context,
-                          icon: Icons.bookmark_rounded,
-                          inactiveIcon: Icons.bookmark_border_rounded,
-                          label: 'Favoritos',
-                          isSelected: currentIndex == 4,
-                          isCompact: isCurrentlyCompact,
-                          onTap: () => _handleNavigate(context, 4),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildNavItem(
-                          context: context,
-                          icon: Icons.shopping_bag_rounded,
-                          inactiveIcon: Icons.shopping_bag_outlined,
-                          label: 'Loja',
-                          isSelected: currentIndex == 5,
-                          isCompact: isCurrentlyCompact,
-                          onTap: () => _handleNavigate(context, 5),
-                        ),
-                        const SizedBox(height: 14),
-                        Divider(
-                          color: isDark ? Colors.white10 : Colors.black12,
-                          height: 1,
-                          indent: isCurrentlyCompact ? 8 : 4,
-                          endIndent: isCurrentlyCompact ? 8 : 4,
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Botão Criar (+ Post / Story)
-                        _buildNavItem(
-                          context: context,
-                          icon: Icons.add_box_rounded,
-                          inactiveIcon: Icons.add_box_outlined,
-                          label: 'Criar',
-                          isSelected: false,
-                          isCompact: isCurrentlyCompact,
-                          highlightGold: true,
-                          onTap: () => _showCreateOptions(context),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // 3. Rodapé do Menu Lateral (Perfil + Mais)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isCurrentlyCompact ? 8 : 12,
-                      vertical: 12,
-                    ),
-                    child: Column(
-                      children: [
-                        // Item de Perfil
-                        Tooltip(
-                          message: 'Meu Perfil ($userName)',
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => CommunityUserProfileScreen(
-                                    userId: currentUser?.uid ?? '',
-                                    userName: userName,
-                                    userAvatar: userPhoto,
-                                    avatarFrame: userFrameId,
-                                  ),
-                                ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isCurrentlyCompact ? 8 : 12,
-                                vertical: 9,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: isCurrentlyCompact ? MainAxisAlignment.center : MainAxisAlignment.start,
-                                children: [
-                                  CommunityUserAvatar(
-                                    photoUrl: userPhoto,
-                                    name: userName,
-                                    radius: 14,
-                                    avatarFrame: userFrameId,
-                                  ),
-                                  if (!isCurrentlyCompact)
-                                    Expanded(
-                                      child: Row(
-                                        children: [
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              userName,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              softWrap: false,
-                                              style: GoogleFonts.outfit(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: Theme.of(context).colorScheme.onSurface,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 4),
-
-                        PopupMenuButton<String>(
-                          tooltip: 'Mais opções',
-                          offset: const Offset(10, -120),
-                          onSelected: (val) {
-                            if (val == 'toggle_sidebar') {
-                              final current = ref.read(sidebarExpandedProvider) ?? (screenWidth >= 1150);
-                              ref.read(sidebarExpandedProvider.notifier).state = !current;
-                            } else if (val == 'theme') {
-                              _showThemeDialog(context, ref);
-                            } else if (val == 'notifications') {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => const NotificationsBottomSheet(),
-                              );
-                            } else if (val == 'profile') {
-                              showEditProfileModal(context, ref);
-                            }
-                          },
-                          itemBuilder: (ctx) => [
-                            PopupMenuItem(
-                              value: 'toggle_sidebar',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isCurrentlyCompact ? Icons.menu_open_rounded : Icons.menu_rounded,
+                                  child: Icon(
+                                    Icons.menu_rounded,
                                     size: 20,
-                                    color: AppTheme.kPrimaryGold,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    isCurrentlyCompact ? 'Abrir menu lateral' : 'Recolher menu lateral',
-                                    style: const TextStyle(fontWeight: FontWeight.w600),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem(
-                              value: 'theme',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.palette_outlined, size: 20),
-                                  SizedBox(width: 12),
-                                  Text('Alternar Exibição / Tema'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'notifications',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.notifications_none_rounded, size: 20),
-                                  SizedBox(width: 12),
-                                  Text('Notificações'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'profile',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.account_circle_outlined, size: 20),
-                                  SizedBox(width: 12),
-                                  Text('Editar Perfil'),
-                                ],
-                              ),
-                            ),
-                          ],
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isCurrentlyCompact ? 8 : 12,
-                              vertical: 9,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: isCurrentlyCompact ? MainAxisAlignment.center : MainAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  Icons.menu_rounded,
-                                  size: 24,
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                                 ),
-                                if (!isCurrentlyCompact)
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            'Mais',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.clip,
-                                            softWrap: false,
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 14.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: Theme.of(context).colorScheme.onSurface,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      secondChild: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _handleNavigate(context, 0),
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.asset(
+                                  'assets/img/logo.png',
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'KeryxApp',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 18.5,
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(context).colorScheme.onSurface,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Tooltip(
+                            message: 'Recolher menu lateral',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  ref.read(sidebarExpandedProvider.notifier).state = false;
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.06)
+                                        : Colors.black.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : Colors.black.withValues(alpha: 0.08),
+                                      width: 1,
                                     ),
                                   ),
+                                  child: Icon(
+                                    Icons.menu_open_rounded,
+                                    size: 20,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                // 2. Itens de Navegação das Telas
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    children: [
+                      _buildNavItem(
+                        context: context,
+                        icon: Icons.home_rounded,
+                        inactiveIcon: Icons.home_outlined,
+                        label: 'Página inicial',
+                        isSelected: currentIndex == 0,
+                        isExpanded: isExpanded,
+                        onTap: () => _handleNavigate(context, 0),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildNavItem(
+                        context: context,
+                        icon: Icons.menu_book_rounded,
+                        inactiveIcon: Icons.menu_book_outlined,
+                        label: 'Bíblia',
+                        isSelected: currentIndex == 1,
+                        isExpanded: isExpanded,
+                        onTap: () => _handleNavigate(context, 1),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildNavItem(
+                        context: context,
+                        icon: Icons.people_alt_rounded,
+                        inactiveIcon: Icons.people_alt_outlined,
+                        label: 'Comunidade',
+                        badgeText: 'Novo',
+                        isSelected: currentIndex == 6,
+                        isExpanded: isExpanded,
+                        onTap: () => _handleNavigate(context, 6),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildNavItem(
+                        context: context,
+                        icon: Icons.auto_stories_rounded,
+                        inactiveIcon: Icons.auto_stories_outlined,
+                        label: 'Estudos',
+                        isSelected: currentIndex == 2,
+                        isExpanded: isExpanded,
+                        onTap: () => _handleNavigate(context, 2),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildNavItem(
+                        context: context,
+                        icon: Icons.edit_note_rounded,
+                        inactiveIcon: Icons.edit_note_outlined,
+                        label: 'Anotações',
+                        isSelected: currentIndex == 3,
+                        isExpanded: isExpanded,
+                        onTap: () => _handleNavigate(context, 3),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildNavItem(
+                        context: context,
+                        icon: Icons.bookmark_rounded,
+                        inactiveIcon: Icons.bookmark_border_rounded,
+                        label: 'Favoritos',
+                        isSelected: currentIndex == 4,
+                        isExpanded: isExpanded,
+                        onTap: () => _handleNavigate(context, 4),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildNavItem(
+                        context: context,
+                        icon: Icons.shopping_bag_rounded,
+                        inactiveIcon: Icons.shopping_bag_outlined,
+                        label: 'Loja',
+                        isSelected: currentIndex == 5,
+                        isExpanded: isExpanded,
+                        onTap: () => _handleNavigate(context, 5),
+                      ),
+                      const SizedBox(height: 12),
+                      Divider(
+                        color: isDark ? Colors.white10 : Colors.black12,
+                        height: 1,
+                        indent: 4,
+                        endIndent: 4,
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Botão Criar (+ Post / Story)
+                      _buildNavItem(
+                        context: context,
+                        icon: Icons.add_box_rounded,
+                        inactiveIcon: Icons.add_box_outlined,
+                        label: 'Criar',
+                        isSelected: false,
+                        isExpanded: isExpanded,
+                        highlightGold: true,
+                        onTap: () => _showCreateOptions(context),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 3. Rodapé do Menu Lateral (Perfil + Mais)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  child: Column(
+                    children: [
+                      // Item de Perfil
+                      Tooltip(
+                        message: 'Meu Perfil ($userName)',
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CommunityUserProfileScreen(
+                                  userId: currentUser?.uid ?? '',
+                                  userName: userName,
+                                  userAvatar: userPhoto,
+                                  avatarFrame: userFrameId,
+                                ),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Row(
+                              children: [
+                                CommunityUserAvatar(
+                                  photoUrl: userPhoto,
+                                  name: userName,
+                                  radius: 14,
+                                  avatarFrame: userFrameId,
+                                ),
+                                Expanded(
+                                  child: ClipRect(
+                                    child: AnimatedOpacity(
+                                      duration: const Duration(milliseconds: 160),
+                                      curve: Curves.easeInOut,
+                                      opacity: isExpanded ? 1.0 : 0.0,
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        physics: const NeverScrollableScrollPhysics(),
+                                        child: SizedBox(
+                                          width: 150,
+                                          child: Row(
+                                            children: [
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  userName,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  softWrap: false,
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Theme.of(context).colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      PopupMenuButton<String>(
+                        tooltip: 'Mais opções',
+                        offset: const Offset(10, -120),
+                        onSelected: (val) {
+                          if (val == 'toggle_sidebar') {
+                            final current = ref.read(sidebarExpandedProvider) ?? (screenWidth >= 1150);
+                            ref.read(sidebarExpandedProvider.notifier).state = !current;
+                          } else if (val == 'theme') {
+                            _showThemeDialog(context, ref);
+                          } else if (val == 'notifications') {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const NotificationsBottomSheet(),
+                            );
+                          } else if (val == 'profile') {
+                            showEditProfileModal(context, ref);
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          PopupMenuItem(
+                            value: 'toggle_sidebar',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isExpanded ? Icons.menu_open_rounded : Icons.menu_rounded,
+                                  size: 20,
+                                  color: AppTheme.kPrimaryGold,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  isExpanded ? 'Recolher menu lateral' : 'Abrir menu lateral',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'theme',
+                            child: Row(
+                              children: [
+                                Icon(Icons.palette_outlined, size: 20),
+                                SizedBox(width: 12),
+                                Text('Alternar Exibição / Tema'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'notifications',
+                            child: Row(
+                              children: [
+                                Icon(Icons.notifications_none_rounded, size: 20),
+                                SizedBox(width: 12),
+                                Text('Notificações'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'profile',
+                            child: Row(
+                              children: [
+                                Icon(Icons.account_circle_outlined, size: 20),
+                                SizedBox(width: 12),
+                                Text('Editar Perfil'),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Container(
+                          height: 44,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.menu_rounded,
+                                size: 24,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                              ),
+                              Expanded(
+                                child: ClipRect(
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 160),
+                                    curve: Curves.easeInOut,
+                                    opacity: isExpanded ? 1.0 : 0.0,
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      child: SizedBox(
+                                        width: 150,
+                                        child: Row(
+                                          children: [
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              'Mais',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.clip,
+                                              softWrap: false,
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 14.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(context).colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -689,7 +700,7 @@ class InstagramTabletSidebar extends ConsumerWidget {
     required IconData inactiveIcon,
     required String label,
     required bool isSelected,
-    required bool isCompact,
+    required bool isExpanded,
     required VoidCallback onTap,
     String? badgeText,
     bool highlightGold = false,
@@ -710,12 +721,9 @@ class InstagramTabletSidebar extends ConsumerWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: EdgeInsets.symmetric(
-              horizontal: isCompact ? 10 : 12,
-              vertical: 9.5,
-            ),
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: isSelected
                   ? activeColor.withValues(alpha: 0.14)
@@ -723,69 +731,86 @@ class InstagramTabletSidebar extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
-              mainAxisAlignment: isCompact ? MainAxisAlignment.center : MainAxisAlignment.start,
               children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(
-                      isSelected ? icon : inactiveIcon,
-                      color: itemColor,
-                      size: isSelected ? 24 : 22,
-                    ),
-                    if (badgeText != null && isCompact)
-                      Positioned(
-                        top: -3,
-                        right: -3,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF10B981),
-                            shape: BoxShape.circle,
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(
+                        isSelected ? icon : inactiveIcon,
+                        color: itemColor,
+                        size: isSelected ? 24 : 22,
+                      ),
+                      if (badgeText != null && !isExpanded)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ClipRect(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeInOut,
+                      opacity: isExpanded ? 1.0 : 0.0,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: SizedBox(
+                          width: 148,
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14.5,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    color: itemColor,
+                                  ),
+                                ),
+                              ),
+                              if (badgeText != null)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    badgeText,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF10B981),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
-                  ],
-                ),
-                if (!isCompact)
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
-                            style: GoogleFonts.outfit(
-                              fontSize: 14.5,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                              color: itemColor,
-                            ),
-                          ),
-                        ),
-                        if (badgeText != null)
-                          Container(
-                            margin: const EdgeInsets.only(left: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              badgeText,
-                              style: GoogleFonts.outfit(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF10B981),
-                              ),
-                            ),
-                          ),
-                      ],
                     ),
                   ),
+                ),
               ],
             ),
           ),
