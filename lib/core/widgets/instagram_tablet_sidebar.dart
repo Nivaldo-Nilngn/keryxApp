@@ -10,71 +10,25 @@ import 'package:keryx_app/features/community/view/widgets/create_post_bottom_she
 import 'package:keryx_app/features/community/view/widgets/create_story_bottom_sheet.dart';
 import 'package:keryx_app/features/home/view/notifications_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
-import 'package:keryx_app/features/community/view/community_user_profile_screen.dart';
-
 /// Provider global para controlar a expansão manual do menu lateral em tablets/desktop.
 /// null = automático baseado no tamanho da tela (>= 1150px expandido).
 final sidebarExpandedProvider = StateProvider<bool?>((ref) => null);
-
-/// Layout para tablets e desktops que orquestra a barra lateral e a área principal de conteúdo.
-/// Garante que a barra lateral e sua aba flutuante (pill de abertura/fechamento) sejam renderizadas
-/// com prioridade de sobreposição (z-index superior) na borda divisória.
-class InstagramTabletSidebarLayout extends ConsumerWidget {
-  final InstagramTabletSidebar sidebar;
-  final Widget body;
-
-  const InstagramTabletSidebarLayout({
-    super.key,
-    required this.sidebar,
-    required this.body,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final manualExpanded = ref.watch(sidebarExpandedProvider);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isExpanded = manualExpanded ?? (screenWidth >= 1150);
-    final sidebarWidth = isExpanded ? 230.0 : 76.0;
-
-    return Stack(
-      children: [
-        // 1. Estrutura base da tela: reserva espaço da largura da barra lateral + corpo expandido
-        Row(
-          children: [
-            RepaintBoundary(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                width: sidebarWidth,
-              ),
-            ),
-            Expanded(child: body),
-          ],
-        ),
-
-        // 2. Barra lateral sobreposta (garante que a aba saliente na borda fique visível e interativa)
-        Positioned(
-          top: 0,
-          bottom: 0,
-          left: 0,
-          child: sidebar,
-        ),
-      ],
-    );
-  }
-}
 
 /// Menu Lateral Estilo Instagram para Tablets e Telas Maiores
 class InstagramTabletSidebar extends ConsumerWidget {
   final int currentIndex;
   final ValueChanged<int> onSelectIndex;
   final bool isRoute;
+  final Widget? body;
+  final VoidCallback? onProfileTap;
 
   const InstagramTabletSidebar({
     super.key,
     required this.currentIndex,
     required this.onSelectIndex,
     this.isRoute = false,
+    this.body,
+    this.onProfileTap,
   });
 
   void _handleNavigate(BuildContext context, int index) {
@@ -256,7 +210,7 @@ class InstagramTabletSidebar extends ConsumerWidget {
     final bgColor = isDark ? const Color(0xFF101018) : Colors.white;
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
 
-    return SizedBox(
+    final sidebarWidget = SizedBox(
       width: sidebarWidth + 14.0,
       height: double.infinity,
       child: Stack(
@@ -463,17 +417,11 @@ class InstagramTabletSidebar extends ConsumerWidget {
                               message: 'Meu Perfil ($userName)',
                               child: InkWell(
                                 onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => CommunityUserProfileScreen(
-                                        userId: currentUser?.uid ?? '',
-                                        userName: userName,
-                                        userAvatar: userPhoto,
-                                        avatarFrame: userFrameId,
-                                      ),
-                                    ),
-                                  );
+                                  if (onProfileTap != null) {
+                                    onProfileTap!();
+                                  } else {
+                                    _handleNavigate(context, 6);
+                                  }
                                 },
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
@@ -668,6 +616,36 @@ class InstagramTabletSidebar extends ConsumerWidget {
           ),
         ],
       ),
+    );
+
+    if (body == null) {
+      return sidebarWidget;
+    }
+
+    return Stack(
+      children: [
+        // 1. Área de layout com reserva de espaço para a barra lateral + corpo
+        Row(
+          children: [
+            RepaintBoundary(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                width: sidebarWidth,
+              ),
+            ),
+            Expanded(child: body!),
+          ],
+        ),
+
+        // 2. Barra lateral sobreposta (garante que a aba saliente na borda fique com z-index superior)
+        Positioned(
+          top: 0,
+          bottom: 0,
+          left: 0,
+          child: sidebarWidget,
+        ),
+      ],
     );
   }
 

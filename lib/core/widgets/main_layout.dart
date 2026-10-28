@@ -9,6 +9,9 @@ import 'package:keryx_app/features/study/view/annotations_screen.dart';
 import 'package:keryx_app/features/study/view/favorites_screen.dart';
 import 'package:keryx_app/features/store/view/store_screen.dart';
 import 'package:keryx_app/features/community/view/community_feed_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:keryx_app/core/services/auth_service.dart';
+import 'package:keryx_app/features/community/view/community_user_profile_screen.dart';
 import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/core/widgets/cookie_consent_banner.dart';
@@ -71,13 +74,8 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
               showBackButton: false,
             ),
         body: isTablet
-          ? InstagramTabletSidebarLayout(
-              sidebar: InstagramTabletSidebar(
-                currentIndex: currentIndex,
-                onSelectIndex: (index) {
-                  ref.read(navigationProvider.notifier).setIndex(index);
-                },
-              ),
+          ? InstagramTabletSidebar(
+              currentIndex: currentIndex,
               body: Stack(
                 children: [
                   IndexedStack(
@@ -87,6 +85,27 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                   const CookieConsentBanner(),
                 ],
               ),
+              onSelectIndex: (index) {
+                ref.read(navigationProvider.notifier).setIndex(index);
+              },
+              onProfileTap: () {
+                final user = FirebaseAuth.instance.currentUser;
+                final userData = ref.read(userDataProvider).valueOrNull;
+                final userPhoto = (userData?['photoUrl'] as String?)?.trim() ?? user?.photoURL?.trim();
+                final userName = (userData?['name'] as String?)?.trim() ?? user?.displayName ?? 'Perfil';
+                final userFrameId = (userData?['avatarFrame'] as String?) ?? 'gold';
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CommunityUserProfileScreen(
+                      userId: user?.uid ?? '',
+                      userName: userName,
+                      userAvatar: userPhoto,
+                      avatarFrame: userFrameId,
+                    ),
+                  ),
+                );
+              },
             )
           : GestureDetector(
               behavior: HitTestBehavior.translucent,
