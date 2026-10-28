@@ -5,54 +5,34 @@ import 'dart:typed_data';
 
 const kWorkerBase = 'https://keryx-version.nivaldo-nilngn.workers.dev';
 
-/// Detecta se o cliente é iPad (iPadOS com Safari Desktop-Class ou emulação de iPad)
-bool isIpadClient() {
-  final ua = (html.window.navigator.userAgent).toLowerCase();
-  final platform = (html.window.navigator.platform ?? '').toLowerCase();
-  final touchPoints = html.window.navigator.maxTouchPoints ?? 0;
+String get _ua => html.window.navigator.userAgent.toLowerCase();
+String get _platform => (html.window.navigator.platform ?? '').toLowerCase();
+int get _touch => html.window.navigator.maxTouchPoints ?? 0;
 
-  // 1. Explicitamente contém "ipad" no UserAgent ou Platform
-  if (ua.contains('ipad') || platform.contains('ipad')) {
-    return true;
-  }
+/// Detecta se o cliente é Android
+bool isAndroidClient() {
+  if (_ua.contains('android') || _platform.contains('android')) return true;
 
-  // 2. iPadOS moderno (Safari Desktop-Class que se anuncia como Macintosh)
-  // No iPadOS real, a Apple envia platform 'MacIntel' com maxTouchPoints > 0
-  if ((ua.contains('macintosh') || platform.contains('macintel')) && touchPoints > 0) {
-    return true;
-  }
-
-  // 3. Emulação no Chrome DevTools com perfil de iPad / Tablet Apple
-  final isApple = ua.contains('macintosh') || platform.contains('macintel') || ua.contains('apple');
-  if (isApple && (ua.contains('mobile') || ua.contains('tablet') || touchPoints >= 1)) {
-    return true;
-  }
-
-  return false;
+  // Modo "Site para computador" no Android: o UA vira "X11; Linux x86_64",
+  // mas a tela continua sendo touch. Chromebook fica de fora (UA tem "cros").
+  final linuxLike = _ua.contains('linux') || _platform.contains('linux');
+  return linuxLike && _touch > 1 && !_ua.contains('cros');
 }
 
 /// Detecta se o cliente é iPhone ou iPod
 bool isIphoneClient() {
-  final ua = (html.window.navigator.userAgent).toLowerCase();
-  final platform = (html.window.navigator.platform ?? '').toLowerCase();
+  if (isAndroidClient()) return false;
+  return _ua.contains('iphone') || _ua.contains('ipod');
+}
 
-  return ua.contains('iphone') ||
-      ua.contains('ipod') ||
-      platform.contains('iphone') ||
-      platform.contains('ipod');
+/// iPadOS 13+ se identifica como "Macintosh", mas tem touch
+bool isIpadClient() {
+  if (isAndroidClient()) return false;
+  return _ua.contains('ipad') || (_ua.contains('macintosh') && _touch > 1);
 }
 
 /// Detecta se o cliente é dispositivo Apple (iPhone ou iPad)
-bool isIosClient() {
-  return isIphoneClient() || isIpadClient();
-}
-
-/// Detecta se o cliente é Android
-bool isAndroidClient() {
-  final ua = (html.window.navigator.userAgent).toLowerCase();
-  final platform = (html.window.navigator.platform ?? '').toLowerCase();
-  return ua.contains('android') || platform.contains('android');
-}
+bool isIosClient() => isIphoneClient() || isIpadClient();
 
 /// Detecta se o PWA já está instalado e aberto pela Tela de Início
 bool isStandalonePwa() {
@@ -100,5 +80,8 @@ void downloadBytes(Uint8List bytes, String fileName, String mimeType) {
   anchor.click();
   anchor.remove();
 
-  html.Url.revokeObjectUrl(url);
+  Future<void>.delayed(
+    const Duration(seconds: 15),
+    () => html.Url.revokeObjectUrl(url),
+  );
 }

@@ -5,6 +5,56 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.5',
+      buildNumber: 14,
+      title: 'Menu Lateral Flutuante, Acesso Rápido a Temas & Otimizações',
+      releaseDate: '27 de Outubro de 2026',
+      highlight:
+          'Novo botão em aba arredondada na borda do menu lateral para tablets e web, atalho direto para alternar temas (Escuro, Claro e Sépia) na barra lateral, e correções de layout.',
+      items: [
+        // ── Novos Recursos (Implementações) ─────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Aba Flutuante de Abertura do Menu',
+          description:
+              'Novo botão estilo pílula acoplado à borda do menu lateral para tablets e computadores, com animação fluida e ícone chevron indicador.',
+          customIcon: Icons.menu_open_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Atalho Direto de Tema na Barra Lateral',
+          description:
+              'Acesso rápido com um toque à paleta de temas (Modo Escuro, Claro e Sépia) posicionado no rodapé da barra lateral.',
+          customIcon: Icons.palette_outlined,
+        ),
+
+        // ── Modificações & Melhorias ─────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Cabeçalho e Logo Aperfeiçoados',
+          description:
+              'Exibição limpa e centralizada da logo quando o menu está recolhido, com o nome KeryxApp aparecendo com transição suave ao expandir.',
+          customIcon: Icons.auto_awesome_rounded,
+        ),
+
+        // ── Correções (Bug Fixes) ───────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Detecção Confiável de Android no Navegador',
+          description:
+              'Corrigida a identificação de celulares Android no Chrome e navegadores web, garantindo a exibição do banner de download do APK mesmo com o modo "Para Computador" ativado.',
+          customIcon: Icons.android_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Correção de Layout e Resolução Web',
+          description:
+              'Ajustada a geometria do avatar do perfil para evitar advertências de overflow e eliminada a dependência circular de módulos na versão Web.',
+          customIcon: Icons.check_circle_outline_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.4',
       buildNumber: 13,
       title: 'Stories Agrupados, Criação Dedicada & Navegação Bíblica',

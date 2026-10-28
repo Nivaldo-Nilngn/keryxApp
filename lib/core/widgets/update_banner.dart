@@ -15,7 +15,7 @@ class UpdateBanner extends ConsumerStatefulWidget {
 }
 
 class _UpdateBannerState extends ConsumerState<UpdateBanner> {
-  bool _isDismissedLocally = false;
+  bool _isDismissedLocally = true;
   String? _currentDismissKey;
 
   @override
@@ -24,9 +24,9 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     _checkDismissStatus();
   }
 
-  Future<void> _checkDismissStatus({bool isIpad = false}) async {
+  Future<void> _checkDismissStatus() async {
     final updateInfo = ref.read(latestUpdateInfoProvider).valueOrNull;
-    final key = _computeDismissKey(updateInfo, isIpad: isIpad);
+    final key = _computeDismissKey(updateInfo);
     if (key == null) return;
 
     _currentDismissKey = key;
@@ -38,10 +38,10 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     }
   }
 
-  String? _computeDismissKey(AppUpdateInfo? updateInfo, {bool isIpad = false}) {
+  String? _computeDismissKey(AppUpdateInfo? updateInfo) {
     if (kIsWeb) {
-      if (isIpad) return 'keryx_banner_dismissed_ipad_pwa';
-      if (isIphoneClient() || isIosClient()) return 'keryx_banner_dismissed_iphone_pwa';
+      if (isIpadClient()) return 'keryx_banner_dismissed_ipad_pwa';
+      if (isIphoneClient()) return 'keryx_banner_dismissed_iphone_pwa';
       if (isAndroidClient()) {
         final version = updateInfo?.latestVersion ?? 0;
         return 'keryx_banner_dismissed_android_web_$version';
@@ -63,32 +63,27 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
   @override
   Widget build(BuildContext context) {
     final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
-    final isForceUpdate = ref.watch(isForceUpdateRequiredProvider);
+    final isForceUpdate = !kIsWeb && ref.watch(isForceUpdateRequiredProvider);
 
     // ── CENÁRIO 1: Navegador Web (kIsWeb) ──────────────────────────────────
     if (kIsWeb) {
       // Já instalado como PWA aberto pela Tela de Início: nada a oferecer
       if (isStandalonePwa()) return const SizedBox.shrink();
 
-      final size = MediaQuery.of(context).size;
-      final bool detectedIpad = isIpadClient();
-      final bool detectedIphone = isIphoneClient();
+      final bool isIpad = isIpadClient();
+      final bool isIphone = isIphoneClient();
       final bool isAndroid = isAndroidClient();
+      final bool isIOS = isIpad || isIphone;
 
-      // No modo iPad: detectado por UserAgent/Platform ou se for tablet com tamanho típico
-      final bool isIpad = detectedIpad || 
-          (!isAndroid && !detectedIphone && (size.width >= 600 && size.width <= 1400));
-
-      final bool isIOS = detectedIphone || isIpad || isIosClient();
-
-      // No Desktop puro (não mobile e tela larga fora dos padrões de tablet Apple): nada a exibir
+      // Desktop ou outro sistema: nada a exibir
       if (!isIOS && !isAndroid) return const SizedBox.shrink();
 
       // Reavalia a chave de persistência com base no dispositivo específico
-      final key = _computeDismissKey(updateInfo, isIpad: isIpad);
+      final key = _computeDismissKey(updateInfo);
       if (key != _currentDismissKey) {
         _currentDismissKey = key;
-        _checkDismissStatus(isIpad: isIpad);
+        _isDismissedLocally = true; // esconde até ler o prefs
+        _checkDismissStatus();
       }
 
       // Se o usuário dispensou este banner nesta versão/dispositivo, não exibe
@@ -115,7 +110,7 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
       }
 
       // ── CENÁRIO 1B: iPhone (Safari ou PWA) ────────────────────────────────
-      if (isIOS) {
+      if (isIphone) {
         final inApp = isInAppBrowser();
         return _buildLayout(
           context: context,
@@ -136,7 +131,7 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
       if (isAndroid) {
         final downloadUrl = (updateInfo?.downloadUrl.isNotEmpty ?? false)
             ? updateInfo!.downloadUrl.trim()
-            : 'https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.2/keryxApp.apk';
+            : 'https://github.com/Nivaldo-Nilngn/keryxApp/releases/latest/download/keryxApp.apk';
 
         return _buildLayout(
           context: context,
@@ -167,6 +162,7 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     final key = _computeDismissKey(updateInfo);
     if (key != _currentDismissKey) {
       _currentDismissKey = key;
+      _isDismissedLocally = true; // esconde até ler o prefs
       _checkDismissStatus();
     }
 
@@ -215,7 +211,9 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131D17) : const Color(0xFFF0FDF4),
+        color: isDark
+            ? Color.alphaBlend(mainColor.withValues(alpha: 0.12), theme.colorScheme.surface)
+            : Color.alphaBlend(mainColor.withValues(alpha: 0.08), Colors.white),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: mainColor.withValues(alpha: 0.45),
@@ -254,6 +252,7 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
                     fontSize: 10.5,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
                   ),
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

@@ -5,7 +5,7 @@ const kWorkerBase = 'https://keryx-version.nivaldo-nilngn.workers.dev';
 
 bool isIpadClient() => false;
 
-bool isIphoneClient() => defaultTargetPlatform == TargetPlatform.iOS;
+bool isIphoneClient() => false;
 
 bool isIosClient() => defaultTargetPlatform == TargetPlatform.iOS;
 
