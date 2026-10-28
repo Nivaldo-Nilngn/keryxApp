@@ -15,8 +15,11 @@ class UpdateBanner extends ConsumerStatefulWidget {
 }
 
 class _UpdateBannerState extends ConsumerState<UpdateBanner> {
-  bool _isDismissedLocally = true;
+  bool _isDismissedLocally = false;
   String? _currentDismissKey;
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
+  String? _downloadProgressText;
 
   @override
   void initState() {
@@ -33,17 +36,19 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     final prefs = await SharedPreferences.getInstance();
     final dismissed = prefs.getBool(key) ?? false;
 
-    if (mounted && dismissed != _isDismissedLocally) {
+    // ignora resultado de uma chave que já foi trocada
+    if (!mounted || key != _currentDismissKey) return;
+    if (dismissed != _isDismissedLocally) {
       setState(() => _isDismissedLocally = dismissed);
     }
   }
 
   String? _computeDismissKey(AppUpdateInfo? updateInfo) {
     if (kIsWeb) {
-      if (isIpadClient()) return 'keryx_banner_dismissed_ipad_pwa';
-      if (isIphoneClient()) return 'keryx_banner_dismissed_iphone_pwa';
+      final version = updateInfo?.latestVersion ?? 0;
+      if (isIpadClient()) return 'keryx_banner_dismissed_ipad_pwa_$version';
+      if (isIphoneClient()) return 'keryx_banner_dismissed_iphone_pwa_$version';
       if (isAndroidClient()) {
-        final version = updateInfo?.latestVersion ?? 0;
         return 'keryx_banner_dismissed_android_web_$version';
       }
       return null;
@@ -82,7 +87,6 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
       final key = _computeDismissKey(updateInfo);
       if (key != _currentDismissKey) {
         _currentDismissKey = key;
-        _isDismissedLocally = true; // esconde até ler o prefs
         _checkDismissStatus();
       }
 
@@ -97,11 +101,11 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
         return _buildLayout(
           context: context,
           canDismiss: !isForceUpdate,
-          title: inApp ? 'Abra no Safari para instalar' : 'Aplicativo no seu iPad',
+          title: inApp ? 'Abra no Safari' : 'KeryxApp no iPad',
           subtitle: inApp
-              ? 'Este navegador não permite instalar. Abra o link no Safari.'
-              : 'Adicione à Tela de Início no Safari para usar em tela cheia',
-          buttonLabel: 'COMO INSTALAR',
+              ? 'Abra no Safari para instalar'
+              : 'Adicione à Tela de Início',
+          buttonLabel: 'INSTALAR',
           mainColor: const Color(0xFF3B82F6),
           icon: Icons.tablet_mac_rounded,
           onTap: () => _showIOSInstructions(context, inApp: inApp, isIpad: true),
@@ -115,11 +119,11 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
         return _buildLayout(
           context: context,
           canDismiss: !isForceUpdate,
-          title: inApp ? 'Abra no Safari para instalar' : 'Aplicativo no seu iPhone',
+          title: inApp ? 'Abra no Safari' : 'KeryxApp no iPhone',
           subtitle: inApp
-              ? 'Este navegador não permite instalar. Abra o link no Safari.'
-              : 'Adicione à Tela de Início para usar em tela cheia',
-          buttonLabel: 'COMO INSTALAR',
+              ? 'Abra no Safari para instalar'
+              : 'Adicione à Tela de Início',
+          buttonLabel: 'INSTALAR',
           mainColor: const Color(0xFF3B82F6),
           icon: Icons.phone_iphone_rounded,
           onTap: () => _showIOSInstructions(context, inApp: inApp, isIpad: false),
@@ -127,8 +131,9 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
         );
       }
 
-      // ── CENÁRIO 1C: Android no Navegador ──────────────────────────────────
+      // ── CENÁRIO 1C: Android no Navegador (Celular ou Tablet) ─────────────
       if (isAndroid) {
+        final isTablet = MediaQuery.of(context).size.width >= 720;
         final downloadUrl = (updateInfo?.downloadUrl.isNotEmpty ?? false)
             ? updateInfo!.downloadUrl.trim()
             : 'https://github.com/Nivaldo-Nilngn/keryxApp/releases/latest/download/keryxApp.apk';
@@ -136,21 +141,72 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
         return _buildLayout(
           context: context,
           canDismiss: !isForceUpdate,
-          title: 'Baixe o Aplicativo Oficial',
-          subtitle: 'Instale o app oficial no Android para recursos offline',
-          buttonLabel: 'BAIXAR APK',
+          title: isTablet ? 'KeryxApp para Tablet Android' : 'Baixar KeryxApp Oficial',
+          subtitle: isTablet
+              ? 'Instale o app oficial no seu Tablet • Recursos offline'
+              : 'Para Android • Recursos offline',
+          buttonLabel: 'BAIXAR',
           mainColor: const Color(0xFF10B981),
-          icon: Icons.install_mobile_rounded,
-          onTap: () {
-            downloadFile(downloadUrl, fileName: 'keryxApp.apk');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Download do keryxApp.apk iniciado! Acompanhe na barra de notificações.'),
-                backgroundColor: Color(0xFF10B981),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          },
+          icon: isTablet ? Icons.tablet_android_rounded : Icons.install_mobile_rounded,
+          isDownloading: _isDownloading,
+          downloadProgress: _downloadProgress,
+          progressText: _downloadProgressText,
+          onTap: _isDownloading
+              ? () {}
+              : () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  setState(() {
+                    _isDownloading = true;
+                    _downloadProgress = 0.0;
+                    _downloadProgressText = 'Iniciando download...';
+                  });
+
+                  final ok = await downloadFile(
+                    downloadUrl,
+                    fileName: 'keryxApp.apk',
+                    onProgress: (progress, loaded, total) {
+                      if (mounted) {
+                        setState(() {
+                          _downloadProgress = progress;
+                          if (progress >= 0 && total > 0) {
+                            final loadedMb = (loaded / (1024 * 1024)).toStringAsFixed(1);
+                            final totalMb = (total / (1024 * 1024)).toStringAsFixed(1);
+                            final pct = (progress * 100).toInt();
+                            _downloadProgressText = '$pct% ($loadedMb MB / $totalMb MB)';
+                          } else {
+                            final loadedMb = (loaded / (1024 * 1024)).toStringAsFixed(1);
+                            _downloadProgressText = '$loadedMb MB baixados...';
+                          }
+                        });
+                      }
+                    },
+                  );
+
+                  if (mounted) {
+                    setState(() {
+                      _isDownloading = false;
+                      _downloadProgress = 0.0;
+                      _downloadProgressText = null;
+                    });
+
+                    if (ok) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Download concluído com sucesso! Verifique sua pasta de downloads.'),
+                          backgroundColor: Color(0xFF10B981),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    } else {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Não foi possível baixar direto. Tentando pelo navegador...'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                },
           onDismiss: () => _handleDismiss(key),
         );
       }
@@ -177,10 +233,10 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
       return _buildLayout(
         context: context,
         canDismiss: !isForceUpdate,
-        title: 'Nova Atualização Disponível$versionLabel',
+        title: 'Nova Atualização$versionLabel',
         subtitle: updateInfo.releaseNotes.isNotEmpty
             ? updateInfo.releaseNotes
-            : 'Toque para atualizar agora seu KeryxApp',
+            : 'Toque para atualizar agora',
         buttonLabel: 'ATUALIZAR',
         mainColor: const Color(0xFF22C55E),
         icon: Icons.system_update_rounded,
@@ -202,98 +258,142 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     required IconData icon,
     required VoidCallback onTap,
     required VoidCallback onDismiss,
+    bool isDownloading = false,
+    double downloadProgress = 0.0,
+    String? progressText,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final displaySubtitle = (isDownloading && progressText != null)
+        ? progressText
+        : subtitle;
+
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isDark
-            ? Color.alphaBlend(mainColor.withValues(alpha: 0.12), theme.colorScheme.surface)
-            : Color.alphaBlend(mainColor.withValues(alpha: 0.08), Colors.white),
-        borderRadius: BorderRadius.circular(16),
+            ? Color.alphaBlend(mainColor.withValues(alpha: 0.10), theme.colorScheme.surface)
+            : Color.alphaBlend(mainColor.withValues(alpha: 0.07), Colors.white),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: mainColor.withValues(alpha: 0.45),
-          width: 1.2,
+          color: mainColor.withValues(alpha: 0.30),
+          width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: mainColor.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1.5),
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, color: mainColor, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(icon, color: mainColor, size: 18),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            title,
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        if (displaySubtitle.isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              displaySubtitle,
+                              style: GoogleFonts.inter(
+                                fontSize: 9.5,
+                                fontWeight: isDownloading ? FontWeight.w600 : FontWeight.normal,
+                                color: isDownloading
+                                    ? mainColor
+                                    : theme.colorScheme.onSurface.withValues(alpha: 0.70),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 10.5,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                  const SizedBox(width: 6),
+                  Material(
+                    color: isDownloading ? mainColor.withValues(alpha: 0.75) : mainColor,
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: isDownloading ? null : onTap,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+                        child: Text(
+                          isDownloading ? 'BAIXANDO...' : buttonLabel,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 9.5,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Material(
-            color: mainColor,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                child: Text(
-                  buttonLabel,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10.5,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+                  if (canDismiss && !isDownloading) ...[
+                    const SizedBox(width: 2),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 15,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.40),
+                      ),
+                      onPressed: onDismiss,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                      splashRadius: 12,
+                    ),
+                  ],
+                ],
               ),
             ),
-          ),
-          if (canDismiss) ...[
-            const SizedBox(width: 2),
-            IconButton(
-              icon: Icon(
-                Icons.close_rounded,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+            if (isDownloading) ...[
+              SizedBox(
+                height: 2.5,
+                width: double.infinity,
+                child: downloadProgress >= 0
+                    ? LinearProgressIndicator(
+                        value: downloadProgress,
+                        backgroundColor: mainColor.withValues(alpha: 0.15),
+                        valueColor: AlwaysStoppedAnimation<Color>(mainColor),
+                      )
+                    : LinearProgressIndicator(
+                        backgroundColor: mainColor.withValues(alpha: 0.15),
+                        valueColor: AlwaysStoppedAnimation<Color>(mainColor),
+                      ),
               ),
-              onPressed: onDismiss,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              splashRadius: 18,
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

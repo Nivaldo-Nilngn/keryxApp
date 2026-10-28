@@ -15,9 +15,13 @@ bool isStandalonePwa() => false;
 
 bool isInAppBrowser() => false;
 
-void downloadFile(String url, {String fileName = 'keryxApp.apk'}) {
-  // Em plataformas não-web, tratado nativamente
-}
+typedef DownloadProgressCallback = void Function(double progress, int loaded, int total);
+
+Future<bool> downloadFile(
+  String url, {
+  String fileName = 'keryxApp.apk',
+  DownloadProgressCallback? onProgress,
+}) async => false;
 
 void downloadBytes(Uint8List bytes, String fileName, String mimeType) {
   // Em plataformas não-web, tratado nativamente
