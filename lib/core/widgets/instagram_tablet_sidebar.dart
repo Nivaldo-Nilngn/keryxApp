@@ -407,11 +407,74 @@ class InstagramTabletSidebar extends ConsumerWidget {
                         ),
                       ),
 
-                      // 3. Rodapé do Menu Lateral (Perfil + Mais)
+                      // 3. Rodapé do Menu Lateral (Tema + Perfil + Mais)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                         child: Column(
                           children: [
+                            // Botão Direto de Tema (Alternar Exibição / Tema)
+                            Tooltip(
+                              message: 'Alternar Exibição / Tema',
+                              child: InkWell(
+                                onTap: () => _showThemeDialog(context, ref),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  height: 44,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: Icon(
+                                          Icons.palette_outlined,
+                                          size: 24,
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: ClipRect(
+                                          child: AnimatedOpacity(
+                                            duration: const Duration(milliseconds: 160),
+                                            curve: Curves.easeInOut,
+                                            opacity: isExpanded ? 1.0 : 0.0,
+                                            child: SingleChildScrollView(
+                                              scrollDirection: Axis.horizontal,
+                                              physics: const NeverScrollableScrollPhysics(),
+                                              child: SizedBox(
+                                                width: 150,
+                                                child: Row(
+                                                  children: [
+                                                    const SizedBox(width: 12),
+                                                    Text(
+                                                      'Tema',
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.clip,
+                                                      softWrap: false,
+                                                      style: GoogleFonts.outfit(
+                                                        fontSize: 14.5,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Theme.of(context).colorScheme.onSurface,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 4),
+
                             // Item de Perfil
                             Tooltip(
                               message: 'Meu Perfil ($userName)',
@@ -426,14 +489,20 @@ class InstagramTabletSidebar extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
                                   height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
                                   child: Row(
                                     children: [
-                                      CommunityUserAvatar(
-                                        photoUrl: userPhoto,
-                                        name: userName,
-                                        radius: 14,
-                                        avatarFrame: userFrameId,
+                                      SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: Center(
+                                          child: CommunityUserAvatar(
+                                            photoUrl: userPhoto,
+                                            name: userName,
+                                            radius: 12,
+                                            avatarFrame: userFrameId,
+                                          ),
+                                        ),
                                       ),
                                       Expanded(
                                         child: ClipRect(
@@ -549,16 +618,20 @@ class InstagramTabletSidebar extends ConsumerWidget {
                               ],
                               child: Container(
                                 height: 44,
-                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(
-                                      Icons.menu_rounded,
-                                      size: 24,
-                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                                    SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: Icon(
+                                        Icons.menu_rounded,
+                                        size: 24,
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                                      ),
                                     ),
                                     Expanded(
                                       child: ClipRect(
