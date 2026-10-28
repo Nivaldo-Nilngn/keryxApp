@@ -392,18 +392,16 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       );
 
     if (!widget.isEmbedded && isTablet) {
-      bodyContent = Row(
-        children: [
-          InstagramTabletSidebar(
-            currentIndex: 6,
-            isRoute: true,
-            onSelectIndex: (index) {
-              Navigator.pop(context);
-              ref.read(navigationProvider.notifier).setIndex(index);
-            },
-          ),
-          Expanded(child: bodyContent),
-        ],
+      bodyContent = InstagramTabletSidebarLayout(
+        sidebar: InstagramTabletSidebar(
+          currentIndex: 6,
+          isRoute: true,
+          onSelectIndex: (index) {
+            Navigator.pop(context);
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+        body: bodyContent,
       );
     }
 

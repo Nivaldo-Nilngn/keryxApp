@@ -71,26 +71,22 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
               showBackButton: false,
             ),
         body: isTablet
-          ? Row(
-              children: [
-                InstagramTabletSidebar(
-                  currentIndex: currentIndex,
-                  onSelectIndex: (index) {
-                    ref.read(navigationProvider.notifier).setIndex(index);
-                  },
-                ),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      IndexedStack(
-                        index: currentIndex,
-                        children: screens,
-                      ),
-                      const CookieConsentBanner(),
-                    ],
+          ? InstagramTabletSidebarLayout(
+              sidebar: InstagramTabletSidebar(
+                currentIndex: currentIndex,
+                onSelectIndex: (index) {
+                  ref.read(navigationProvider.notifier).setIndex(index);
+                },
+              ),
+              body: Stack(
+                children: [
+                  IndexedStack(
+                    index: currentIndex,
+                    children: screens,
                   ),
-                ),
-              ],
+                  const CookieConsentBanner(),
+                ],
+              ),
             )
           : GestureDetector(
               behavior: HitTestBehavior.translucent,

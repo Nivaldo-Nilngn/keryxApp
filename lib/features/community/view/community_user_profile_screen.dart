@@ -629,18 +629,16 @@ class _CommunityUserProfileScreenState
     if (isTablet) {
       return Scaffold(
         backgroundColor: bg,
-        body: Row(
-          children: [
-            InstagramTabletSidebar(
-              currentIndex: 6,
-              isRoute: true,
-              onSelectIndex: (index) {
-                Navigator.pop(context);
-                ref.read(navigationProvider.notifier).setIndex(index);
-              },
-            ),
-            Expanded(child: profileContent),
-          ],
+        body: InstagramTabletSidebarLayout(
+          sidebar: InstagramTabletSidebar(
+            currentIndex: 6,
+            isRoute: true,
+            onSelectIndex: (index) {
+              Navigator.pop(context);
+              ref.read(navigationProvider.notifier).setIndex(index);
+            },
+          ),
+          body: profileContent,
         ),
       );
     }
