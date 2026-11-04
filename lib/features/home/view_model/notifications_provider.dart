@@ -6,20 +6,46 @@ import 'package:keryx_app/features/home/model/app_notification.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/services/app_update_service.dart';
 
-/// Notifier para gerenciar IDs de notificações dispensadas localmente de forma imediata (UI otimista)
+/// Notifier para gerenciar IDs de notificações dispensadas localmente de forma imediata (UI otimista e persistente)
 class DismissedNotificationIdsNotifier extends StateNotifier<Set<String>> {
-  DismissedNotificationIdsNotifier() : super({});
+  static const _prefsKey = 'dismissed_notification_ids';
 
-  void dismiss(String id) {
-    state = {...state, id};
+  DismissedNotificationIdsNotifier() : super({}) {
+    _load();
   }
 
-  void dismissAll(Iterable<String> ids) {
-    state = {...state, ...ids};
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_prefsKey) ?? [];
+      state = list.toSet();
+    } catch (_) {}
   }
 
-  void clear() {
+  Future<void> dismiss(String id) async {
+    final updated = {...state, id};
+    state = updated;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_prefsKey, updated.toList());
+    } catch (_) {}
+  }
+
+  Future<void> dismissAll(Iterable<String> ids) async {
+    final updated = {...state, ...ids};
+    state = updated;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_prefsKey, updated.toList());
+    } catch (_) {}
+  }
+
+  Future<void> clear() async {
     state = {};
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsKey);
+    } catch (_) {}
   }
 }
 
@@ -86,7 +112,12 @@ final unreadNotificationsCountProvider = Provider<int>((ref) {
   final list = ref.watch(notificationsProvider).valueOrNull ?? [];
   final dismissedIds = ref.watch(dismissedNotificationIdsProvider);
   final isUpdate = ref.watch(isUpdateAvailableProvider);
-  return list.where((n) => !n.read && !dismissedIds.contains(n.id)).length + (isUpdate ? 1 : 0);
+  final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
+  final isUpdateDismissed = updateInfo != null && dismissedIds.contains('update_v${updateInfo.versionName}');
+
+  final unreadFirestore = list.where((n) => !n.read && !dismissedIds.contains(n.id)).length;
+  final unreadUpdate = (isUpdate && !isUpdateDismissed) ? 1 : 0;
+  return unreadFirestore + unreadUpdate;
 });
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {

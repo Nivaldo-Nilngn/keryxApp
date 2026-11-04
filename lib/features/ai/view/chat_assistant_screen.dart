@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/ai/model/chat_model.dart';
+import 'package:keryx_app/features/ai/service/chat_history_service.dart';
 import 'package:keryx_app/features/ai/widgets/chat_bubble.dart';
+import 'package:keryx_app/features/ai/widgets/chat_history_sheet.dart';
 import 'package:keryx_app/features/ai/widgets/chat_input.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/ai_token_state.dart';
@@ -108,6 +110,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
+  ChatSession? _currentSession;
   bool _isLoading = false;
   TheologicalMode _selectedMode = TheologicalMode.general;
 
@@ -278,7 +281,45 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialMessage != null) {
+    _loadInitialSession();
+  }
+
+  Future<void> _loadInitialSession() async {
+    try {
+      final historyService = ref.read(chatHistoryServiceProvider);
+      final activeId = await historyService.getActiveSessionId();
+      final sessions = await historyService.loadSessions();
+
+      if (activeId != null) {
+        final found = sessions.where((s) => s.id == activeId).firstOrNull;
+        if (found != null && found.messages.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _currentSession = found;
+              _messages.clear();
+              _messages.addAll(found.messages);
+            });
+            _scrollToBottom();
+            return;
+          }
+        }
+      }
+
+      if (sessions.isNotEmpty && sessions.first.messages.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _currentSession = sessions.first;
+            _messages.clear();
+            _messages.addAll(sessions.first.messages);
+          });
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar sessão inicial de IATheos: $e');
+    }
+
+    if (widget.initialMessage != null && mounted) {
       _controller.text = widget.initialMessage!;
       WidgetsBinding.instance.addPostFrameCallback((_) => _sendMessage());
     }
@@ -302,6 +343,26 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
     });
   }
 
+  void _startNewChat() {
+    setState(() {
+      _currentSession = null;
+      _messages.clear();
+      _controller.clear();
+    });
+    ref.read(chatHistoryServiceProvider).setActiveSessionId(null);
+  }
+
+  void _switchToSession(ChatSession session) {
+    setState(() {
+      _currentSession = session;
+      _messages.clear();
+      _messages.addAll(session.messages);
+      _controller.clear();
+    });
+    ref.read(chatHistoryServiceProvider).setActiveSessionId(session.id);
+    _scrollToBottom();
+  }
+
   Future<void> _sendMessage([String? directText]) async {
     final text = (directText ?? _controller.text).trim();
     if (text.isEmpty || _isLoading) return;
@@ -319,12 +380,46 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
       return;
     }
 
+    final userMessage = ChatMessage(text: text, isUser: true);
     setState(() {
-      _messages.add(ChatMessage(text: text, isUser: true));
+      _messages.add(userMessage);
       if (directText == null) _controller.clear();
       _isLoading = true;
     });
     _scrollToBottom();
+
+    // Salva estado imediato da sessão
+    final now = DateTime.now();
+    final historyService = ref.read(chatHistoryServiceProvider);
+    if (_currentSession == null) {
+      final title = text.length > 40 ? '${text.substring(0, 40).trim()}...' : text;
+      _currentSession = ChatSession(
+        id: now.millisecondsSinceEpoch.toString(),
+        title: title,
+        createdAt: now,
+        updatedAt: now,
+        messages: List.from(_messages),
+      );
+    } else {
+      _currentSession = ChatSession(
+        id: _currentSession!.id,
+        title: _currentSession!.title,
+        createdAt: _currentSession!.createdAt,
+        updatedAt: now,
+        messages: List.from(_messages),
+      );
+    }
+    await historyService.saveSession(_currentSession!);
+    await historyService.setActiveSessionId(_currentSession!.id);
+
+    // Constrói histórico contextual para o LLM
+    final conversationHistory = _messages
+        .sublist(0, _messages.length - 1)
+        .map((m) => {
+              'role': m.isUser ? 'user' : 'assistant',
+              'content': m.text,
+            })
+        .toList();
 
     // Contextualiza a IA com o modo selecionado se for específico
     String promptWithContext = text;
@@ -332,20 +427,37 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
       promptWithContext = '${_selectedMode.instruction}\n\nPergunta do usuário: $text';
     }
 
+    // Diretriz de UX/UI Mobile: evita tabelas e orienta respostas em cartões de estudo
+    promptWithContext +=
+        '\n\n[Diretriz de Design UX/UI Mobile: NUNCA gere tabelas Markdown (| col1 | col2 |). Formate comparações, visões e listas em cartões de estudo estruturados com citações em bloco (>), subtítulos com emojis (ex: ### 📖 Textos Bíblicos, ### 🏛️ Posições Teológicas) e tópicos com marcadores (•) bem detalhados para celular e tablet.]';
+
     String reply;
     try {
       final aiService = ref.read(aiServiceProvider);
-      reply = await aiService.askAssistant(promptWithContext);
+      reply = await aiService.askAssistant(promptWithContext, history: conversationHistory);
     } catch (e) {
       reply = 'Desculpe, ocorreu uma instabilidade ao conectar com o serviço teológico: $e';
     }
 
     if (!mounted) return;
+    final aiMessage = ChatMessage(text: reply, isUser: false);
     setState(() {
-      _messages.add(ChatMessage(text: reply, isUser: false));
+      _messages.add(aiMessage);
       _isLoading = false;
     });
     _scrollToBottom();
+
+    // Salva resposta do assistente no histórico
+    if (_currentSession != null) {
+      _currentSession = ChatSession(
+        id: _currentSession!.id,
+        title: _currentSession!.title,
+        createdAt: _currentSession!.createdAt,
+        updatedAt: DateTime.now(),
+        messages: List.from(_messages),
+      );
+      await historyService.saveSession(_currentSession!);
+    }
   }
 
   Future<void> _confirmClear() async {
@@ -366,7 +478,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
           ],
         ),
         content: Text(
-          'Todas as mensagens desta conversa serão removidas da tela.',
+          'Todas as mensagens desta conversa serão removidas da tela e do histórico.',
           style: GoogleFonts.manrope(fontSize: 13, color: Colors.white70),
         ),
         actions: [
@@ -386,7 +498,48 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
         ],
       ),
     );
-    if (ok == true && mounted) setState(() => _messages.clear());
+    if (ok == true && mounted) {
+      final historyService = ref.read(chatHistoryServiceProvider);
+      if (_currentSession != null) {
+        await historyService.deleteSession(_currentSession!.id);
+      }
+      await historyService.setActiveSessionId(null);
+      setState(() {
+        _messages.clear();
+        _currentSession = null;
+      });
+    }
+  }
+
+  void _openHistoryBottomSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => ChatHistorySheet(
+        currentSessionId: _currentSession?.id,
+        onSelectSession: (session) {
+          Navigator.pop(ctx);
+          _switchToSession(session);
+        },
+        onNewChat: () {
+          Navigator.pop(ctx);
+          _startNewChat();
+        },
+        onClearCurrent: () {
+          setState(() {
+            _currentSession = null;
+            _messages.clear();
+          });
+        },
+        onClearAll: () {
+          setState(() {
+            _currentSession = null;
+            _messages.clear();
+          });
+        },
+      ),
+    );
   }
 
   @override
@@ -407,8 +560,8 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
             const SizedBox(width: 4),
             // Avatar Celestial da IATheos
             Container(
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: const LinearGradient(
@@ -426,52 +579,57 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
               ),
               child: const Icon(
                 Icons.auto_awesome_rounded,
-                size: 20,
+                size: 19,
                 color: Color(0xFF1E1B18),
               ),
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'IATheos',
-                      style: GoogleFonts.outfit(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'IATheos',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'Assistente Teológico',
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    color: Colors.white54,
-                    fontWeight: FontWeight.w500,
+                    ],
                   ),
-                ),
-              ],
+                  Text(
+                    'Assistente Teológico',
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      color: Colors.white54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
           // Pílula Elegante com Contador de Consultas
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: gold.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16),
@@ -497,9 +655,48 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.white60),
-            tooltip: 'Limpar conversa',
-            onPressed: _messages.isEmpty ? null : _confirmClear,
+            constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+            padding: const EdgeInsets.all(6),
+            icon: const Icon(Icons.history_rounded, color: Colors.white70, size: 21),
+            tooltip: 'Histórico de conversas',
+            onPressed: _openHistoryBottomSheet,
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 21),
+            tooltip: 'Opções',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+            onSelected: (val) {
+              if (val == 'new') _startNewChat();
+              if (val == 'clear') _confirmClear();
+            },
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: 'new',
+                enabled: _messages.isNotEmpty,
+                child: Row(
+                  children: [
+                    const Icon(Icons.add_comment_outlined, size: 18, color: Colors.white70),
+                    const SizedBox(width: 10),
+                    Text('Nova conversa', style: GoogleFonts.outfit(fontSize: 13.5)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'clear',
+                enabled: _messages.isNotEmpty,
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Limpar conversa',
+                      style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.redAccent),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: 4),
         ],

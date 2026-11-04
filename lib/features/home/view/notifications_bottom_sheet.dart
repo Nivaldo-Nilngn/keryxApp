@@ -11,7 +11,6 @@ import 'package:keryx_app/features/home/view_model/notifications_provider.dart';
 import 'package:keryx_app/features/study/view/public_annotation_detail_screen.dart';
 import 'package:keryx_app/features/study/model/note_card.dart';
 import 'package:keryx_app/core/services/notification_service.dart';
-import 'package:keryx_app/core/services/push_notification_service.dart';
 import 'package:keryx_app/core/services/app_update_service.dart';
 import 'package:keryx_app/core/services/internal_download_service.dart';
 import 'package:keryx_app/core/services/release_notes_service.dart';
@@ -286,25 +285,36 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                           ),
                         );
                         if (confirm == true) {
+                          final notifsList = notificationsAsync.valueOrNull ?? [];
+                          final currentVersion = ref.read(currentAppVersionProvider).valueOrNull;
+                          final whatsNewId = currentVersion != null
+                              ? 'whats_new_${currentVersion.versionName}'
+                              : 'whats_new_current';
+
+                          final allIds = <String>[
+                            'whats_new_current',
+                            whatsNewId,
+                            if (updateInfo != null) 'update_v${updateInfo.versionName}',
+                            'devocional_$todayStr',
+                            'hymn_$todayStr',
+                            ...notifsList.map((n) => n.id),
+                          ];
+
                           // 1. Dispensa instantaneamente itens diários (devocional e hino de hoje)
                           await ref.read(dismissedDailyProvider.notifier).dismissAllDaily([
                             'devocional_$todayStr',
                             'hymn_$todayStr',
                           ]);
 
-                          // 2. Dispensa instantaneamente todos os IDs atuais para reflexo imediato na UI
-                          final notifsList = notificationsAsync.valueOrNull ?? [];
-                          ref.read(dismissedNotificationIdsProvider.notifier).dismissAll(notifsList.map((n) => n.id));
+                          // 2. Dispensa todos os IDs com persistência (otimista e definitiva)
+                          await ref.read(dismissedNotificationIdsProvider.notifier).dismissAll(allIds);
 
                           // 3. Remove tudo do banco de dados Firestore
                           await ref.read(notificationServiceProvider).deleteAllNotifications();
 
-                          // 4. Limpa o tracker de deduplicação push/local
-                          await ref.read(pushNotificationServiceProvider).clearNotifiedTracker();
-
-                          // 5. Exibe feedback padronizado do NotificationService
+                          // 4. Exibe feedback padronizado do NotificationService
                           ref.read(notificationUiServiceProvider).showSuccess(
-                                'Todas as notificações e devocional foram limpos.',
+                                'Todas as notificações foram limpas com sucesso.',
                               );
                         }
                       },
@@ -332,26 +342,38 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                     final systemNotifs = notifs.where((n) => n.isSystemNotification).toList();
                     final socialNotifs = notifs.where((n) => !n.isSystemNotification).toList();
 
-                    final isDevocionalDismissed = dismissedDaily.contains('devocional_$todayStr');
-                    final isHymnDismissed = dismissedDaily.contains('hymn_$todayStr');
+                    final currentVersion = ref.watch(currentAppVersionProvider).valueOrNull;
+                    final whatsNewId = currentVersion != null
+                        ? 'whats_new_${currentVersion.versionName}'
+                        : 'whats_new_current';
+
+                    final isDevocionalDismissed = dismissedDaily.contains('devocional_$todayStr') || dismissedIds.contains('devocional_$todayStr');
+                    final isHymnDismissed = dismissedDaily.contains('hymn_$todayStr') || dismissedIds.contains('hymn_$todayStr');
+                    final isWhatsNewDismissed = dismissedIds.contains(whatsNewId) || dismissedIds.contains('whats_new_current');
+                    final isUpdateDismissed = updateInfo != null && dismissedIds.contains('update_v${updateInfo.versionName}');
 
                     final entries = <_NotifEntry>[
                       // Notas de Atualização e Novidades da Versão
-                      _NotifEntry(
-                        id: 'whats_new_current',
-                        icon: Icons.auto_awesome_rounded,
-                        iconColor: const Color(0xFFFFD56B),
-                        title: 'Novidades da Versão: O que mudou?',
-                        time: 'Novidades',
-                        description:
-                            'Toque para conferir todos os novos recursos, melhorias e modificações implementados nesta versão.',
-                        isUnread: false,
-                        onTap: () {
-                          Navigator.pop(context);
-                          ref.read(releaseNotesServiceProvider).showReleaseNotes(context);
-                        },
-                      ),
-                      if (isUpdateAvailable && updateInfo != null)
+                      if (!isWhatsNewDismissed)
+                        _NotifEntry(
+                          id: whatsNewId,
+                          icon: Icons.auto_awesome_rounded,
+                          iconColor: const Color(0xFFFFD56B),
+                          title: 'Novidades da Versão: O que mudou?',
+                          time: 'Novidades',
+                          description:
+                              'Toque para conferir todos os novos recursos, melhorias e modificações implementados nesta versão.',
+                          isUnread: false,
+                          onTap: () {
+                            Navigator.pop(context);
+                            ref.read(releaseNotesServiceProvider).showReleaseNotes(context);
+                          },
+                          onDelete: () {
+                            ref.read(dismissedNotificationIdsProvider.notifier).dismiss(whatsNewId);
+                            ref.read(dismissedNotificationIdsProvider.notifier).dismiss('whats_new_current');
+                          },
+                        ),
+                      if (isUpdateAvailable && updateInfo != null && !isUpdateDismissed)
                         _NotifEntry(
                           id: 'update_v${updateInfo.versionName}',
                           icon: Icons.system_update_rounded,
@@ -367,6 +389,9 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                                 ? updateInfo.downloadUrl.trim()
                                 : 'https://keryx-version.nivaldo-nilngn.workers.dev/download';
                             ref.read(downloadServiceProvider).downloadAndInstall(context, url);
+                          },
+                          onDelete: () {
+                            ref.read(dismissedNotificationIdsProvider.notifier).dismiss('update_v${updateInfo.versionName}');
                           },
                         ),
                       if (devocionalAsync.valueOrNull != null && !isDevocionalDismissed)
@@ -388,6 +413,7 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                           },
                           onDelete: () {
                             ref.read(dismissedDailyProvider.notifier).dismiss('devocional_$todayStr');
+                            ref.read(dismissedNotificationIdsProvider.notifier).dismiss('devocional_$todayStr');
                           },
                         ),
                       if (harpaBook != null && !isHymnDismissed)
@@ -409,6 +435,7 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                           },
                           onDelete: () {
                             ref.read(dismissedDailyProvider.notifier).dismiss('hymn_$todayStr');
+                            ref.read(dismissedNotificationIdsProvider.notifier).dismiss('hymn_$todayStr');
                           },
                         ),
 
@@ -568,7 +595,7 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                         final entry = entries[index];
                         if (entry.onDelete != null && entry.id != null) {
                           return Dismissible(
-                            key: Key('notif_${entry.id}_$index'),
+                            key: ValueKey('notif_${entry.id}'),
                             direction: DismissDirection.endToStart,
                             background: Container(
                               alignment: Alignment.centerRight,
@@ -579,7 +606,11 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                               ),
                               child: const Icon(Icons.delete_rounded, color: Colors.redAccent),
                             ),
-                            onDismissed: (_) => entry.onDelete?.call(),
+                            onDismissed: (_) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                entry.onDelete?.call();
+                              });
+                            },
                             child: _buildMobileItem(context, entry),
                           );
                         }
@@ -803,6 +834,20 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                     ],
                   ),
                 ),
+                if (entry.onDelete != null) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+                    ),
+                    tooltip: 'Remover',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: entry.onDelete,
+                  ),
+                ],
               ],
             ),
           ),

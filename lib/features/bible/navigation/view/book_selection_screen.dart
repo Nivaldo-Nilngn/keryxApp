@@ -162,11 +162,13 @@ class _BookSelectionScreenState extends ConsumerState<BookSelectionScreen> {
       }
     }
 
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
+        padding: EdgeInsets.fromLTRB(24, isTablet ? 24 : 8, 24, 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

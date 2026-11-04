@@ -1,9 +1,11 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
+import 'package:keryx_app/core/state/nav_bar_style_provider.dart';
 
 /// Barra de navegação unificada para todo o aplicativo, 
 /// garantindo consistência no design.
@@ -25,7 +27,10 @@ class KeryxBottomNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isVisible = ref.watch(navbarVisibleProvider) && !forceHide;
+    final navBarStyle = ref.watch(navBarStyleProvider);
+    final isFloating = navBarStyle == NavBarStyle.floating;
+    final isVisible = isFloating ? (ref.watch(navbarVisibleProvider) && !forceHide) : !forceHide;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     final theme = Theme.of(context);
     final themeMode = ref.watch(themeModeProvider);
 
@@ -37,7 +42,9 @@ class KeryxBottomNav extends ConsumerWidget {
 
     switch (themeMode) {
       case AppThemeMode.dark:
-        navBgColor = const Color(0xFF131825).withValues(alpha: 0.90);
+        navBgColor = isFloating
+            ? const Color(0xFF131825).withValues(alpha: 0.92)
+            : const Color(0xFF111223); // 100% sólido no modo fixo, eliminando qualquer transparência/brecha
         borderColor = const Color(0xFFFFB95F).withValues(alpha: 0.45);
         activeColor = const Color(0xFFFFB95F);
         inactiveColor = theme.colorScheme.onSurface.withValues(alpha: 0.55);
@@ -58,7 +65,7 @@ class KeryxBottomNav extends ConsumerWidget {
 
       case AppThemeMode.sepia:
         // Sepia: pergaminho nobre e acolhedor (não branco!), em perfeita harmonia com o tema
-        navBgColor = const Color(0xFFEBE0C7).withValues(alpha: 0.96);
+        navBgColor = const Color(0xFFEBE0C7);
         borderColor = const Color(0xFF8B5E3C).withValues(alpha: 0.40);
         activeColor = const Color(0xFF8B5E3C);
         inactiveColor = const Color(0xFF6B533E);
@@ -77,7 +84,7 @@ class KeryxBottomNav extends ConsumerWidget {
         break;
 
       case AppThemeMode.paper:
-        navBgColor = Colors.white.withValues(alpha: 0.94);
+        navBgColor = Colors.white;
         borderColor = const Color(0xFFE2E8F0);
         activeColor = const Color(0xFF2C2C2C);
         inactiveColor = Colors.grey.shade600;
@@ -91,7 +98,7 @@ class KeryxBottomNav extends ConsumerWidget {
         break;
 
       case AppThemeMode.light:
-        navBgColor = Colors.white.withValues(alpha: 0.94);
+        navBgColor = Colors.white;
         borderColor = const Color(0xFFD97706).withValues(alpha: 0.40);
         activeColor = const Color(0xFFD97706);
         inactiveColor = const Color(0xFF475569);
@@ -110,11 +117,74 @@ class KeryxBottomNav extends ConsumerWidget {
         break;
     }
 
-    return AnimatedSlide(
-      offset: isVisible ? Offset.zero : const Offset(0, 1.5),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
-      child: SafeArea(
+    final navItems = [
+      if (!isHome && onBack != null)
+        _buildItem(
+          context,
+          Icons.arrow_back_ios_new_rounded,
+          'Voltar',
+          activeColor: activeColor,
+          inactiveColor: inactiveColor,
+          onTap: onBack,
+        ),
+      if (!isHome)
+        _buildItem(
+          context,
+          Icons.home_filled,
+          'Início',
+          activeColor: activeColor,
+          inactiveColor: inactiveColor,
+          isActive: currentIndex == 0,
+          onTap: () => onTap(0),
+        ),
+      _buildItem(
+        context,
+        Icons.auto_stories_rounded,
+        'Bíblia',
+        activeColor: activeColor,
+        inactiveColor: inactiveColor,
+        isActive: currentIndex == 1,
+        onTap: () => onTap(1),
+      ),
+      _buildItem(
+        context,
+        Icons.edit_note_rounded,
+        'Anotações',
+        activeColor: activeColor,
+        inactiveColor: inactiveColor,
+        isActive: currentIndex == 3,
+        onTap: () => onTap(3),
+      ),
+      _buildItem(
+        context,
+        Icons.favorite_rounded,
+        'Favoritos',
+        activeColor: activeColor,
+        inactiveColor: inactiveColor,
+        isActive: currentIndex == 4,
+        onTap: () => onTap(4),
+      ),
+    ];
+
+    final Widget navBody;
+    if (isFloating) {
+      final childContent = Container(
+        decoration: BoxDecoration(
+          color: navBgColor,
+          borderRadius: BorderRadius.circular(34),
+          border: Border.all(
+            color: borderColor,
+            width: 1.5,
+          ),
+          boxShadow: shadows,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: navItems,
+        ),
+      );
+
+      navBody = SafeArea(
         bottom: false,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -124,85 +194,71 @@ class KeryxBottomNav extends ConsumerWidget {
                 constraints: const BoxConstraints(maxWidth: 600),
                 child: Container(
                   margin: EdgeInsets.only(
-                    bottom: 24 + MediaQuery.of(context).padding.bottom, 
+                    bottom: 16 + bottomPadding, 
                     left: 16, 
-                    right: 16
+                    right: 16,
                   ),
                   height: 72,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(34),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: navBgColor,
-                          borderRadius: BorderRadius.circular(34),
-                          border: Border.all(
-                            color: borderColor,
-                            width: 1.5,
+                    child: kIsWeb
+                        ? childContent
+                        : BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                            child: childContent,
                           ),
-                          boxShadow: shadows,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            if (!isHome && onBack != null)
-                              _buildItem(
-                                context,
-                                Icons.arrow_back_ios_new_rounded,
-                                'Voltar',
-                                activeColor: activeColor,
-                                inactiveColor: inactiveColor,
-                                onTap: onBack,
-                              ),
-                            if (!isHome)
-                              _buildItem(
-                                context,
-                                Icons.home_filled,
-                                'Início',
-                                activeColor: activeColor,
-                                inactiveColor: inactiveColor,
-                                isActive: currentIndex == 0,
-                                onTap: () => onTap(0),
-                              ),
-                            _buildItem(
-                              context,
-                              Icons.auto_stories_rounded,
-                              'Bíblia',
-                              activeColor: activeColor,
-                              inactiveColor: inactiveColor,
-                              isActive: currentIndex == 1,
-                              onTap: () => onTap(1),
-                            ),
-                            _buildItem(
-                              context,
-                              Icons.edit_note_rounded,
-                              'Anotações',
-                              activeColor: activeColor,
-                              inactiveColor: inactiveColor,
-                              isActive: currentIndex == 3,
-                              onTap: () => onTap(3),
-                            ),
-                            _buildItem(
-                              context,
-                              Icons.favorite_rounded,
-                              'Favoritos',
-                              activeColor: activeColor,
-                              inactiveColor: inactiveColor,
-                              isActive: currentIndex == 4,
-                              onTap: () => onTap(4),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ),
                 ),
               ),
             ),
           ],
         ),
-      ),
+      );
+    } else {
+      // Estilo Fixo: barra fixada diretamente no rodapé da tela, 100% sólida e de alta performance
+      // Sem BackdropFilter e com cor opaca para não vazar conteúdo do fundo nem criar brecha
+      navBody = Container(
+        width: double.infinity,
+        height: 70 + bottomPadding,
+        padding: EdgeInsets.only(bottom: bottomPadding > 0 ? bottomPadding : 4, top: 2),
+        decoration: BoxDecoration(
+          color: navBgColor,
+          border: Border(
+            top: BorderSide(
+              color: borderColor,
+              width: 1.2,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: navItems,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AnimatedSlide(
+      offset: isVisible ? Offset.zero : const Offset(0, 1.5),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      child: navBody,
     );
   }
 

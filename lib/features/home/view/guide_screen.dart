@@ -156,11 +156,10 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: MBibliaTopBar(
+      appBar: const MBibliaTopBar(
         title: 'KeryxApp',
         showLogo: true,
         showBackButton: false,
-        onTitleTap: () => Navigator.pop(context),
       ),
       body: Stack(
         children: [

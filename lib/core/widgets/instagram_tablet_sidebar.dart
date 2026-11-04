@@ -9,6 +9,10 @@ import 'package:keryx_app/features/community/view/widgets/community_user_avatar.
 import 'package:keryx_app/features/community/view/widgets/create_post_bottom_sheet.dart';
 import 'package:keryx_app/features/community/view/widgets/create_story_bottom_sheet.dart';
 import 'package:keryx_app/features/home/view/notifications_bottom_sheet.dart';
+import 'package:keryx_app/features/home/view_model/notifications_provider.dart';
+import 'package:keryx_app/features/home/view/guide_screen.dart';
+import 'package:keryx_app/core/services/release_notes_service.dart';
+import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 /// Provider global para controlar a expansão manual do menu lateral em tablets/desktop.
 /// null = automático baseado no tamanho da tela (>= 1150px expandido).
@@ -190,6 +194,110 @@ class InstagramTabletSidebar extends ConsumerWidget {
     );
   }
 
+  void _handleLogout(BuildContext context, WidgetRef ref) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (ctx, anim1, anim2) => Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 40),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 40,
+                offset: const Offset(0, 20),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5252).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.logout_rounded, color: Color(0xFFFF5252), size: 32),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Sair da Conta',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Tem certeza que deseja sair da sua conta?',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: Text(
+                        'Cancelar',
+                        style: GoogleFonts.outfit(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ref.read(authServiceProvider).signOut();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF5252),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: Text(
+                        'Sair',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -240,32 +348,34 @@ class InstagramTabletSidebar extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(19, 16, 14, 16),
                         child: SizedBox(
                           height: 38,
-                          child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => _handleNavigate(context, 0),
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.15),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _handleNavigate(context, 0),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.15),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.asset(
+                                        'assets/img/logo.png',
+                                        fit: BoxFit.cover,
                                       ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.asset(
-                                      'assets/img/logo.png',
-                                      fit: BoxFit.cover,
                                     ),
                                   ),
-                                ),
-                              ),
                               Expanded(
                                 child: ClipRect(
                                   child: AnimatedOpacity(
@@ -305,6 +415,8 @@ class InstagramTabletSidebar extends ConsumerWidget {
                           ),
                         ),
                       ),
+                    ),
+                  ),
 
                       const SizedBox(height: 6),
 
@@ -475,6 +587,136 @@ class InstagramTabletSidebar extends ConsumerWidget {
 
                             const SizedBox(height: 4),
 
+                            // Botão Direto de Notificações (Abaixo de Tema)
+                            Consumer(
+                              builder: (context, ref, _) {
+                                final unreadCount = ref.watch(unreadNotificationsCountProvider);
+                                return Tooltip(
+                                  message: unreadCount > 0
+                                      ? 'Notificações ($unreadCount não lida${unreadCount > 1 ? 's' : ''})'
+                                      : 'Notificações',
+                                  child: InkWell(
+                                    onTap: () {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        constraints: const BoxConstraints(maxWidth: double.infinity),
+                                        builder: (_) => const NotificationsBottomSheet(),
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      height: 44,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                Center(
+                                                  child: Icon(
+                                                    unreadCount > 0
+                                                        ? Icons.notifications_active_outlined
+                                                        : Icons.notifications_none_rounded,
+                                                    size: 24,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withValues(alpha: 0.8),
+                                                  ),
+                                                ),
+                                                if (unreadCount > 0)
+                                                  Positioned(
+                                                    top: -2,
+                                                    right: -2,
+                                                    child: Container(
+                                                      padding: const EdgeInsets.all(3.5),
+                                                      decoration: const BoxDecoration(
+                                                        color: Color(0xFFEF4444),
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                      constraints: const BoxConstraints(
+                                                        minWidth: 8,
+                                                        minHeight: 8,
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: ClipRect(
+                                              child: AnimatedOpacity(
+                                                duration: const Duration(milliseconds: 160),
+                                                curve: Curves.easeInOut,
+                                                opacity: isExpanded ? 1.0 : 0.0,
+                                                child: SingleChildScrollView(
+                                                  scrollDirection: Axis.horizontal,
+                                                  physics: const NeverScrollableScrollPhysics(),
+                                                  child: SizedBox(
+                                                    width: 150,
+                                                    child: Row(
+                                                      children: [
+                                                        const SizedBox(width: 12),
+                                                        Text(
+                                                          'Notificações',
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.clip,
+                                                          softWrap: false,
+                                                          style: GoogleFonts.outfit(
+                                                            fontSize: 14.5,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurface,
+                                                          ),
+                                                        ),
+                                                        if (unreadCount > 0) ...[
+                                                          const SizedBox(width: 8),
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(
+                                                              horizontal: 6,
+                                                              vertical: 2,
+                                                            ),
+                                                            decoration: BoxDecoration(
+                                                              color: const Color(0xFFEF4444),
+                                                              borderRadius:
+                                                                  BorderRadius.circular(10),
+                                                            ),
+                                                            child: Text(
+                                                              '$unreadCount',
+                                                              style: GoogleFonts.outfit(
+                                                                fontSize: 11,
+                                                                fontWeight: FontWeight.bold,
+                                                                color: Colors.white,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(height: 4),
+
                             // Item de Perfil
                             Tooltip(
                               message: 'Meu Perfil ($userName)',
@@ -548,60 +790,47 @@ class InstagramTabletSidebar extends ConsumerWidget {
 
                             PopupMenuButton<String>(
                               tooltip: 'Mais opções',
-                              offset: const Offset(10, -120),
+                              offset: const Offset(10, -220),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.12)
+                                      : Colors.black.withValues(alpha: 0.08),
+                                ),
+                              ),
+                              color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+                              elevation: 12,
                               onSelected: (val) {
-                                if (val == 'toggle_sidebar') {
-                                  final current = ref.read(sidebarExpandedProvider) ?? (screenWidth >= 1150);
-                                  ref.read(sidebarExpandedProvider.notifier).state = !current;
-                                } else if (val == 'theme') {
-                                  _showThemeDialog(context, ref);
-                                } else if (val == 'notifications') {
+                                if (val == 'settings') {
                                   showModalBottomSheet(
                                     context: context,
                                     isScrollControlled: true,
                                     backgroundColor: Colors.transparent,
-                                    builder: (_) => const NotificationsBottomSheet(),
+                                    constraints: const BoxConstraints(maxWidth: double.infinity),
+                                    builder: (context) => const UnifiedSettingsSheet(),
                                   );
                                 } else if (val == 'profile') {
                                   showEditProfileModal(context, ref);
+                                } else if (val == 'whats_new') {
+                                  ref.read(releaseNotesServiceProvider).showReleaseNotes(context);
+                                } else if (val == 'guide') {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const GuideScreen()),
+                                  );
+                                } else if (val == 'logout') {
+                                  _handleLogout(context, ref);
                                 }
                               },
                               itemBuilder: (ctx) => [
-                                PopupMenuItem(
-                                  value: 'toggle_sidebar',
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        isExpanded ? Icons.menu_open_rounded : Icons.menu_rounded,
-                                        size: 20,
-                                        color: AppTheme.kPrimaryGold,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        isExpanded ? 'Recolher menu lateral' : 'Abrir menu lateral',
-                                        style: const TextStyle(fontWeight: FontWeight.w600),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuDivider(),
                                 const PopupMenuItem(
-                                  value: 'theme',
+                                  value: 'settings',
                                   child: Row(
                                     children: [
-                                      Icon(Icons.palette_outlined, size: 20),
+                                      Icon(Icons.settings_outlined, size: 20),
                                       SizedBox(width: 12),
-                                      Text('Alternar Exibição / Tema'),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'notifications',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.notifications_none_rounded, size: 20),
-                                      SizedBox(width: 12),
-                                      Text('Notificações'),
+                                      Text('Configurações'),
                                     ],
                                   ),
                                 ),
@@ -612,6 +841,37 @@ class InstagramTabletSidebar extends ConsumerWidget {
                                       Icon(Icons.account_circle_outlined, size: 20),
                                       SizedBox(width: 12),
                                       Text('Editar Perfil'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'whats_new',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.auto_awesome_rounded, size: 20, color: Color(0xFFFFD56B)),
+                                      SizedBox(width: 12),
+                                      Text('Novidades da Versão'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'guide',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.help_outline_rounded, size: 20),
+                                      SizedBox(width: 12),
+                                      Text('Guia do Usuário'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuDivider(),
+                                const PopupMenuItem(
+                                  value: 'logout',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.logout_rounded, size: 20, color: Color(0xFFFF5252)),
+                                      SizedBox(width: 12),
+                                      Text('Sair da Conta', style: TextStyle(color: Color(0xFFFF5252), fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
@@ -707,7 +967,15 @@ class InstagramTabletSidebar extends ConsumerWidget {
                 width: sidebarWidth,
               ),
             ),
-            Expanded(child: body!),
+            Expanded(
+              child: SafeArea(
+                top: true,
+                bottom: false,
+                left: false,
+                right: false,
+                child: body!,
+              ),
+            ),
           ],
         ),
 

@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/font_state.dart';
+import 'package:keryx_app/core/state/nav_bar_style_provider.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/auth/view/login_screen.dart';
@@ -88,65 +89,73 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
             onPressed: onBack ?? () => Navigator.pop(context),
           ) : null),
           title: GestureDetector(
-            onTap: onTitleTap,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showLogo) ...[
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        'assets/img/logoHome.png',
-                        semanticLabel: 'Logotipo Keryx',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: const Color(0xFF2C3243),
-                            child: Center(
-                              child: Text(
-                                'K',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
+            behavior: HitTestBehavior.opaque,
+            onTap: onTitleTap ??
+                () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.popUntil(context, (route) => route.isFirst);
+                  }
+                  ref.read(navigationProvider.notifier).setIndex(0);
+                },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showLogo) ...[
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/img/logoHome.png',
+                          semanticLabel: 'Logotipo Keryx',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: const Color(0xFF2C3243),
+                              child: Center(
+                                child: Text(
+                                  'K',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-                Flexible(
-                  child: Text(
-                    title == 'KeryxApp' || title == 'Bíblia' || title == 'mBíblia' ? 'KeryxApp' : title,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
+                    const SizedBox(width: 10),
+                  ],
+                  Flexible(
+                    child: Text(
+                      title == 'KeryxApp' || title == 'Bíblia' || title == 'mBíblia' ? 'KeryxApp' : title,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
                   ),
-                ),
-                if (onTitleTap != null)
-                  const Icon(Icons.arrow_drop_down, color: AppTheme.kPrimaryGold),
-              ],
+                ],
+              ),
             ),
           ),
           actions: actions ?? [
@@ -1170,67 +1179,65 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              'Configurações do Sistema',
-                              style: GoogleFonts.outfit(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: theme.colorScheme.onSurface,
+                            Flexible(
+                              child: Text(
+                                'Configurações do Sistema',
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15.5,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'FONTE & VOZ',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppTheme.kPrimaryGold,
+                            if (MediaQuery.of(context).size.width >= 420) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'SISTEMA',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppTheme.kPrimaryGold,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Fonte: ${settings.fontFamily} • ${settings.fontSize.toInt()}px • Voz TTS',
+                          'Fonte: ${settings.fontFamily} • ${settings.fontSize.toInt()}px • Barra ${ref.watch(navBarStyleProvider) == NavBarStyle.floating ? "Flutuante" : "Fixa"}',
                           style: GoogleFonts.manrope(
                             fontSize: 12,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _isSystemSettingsExpanded ? 'Minimizar' : 'Personalizar',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.kPrimaryGold,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          _isSystemSettingsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                          size: 18,
-                          color: AppTheme.kPrimaryGold,
-                        ),
-                      ],
+                    child: Center(
+                      child: Icon(
+                        _isSystemSettingsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: AppTheme.kPrimaryGold,
+                      ),
                     ),
                   ),
                 ],
@@ -1408,11 +1415,168 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 24),
+                  Text('ESTILO DA BARRA DE NAVEGAÇÃO', style: _sectionTitleStyle(context)),
+                  const SizedBox(height: 12),
+                  _buildNavBarStyleSelector(context),
                 ],
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildNavBarStyleSelector(BuildContext context) {
+    final currentStyle = ref.watch(navBarStyleProvider);
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildNavStyleCard(
+            context: context,
+            title: 'Flutuante',
+            subtitle: 'Cápsula elevada',
+            badge: 'Padrão',
+            icon: Icons.layers_rounded,
+            isSelected: currentStyle == NavBarStyle.floating,
+            onTap: () {
+              ref.read(navBarStyleProvider.notifier).setStyle(NavBarStyle.floating);
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildNavStyleCard(
+            context: context,
+            title: 'Fixo em baixo',
+            subtitle: 'Fixa no rodapé',
+            badge: null,
+            icon: Icons.vertical_align_bottom_rounded,
+            isSelected: currentStyle == NavBarStyle.fixed,
+            onTap: () {
+              ref.read(navBarStyleProvider.notifier).setStyle(NavBarStyle.fixed);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavStyleCard({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    String? badge,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppTheme.kPrimaryGold.withValues(alpha: isDark ? 0.14 : 0.10)
+            : theme.colorScheme.onSurface.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected
+              ? AppTheme.kPrimaryGold
+              : theme.colorScheme.onSurface.withValues(alpha: 0.10),
+          width: isSelected ? 1.8 : 1.0,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.20),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppTheme.kPrimaryGold.withValues(alpha: 0.22)
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 20,
+                        color: isSelected
+                            ? AppTheme.kPrimaryGold
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 18,
+                        color: AppTheme.kPrimaryGold,
+                      )
+                    else if (badge != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          badge,
+                          style: GoogleFonts.outfit(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected
+                        ? AppTheme.kPrimaryGold
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

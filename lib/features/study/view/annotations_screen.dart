@@ -563,11 +563,15 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
       createdAt: now,
       updatedAt: now,
     );
-    await ref.read(noteCardsProvider.notifier).save(card);
     if (mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => NoteDetailScreen(note: card)),
+        MaterialPageRoute(
+          builder: (_) => NoteDetailScreen(
+            note: card,
+            isNew: true,
+          ),
+        ),
       );
     }
   }

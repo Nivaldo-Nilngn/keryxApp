@@ -573,8 +573,10 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                                     const keryx_annotations.AnnotationsScreen()
                                   else
                                     const keryx_favorites.FavoritesScreen(),
-                                  Align(
-                                    alignment: Alignment.bottomCenter,
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
                                     child: CustomBottomNav(
                                       currentIndex: index,
                                       onTap: (newIndex) {

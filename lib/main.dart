@@ -14,6 +14,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/state/font_state.dart';
 import 'core/state/navigation_state.dart';
+import 'core/state/nav_bar_style_provider.dart';
 import 'core/state/navbar_route_observer.dart';
 
 import 'core/theme/app_theme.dart';
@@ -216,6 +217,11 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
       builder: (context, child) {
         return NotificationListener<ScrollNotification>(
           onNotification: (notification) {
+            // Se a barra estiver configurada para o estilo Fixo, ela nunca se oculta ao rolar
+            if (ref.read(navBarStyleProvider) == NavBarStyle.fixed) {
+              return false;
+            }
+
             // Só esconde a navbar se houver realmente espaço para rolar na tela e o scroll for vertical
             if (notification.metrics.axis == Axis.vertical && notification.metrics.maxScrollExtent > 0) {
               if (notification is UserScrollNotification) {

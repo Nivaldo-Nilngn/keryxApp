@@ -366,9 +366,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                     ),
                   ),
 
-                  // Espaçador do rodapé para o bottom nav apenas se necessário
+                  // Espaçador do rodapé para que os últimos posts fiquem totalmente visíveis acima da CustomBottomNav
                   SliverToBoxAdapter(
-                    child: SizedBox(height: (widget.isEmbedded || isTablet) ? 40 : 130),
+                    child: SizedBox(
+                      height: isTablet
+                          ? 40
+                          : (130.0 + MediaQuery.of(context).padding.bottom),
+                    ),
                   ),
                 ],
               ],

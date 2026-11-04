@@ -19,13 +19,15 @@ class CommentarySelectionScreen extends ConsumerWidget {
     final booksAsync = ref.watch(booksProvider);
     final searchQuery = ref.watch(bookSearchQueryProvider);
 
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 150),
+            padding: EdgeInsets.fromLTRB(24, isTablet ? 24 : 8, 24, 150),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

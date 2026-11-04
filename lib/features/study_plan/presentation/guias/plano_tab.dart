@@ -39,29 +39,31 @@ class PlanoTab extends ConsumerWidget {
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
+              child: Material(
                 color: Theme.of(context).colorScheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isCurrentWeek
-                      ? AppTheme.kPrimaryGold.withValues(alpha: 0.6)
-                      : isWeekFullyCompleted
-                          ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                          : Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.08),
-                  width: isCurrentWeek ? 1.5 : 1.0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: isCurrentWeek
+                        ? AppTheme.kPrimaryGold.withValues(alpha: 0.6)
+                        : isWeekFullyCompleted
+                            ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.08),
+                    width: isCurrentWeek ? 1.5 : 1.0,
+                  ),
                 ),
-              ),
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  dividerColor: Colors.transparent,
-                ),
-                child: ExpansionTile(
-                  initiallyExpanded: isCurrentWeek,
-                  tilePadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
+                clipBehavior: Clip.antiAlias,
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    dividerColor: Colors.transparent,
+                  ),
+                  child: ExpansionTile(
+                    initiallyExpanded: isCurrentWeek,
+                    tilePadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 6),
                   childrenPadding: const EdgeInsets.only(
                       bottom: 12, left: 16, right: 16),
                   leading: Container(
@@ -389,7 +391,8 @@ class PlanoTab extends ConsumerWidget {
                   ],
                 ),
               ),
-            );
+            ),
+          );
           },
         );
       },

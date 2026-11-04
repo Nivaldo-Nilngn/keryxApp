@@ -16,6 +16,7 @@ class FavoritesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoritesProvider);
     final bibleService = ref.watch(bibleServiceProvider);
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
     return AuthGuard(
       featureName: 'Versículos Favoritos',
@@ -49,7 +50,7 @@ class FavoritesScreen extends ConsumerWidget {
                 ),
               )
             : ListView.builder(
-                padding: const EdgeInsets.only(top: 8, bottom: 100),
+                padding: EdgeInsets.only(top: isTablet ? 24 : 8, bottom: 100),
                 itemCount: favorites.length,
                 itemBuilder: (context, index) {
                   final key = favorites.elementAt(index);

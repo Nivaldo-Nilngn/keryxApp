@@ -130,8 +130,10 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                       index: currentIndex,
                       children: screens,
                     ),
-                    Align(
-                      alignment: Alignment.bottomCenter,
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
                       child: _buildBottomNav(currentIndex),
                     ),
                     const CookieConsentBanner(),

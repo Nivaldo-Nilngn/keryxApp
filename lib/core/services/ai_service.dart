@@ -53,8 +53,8 @@ class AiService {
   static const String _workerUrl =
       'https://biblia-ia-esboco.nivaldo-nilngn.workers.dev';
 
-  /// Defina no arquivo .env
-  static String get _appToken => dotenv.env['APP_TOKEN'] ?? '';
+  /// Defina no arquivo .env (com fallback padrão seguro)
+  static String get _appToken => dotenv.env['APP_TOKEN'] ?? 'KeryxAppToken2026';
 
   // Cache LRU em memória (máx. 100 itens). Só para tarefas determinísticas.
   static const int _cacheMax = 100;

@@ -79,11 +79,14 @@ class NoteDetailScreen extends ConsumerStatefulWidget {
   final NoteCard note;
   final bool isCommunity;
   final bool forceMobileView;
+  final bool isNew;
+
   const NoteDetailScreen({
     super.key,
     required this.note,
     this.isCommunity = false,
     this.forceMobileView = false,
+    this.isNew = false,
   });
 
   @override
@@ -92,6 +95,9 @@ class NoteDetailScreen extends ConsumerStatefulWidget {
 
 class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   late NoteCard _note;
+  late bool _isNew;
+  late String _initialTitle;
+  late String _initialBody;
   late TextEditingController _titleCtrl;
   late quill.QuillController _quillController;
   final FocusNode _editorFocus = FocusNode();
@@ -114,8 +120,11 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _isNew = widget.isNew;
     _note = widget.note;
     _titleCtrl = TextEditingController(text: _note.title);
+    _initialTitle = _note.title.trim();
+    _initialBody = _note.body.trim();
     _isPublic = _note.isPublic;
 
     // Initialize Quill
@@ -257,6 +266,9 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     await ref.read(noteCardsProvider.notifier).save(updated);
     setState(() {
       _note = updated;
+      _initialTitle = updated.title.trim();
+      _initialBody = updated.body.trim();
+      _isNew = false;
       _saving = false;
     });
 
@@ -490,6 +502,9 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     if (mounted) {
       setState(() {
         _note = updated;
+        _initialTitle = updated.title.trim();
+        _initialBody = updated.body.trim();
+        _isNew = false;
         _saving = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -844,29 +859,58 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
         if (didPop) return;
         
         final title = _titleCtrl.text.trim();
-        final finalTitle = (title.isEmpty || title == 'Nova Nota' || title == 'Novo Tópico') ? 'Sem título' : title;
-        final jsonContent = jsonEncode(_quillController.document.toDelta().toJson());
-        
-        // Se não houve mudança, permite sair
-        if (_note.title == finalTitle && _note.body == jsonContent) {
+        final finalTitle = (title.isEmpty || title == 'Nova Nota' || title == 'Novo Tópico' || title == 'Novo Documento') ? 'Sem título' : title;
+        final jsonContent = jsonEncode(_quillController.document.toDelta().toJson()).trim();
+        final plainText = _quillController.document.toPlainText().trim();
+
+        // Se for um novo documento e estiver em branco, sai sem salvar e sem criar item
+        if (_isNew && plainText.isEmpty) {
           Navigator.pop(context);
           return;
         }
 
-        // Se houve mudança, pergunta
+        // Verifica se houve alteração em relação ao estado inicial
+        final hasChanged = (_initialTitle != finalTitle && _initialTitle != title) || (_initialBody != jsonContent);
+
+        if (!hasChanged) {
+          // Se não houve alteração, sai diretamente sem salvar nada
+          Navigator.pop(context);
+          return;
+        }
+
+        // Se houve alteração, pergunta ao usuário
         final action = await showDialog<String>(
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: Theme.of(context).cardColor,
-            title: Text('Atenção', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
-            content: Text('Você tem alterações não salvas. O que deseja fazer?', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface)),
+            title: Text(
+              _isNew ? 'Salvar Novo Documento?' : 'Atenção',
+              style: GoogleFonts.outfit(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              _isNew
+                  ? 'Você começou um novo documento. Deseja salvá-lo ou descartar?'
+                  : 'Você tem alterações não salvas. O que deseja fazer?',
+              style: GoogleFonts.outfit(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, 'discard'),
-                child: const Text('Sair sem salvar', style: TextStyle(color: Colors.redAccent)),
+                child: Text(
+                  _isNew ? 'Descartar' : 'Sair sem salvar',
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: _gold, foregroundColor: Colors.black),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _gold,
+                  foregroundColor: Colors.black,
+                ),
                 onPressed: () => Navigator.pop(ctx, 'save'),
                 child: const Text('Salvar'),
               ),
@@ -874,9 +918,10 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
           ),
         );
 
-        if (action == 'discard' && mounted) {
-          Navigator.pop(context);
-        } else if (action == 'save' && mounted) {
+        if (!context.mounted) return;
+        if (action == 'discard') {
+          Navigator.of(context).pop();
+        } else if (action == 'save') {
           await _save();
         }
       },
@@ -966,7 +1011,16 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                 },
               ),
             ] else ...[
-              // Celular (Compact): Controles móveis com suporte a alternar edição/leitura
+              // Celular (Compact): Controles móveis com suporte a alternar edição/leitura e salvar rápido
+              IconButton(
+                icon: Icon(
+                  _saving ? Icons.hourglass_top_rounded : Icons.save_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                tooltip: 'Salvar Documento',
+                onPressed: _quickSave,
+              ),
               IconButton(
                 icon: Icon(
                   _isEditing ? Icons.edit_note_rounded : Icons.edit_outlined,
@@ -999,10 +1053,10 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
               ),
               IconButton(
                 icon: Icon(
-                  _isMobileView ? Icons.phone_android_rounded : Icons.description_outlined,
+                  _isMobileView ? Icons.description_outlined : Icons.phone_android_rounded,
                   color: Colors.white,
                 ),
-                tooltip: _isMobileView ? 'Layout Móvel (Reflow)' : 'Layout de Impressão (A4)',
+                tooltip: _isMobileView ? 'Mudar para Layout de Impressão (A4)' : 'Mudar para Layout Móvel',
                 onPressed: () {
                   setState(() {
                     _isMobileView = !_isMobileView;

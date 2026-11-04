@@ -14,6 +14,9 @@ import 'package:keryx_app/features/home/view/guide_screen.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/features/store/view/book_reader_screen.dart';
+import 'package:keryx_app/features/store/view/store_screen.dart';
+import 'package:keryx_app/core/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keryx_app/features/study_plan/presentation/study_plan_window.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/widgets/update_banner.dart';
@@ -31,14 +34,61 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  bool _isHarpaDismissed = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadHarpaDismissState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.invalidate(latestUpdateInfoProvider);
       ref.read(releaseNotesServiceProvider).checkAndShowAfterUpdate(context);
     });
+  }
+
+  Future<void> _loadHarpaDismissState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        setState(() {
+          _isHarpaDismissed = prefs.getBool('harpa_home_card_dismissed') ?? false;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _dismissHarpaCard() async {
+    setState(() {
+      _isHarpaDismissed = true;
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('harpa_home_card_dismissed', true);
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Atalho da Harpa Cristã removido da tela inicial.'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Desfazer',
+            textColor: AppTheme.kPrimaryGold,
+            onPressed: () async {
+              setState(() {
+                _isHarpaDismissed = false;
+              });
+              try {
+                final p = await SharedPreferences.getInstance();
+                await p.setBool('harpa_home_card_dismissed', false);
+              } catch (_) {}
+            },
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -57,35 +107,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+    final topPadding = isTablet ? 24.0 : 16.0;
+    final horizontalPadding = isTablet ? 24.0 : 16.0;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           CustomScrollView(
             slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.only(
-                  top: 16,
-                  bottom: 100,
-                  left: 16,
-                  right: 16,
-                ),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    const UpdateBanner(),
-                    _buildHeroBanner(),
-                    const SizedBox(height: 24),
-                    _buildCarousel(),
-                    const SizedBox(height: 32),
-                    _buildContinueReading(),
-                    const SizedBox(height: 32),
-                    _buildMainTools(),
-                    const SizedBox(height: 32),
-                    _buildDevotional(),
-                    const SizedBox(height: 32),
-                    _buildPrimeirosPassosBanner(),
-                    const SizedBox(height: 32),
-                  ]),
+              SliverSafeArea(
+                top: true,
+                bottom: false,
+                sliver: SliverPadding(
+                  padding: EdgeInsets.only(
+                    top: topPadding,
+                    bottom: 100,
+                    left: horizontalPadding,
+                    right: horizontalPadding,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      const UpdateBanner(),
+                      _buildHeroBanner(),
+                      const SizedBox(height: 24),
+                      _buildCarousel(),
+                      const SizedBox(height: 32),
+                      _buildContinueReading(),
+                      const SizedBox(height: 32),
+                      _buildMainTools(),
+                      const SizedBox(height: 32),
+                      _buildDevotional(),
+                      const SizedBox(height: 32),
+                      _buildPrimeirosPassosBanner(),
+                      const SizedBox(height: 32),
+                    ]),
+                  ),
                 ),
               ),
             ],
@@ -560,7 +618,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         .where((p) => p.category == StoreCategory.books && storeState.isDownloaded(p.filename))
         .toList();
 
+    final harpaPackage = storeState.availablePackages
+        .where((p) =>
+            p.name.toLowerCase().contains('harpa') ||
+            p.filename.toLowerCase().contains('harpa'))
+        .firstOrNull;
 
+    final isHarpaDownloaded = downloadedBooks.any((b) =>
+            b.name.toLowerCase().contains('harpa') ||
+            b.filename.toLowerCase().contains('harpa')) ||
+        (harpaPackage != null && storeState.isDownloaded(harpaPackage.filename)) ||
+        storeState.isDownloaded('books/Harpa.bok.mybible') ||
+        storeState.isDownloaded('Harpa.bok.mybible');
+
+    final harpaBook = downloadedBooks
+            .where((b) =>
+                b.name.toLowerCase().contains('harpa') ||
+                b.filename.toLowerCase().contains('harpa'))
+            .firstOrNull ??
+        harpaPackage ??
+        const StoreItem(
+          id: 'harpa_crista',
+          name: 'Harpa Cristã',
+          filename: 'books/Harpa.bok.mybible',
+          category: StoreCategory.books,
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,14 +796,303 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 );
               },
             ),
+            if (isHarpaDownloaded || !_isHarpaDismissed)
+              _buildHarpaCard(
+                context: context,
+                harpaPackage: harpaPackage,
+                isDownloaded: isHarpaDownloaded,
+                harpaBook: harpaBook,
+              ),
           ],
         ),
-        if (downloadedBooks.any((b) => b.name.toLowerCase().contains('harpa')))
+        if (isHarpaDownloaded)
           ...[
             const SizedBox(height: 24),
-            _buildHymnOfTheDay(downloadedBooks.firstWhere((b) => b.name.toLowerCase().contains('harpa')), context),
+            _buildHymnOfTheDay(harpaBook, context),
           ],
       ],
+    );
+  }
+
+  Widget _buildHarpaCard({
+    required BuildContext context,
+    required StoreItem? harpaPackage,
+    required bool isDownloaded,
+    required StoreItem harpaBook,
+  }) {
+    if (isDownloaded) {
+      return _buildToolCard(
+        title: 'Harpa Cristã',
+        subtitle: '640 hinos e cânticos de louvor',
+        icon: Icons.music_note_rounded,
+        colors: const [Color(0xFFB45309), Color(0xFFF59E0B)],
+        badge: _buildBadge(
+          '640 Hinos',
+          Icons.music_note_rounded,
+          Colors.black.withValues(alpha: 0.3),
+          Colors.white,
+        ),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BookReaderScreen(book: harpaBook),
+            ),
+          );
+        },
+      );
+    }
+
+    final downloadProgress = ref.watch(
+      storeProvider.select(
+        (s) => s.downloadProgress[harpaPackage?.filename ?? 'books/Harpa.bok.mybible'],
+      ),
+    );
+    final isDownloading = downloadProgress != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: () {
+        if (isDownloading) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Baixando Harpa Cristã (${(downloadProgress * 100).toInt()}%)...',
+              ),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+          return;
+        }
+
+        if (harpaPackage != null && (harpaPackage.downloadUrl?.isNotEmpty ?? false)) {
+          ref.read(storeProvider.notifier).downloadPackage(harpaPackage);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Iniciando download da Harpa Cristã...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const StoreScreen(initialCategory: StoreCategory.books),
+            ),
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: isDark
+                ? const [Color(0xFF232530), Color(0xFF191B22)]
+                : const [Color(0xFFF1F3F5), Color(0xFFE2E8F0)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.12)
+                : Colors.black.withValues(alpha: 0.12),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Topo: Ícone monocromático à esquerda + (Badge Baixar + botão X) à direita
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.music_note_rounded,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : const Color(0xFF475569),
+                      size: 22,
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isDownloading)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.kPrimaryGold.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 10,
+                              height: 10,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppTheme.kPrimaryGold,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              '${(downloadProgress * 100).toInt()}%',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.kPrimaryGold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.15)
+                                : Colors.black.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.download_rounded,
+                              size: 11,
+                              color: isDark ? Colors.white70 : const Color(0xFF475569),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Baixar',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white70 : const Color(0xFF475569),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _dismissHarpaCard,
+                      child: Tooltip(
+                        message: 'Ocultar da tela inicial',
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.15)
+                                  : Colors.black.withValues(alpha: 0.12),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 14,
+                            color: isDark ? Colors.white70 : const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            // Rodapé: Título e Subtítulo / Barra de progresso
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Harpa Cristã',
+                  style: TextStyle(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.9)
+                        : const Color(0xFF1E293B),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (isDownloading) ...[
+                  Text(
+                    'Baixando da loja...',
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.65)
+                          : const Color(0xFF64748B),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: downloadProgress > 0 ? downloadProgress : null,
+                      minHeight: 4,
+                      backgroundColor: isDark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.black.withValues(alpha: 0.08),
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.kPrimaryGold),
+                    ),
+                  ),
+                ] else
+                  Text(
+                    '640 hinos · Toque para baixar',
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.55)
+                          : const Color(0xFF64748B),
+                      fontSize: 12,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 

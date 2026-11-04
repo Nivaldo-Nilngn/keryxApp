@@ -5,6 +5,63 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.6',
+      buildNumber: 15,
+      title: 'Estilo da Barra de Navegação, Histórico de IA & Otimizações',
+      releaseDate: '04 de Novembro de 2026',
+      highlight:
+          'Opção de escolher entre barra de navegação Fixa ou Flutuante nas configurações, alinhamento milimétrico do rodapé sem frestas, histórico de IA Theos, formatação visual refinada e grandes otimizações de performance.',
+      items: [
+        // ── Novos Recursos (Implementações) ─────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Estilo de Barra de Navegação',
+          description:
+              'Escolha nas configurações do app entre a barra Flutuante moderna ou a barra Fixa no rodapé inferior, com persistência automática no aparelho.',
+          customIcon: Icons.view_sidebar_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Histórico de Conversas da IA Theos',
+          description:
+              'Acesse e retome diálogos anteriores com a IA teológica diretamente no aplicativo através do novo painel de histórico de conversas.',
+          customIcon: Icons.history_rounded,
+        ),
+
+        // ── Modificações & Melhorias ─────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Formatação Visual Aprimorada na IA',
+          description:
+              'Respostas bíblicas e doutrinárias agora utilizam cartões visuais com citações em bloco e listas estruturadas, evitando tabelas comprimidas em smartphones.',
+          customIcon: Icons.format_list_bulleted_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Performance e Economia de GPU Web',
+          description:
+              'Otimização no processamento visual no navegador Web, eliminando sobrecarga de contextos gráficos WebGL e garantindo rolagem extremamente suave.',
+          customIcon: Icons.speed_rounded,
+        ),
+
+        // ── Correções (Bug Fixes) ───────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Ajuste Perfeito no Rodapé da Tela',
+          description:
+              'Eliminada a fresta visível na base da tela quando a barra de navegação está no modo fixo, garantindo encaixe 100% sólido e milimétrico.',
+          customIcon: Icons.check_circle_outline_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Correção de Overflow nas Configurações',
+          description:
+              'Ajustado o cabeçalho expansível e botão de minimizar nas configurações para evitar aviso de overflow em telas compactas.',
+          customIcon: Icons.aspect_ratio_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.5',
       buildNumber: 14,
       title: 'Menu Lateral Flutuante, Acesso Rápido a Temas & Otimizações',
