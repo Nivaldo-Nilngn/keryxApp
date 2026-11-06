@@ -248,11 +248,13 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
 
     final Widget innerScaffold = Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-      ),
+      appBar: isTablet
+          ? null
+          : const MBibliaTopBar(
+              title: 'KeryxApp',
+              showLogo: true,
+              showBackButton: false,
+            ),
       body: bodyContent,
     );
 

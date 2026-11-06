@@ -4,15 +4,15 @@
  */
 
 const DEFAULT_CONFIG = {
-  latest_version: 16,
-  version_name: "2.0.7",
+  latest_version: 17,
+  version_name: "2.0.8",
   release_date: "2026-11-06",
-  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.7/keryxApp.apk",
+  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.8/keryxApp.apk",
   ios_url: "https://keryxapp.pages.dev",
-  release_notes: "Versão 2.0.7: Acervo integrado com mais de 600 estudos bíblicos e artigos teológicos offline, suporte a múltiplos planos de leitura simultâneos, leitor dedicado de artigos, curadoria do catálogo de estudos, otimização no teclado na busca de PDFs e correções de layout.",
+  release_notes: "Versão 2.0.8: Menu lateral expandido para tablets e web com acesso direto a Plano de Estudo, Dicionário, Biblioteca e IATheos; remoção de barras superiores redundantes; ordenação alfabética (A-Z) nos estudos bíblicos e curadoria de conteúdo.",
   force_update: false,
   min_version: 1,
-  sha256: "06c4c1156d60f93d64dba7b067371adf066d8cac54b863c7239398676c93722e"
+  sha256: "7fd40281a4837f0b6d06277d0c2710a5061dc0280f02bd08785c8ca9e1889ef0"
 };
 
 export default {

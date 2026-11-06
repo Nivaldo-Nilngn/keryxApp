@@ -470,29 +470,54 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
           ],
         );
 
+    final tabBarWidget = TabBar(
+      controller: _tabController,
+      indicatorColor: Theme.of(context).colorScheme.primary,
+      labelColor: Theme.of(context).colorScheme.primary,
+      unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+      indicatorWeight: 3,
+      tabs: const [
+        Tab(text: 'Biblioteca', icon: Icon(Icons.folder_shared_rounded)),
+        Tab(text: 'Acervo Online', icon: Icon(Icons.cloud_download_rounded)),
+      ],
+    );
+
     final topBar = MBibliaTopBar(
       title: 'KeryxApp',
       showLogo: true,
       showBackButton: false,
       isScrolled: true,
-      bottom: TabBar(
-        controller: _tabController,
-        indicatorColor: Theme.of(context).colorScheme.primary,
-        labelColor: Theme.of(context).colorScheme.primary,
-        unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-        indicatorWeight: 3,
-        tabs: const [
-          Tab(text: 'Biblioteca', icon: Icon(Icons.folder_shared_rounded)),
-          Tab(text: 'Acervo Online', icon: Icon(Icons.cloud_download_rounded)),
-        ],
-      ),
+      bottom: tabBarWidget,
     );
 
     final Widget innerScaffold = Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: topBar,
-      body: content,
+      appBar: isTablet ? null : topBar,
+      body: isTablet
+          ? Column(
+              children: [
+                Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: tabBarWidget,
+                    ),
+                  ),
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.08),
+                ),
+                Expanded(child: content),
+              ],
+            )
+          : content,
     );
 
     if (isTablet) {
@@ -500,7 +525,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
         resizeToAvoidBottomInset: false,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: InstagramTabletSidebar(
-          currentIndex: 5,
+          currentIndex: 9, // Biblioteca
           isRoute: true,
           body: innerScaffold,
           onSelectIndex: (index) {

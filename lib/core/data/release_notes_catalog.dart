@@ -5,6 +5,56 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.8',
+      buildNumber: 17,
+      title: 'Menu Lateral Completo em Tablets, TopBars Otimizadas & Curadoria',
+      releaseDate: '06 de Novembro de 2026',
+      highlight:
+          'Barra de navegação lateral em tablets e web expandida com acesso direto a todas as ferramentas principais da Home, eliminação de barras superiores redundantes em telas e abas, ordenação alfabética (A-Z) no acervo de estudos e curadoria aprimorada sem links de download externos.',
+      items: [
+        // ── Novos Recursos (Implementações) ─────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Menu Lateral Completo no Modo Tablet e Web',
+          description:
+              'A barra lateral agora inclui atalhos diretos e instantâneos para Plano de Estudo, Dicionário e Concordância, Biblioteca de Livros, IATheos Teologia, Comentários e Comunidade.',
+          customIcon: Icons.view_sidebar_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Ordenação Alfabética (A-Z) nos Estudos Bíblicos',
+          description:
+              'Mais de 600 estudos teológicos agora organizados em perfeita ordem alfabética para facilitar a navegação e localização de temas e passagens bíblicas.',
+          customIcon: Icons.sort_by_alpha_rounded,
+        ),
+
+        // ── Modificações & Melhorias ─────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Remoção de TopBars Redundantes em Tablets',
+          description:
+              'Eliminação da barra de cabeçalho duplicada (KeryxApp, sino, loja e avatar) em telas e abas integradas, oferecendo uma experiência ampla e limpa no tablet e desktop.',
+          customIcon: Icons.fullscreen_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Curadoria Focada do Acervo de Estudos',
+          description:
+              'Remoção de itens de instaladores externos e downloads de software, mantendo o catálogo exclusivamente com artigos, teologia e reflexões bíblicas.',
+          customIcon: Icons.cleaning_services_rounded,
+        ),
+
+        // ── Correções (Bugs) ─────────────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Correção de Overflow e Transições Fluidas',
+          description:
+              'Ajuste de margens na barra de categorias dos estudos evitando erros de layout, e transição instantânea sem recarregamento ao alternar telas no tablet.',
+          customIcon: Icons.speed_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.7',
       buildNumber: 16,
       title: 'Acervo de Estudos Bíblicos, Multiplanos de Leitura & Otimizações',

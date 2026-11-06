@@ -255,10 +255,12 @@ class DevocionalScreen extends ConsumerWidget {
 
     final Widget innerScaffold = Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showBackButton: false,
-      ),
+      appBar: isTablet
+          ? null
+          : const MBibliaTopBar(
+              title: 'KeryxApp',
+              showBackButton: false,
+            ),
       extendBody: true,
       bottomNavigationBar: isTablet
           ? null

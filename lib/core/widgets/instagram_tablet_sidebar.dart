@@ -14,6 +14,12 @@ import 'package:keryx_app/features/home/view/guide_screen.dart';
 import 'package:keryx_app/core/services/release_notes_service.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
+import 'package:keryx_app/features/study_plan/presentation/study_plan_window.dart';
+import 'package:keryx_app/features/study/view/dictionary_screen.dart';
+import 'package:keryx_app/features/pdf/view/pdf_books_screen.dart';
+import 'package:keryx_app/features/ai/view/chat_assistant_screen.dart';
+import 'package:keryx_app/core/widgets/main_layout.dart';
+
 /// Provider global para controlar a expansão manual do menu lateral em tablets/desktop.
 /// null = automático baseado no tamanho da tela (>= 1150px expandido).
 final sidebarExpandedProvider = StateProvider<bool?>((ref) => null);
@@ -36,10 +42,54 @@ class InstagramTabletSidebar extends ConsumerWidget {
   });
 
   void _handleNavigate(BuildContext context, int index) {
-    if (isRoute && Navigator.canPop(context)) {
-      Navigator.pop(context);
+    if (isRoute) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainLayout()),
+        );
+      }
     }
     onSelectIndex(index);
+  }
+
+  void _openSpecialScreen(BuildContext context, int targetIndex) {
+    if (currentIndex == targetIndex) return;
+
+    Widget page;
+    switch (targetIndex) {
+      case 7:
+        page = const StudyPlanWindow();
+        break;
+      case 8:
+        page = const DictionaryScreen();
+        break;
+      case 9:
+        page = const PdfBooksScreen();
+        break;
+      case 10:
+        page = const ChatAssistantScreen();
+        break;
+      default:
+        return;
+    }
+
+    if (isRoute) {
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => page,
+          transitionDuration: Duration.zero,
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => page),
+      );
+    }
   }
 
   void _showCreateOptions(BuildContext context) {
@@ -447,6 +497,58 @@ class InstagramTabletSidebar extends ConsumerWidget {
                             const SizedBox(height: 4),
                             _buildNavItem(
                               context: context,
+                              icon: Icons.calendar_month_rounded,
+                              inactiveIcon: Icons.calendar_month_outlined,
+                              label: 'Plano de Estudo',
+                              badgeText: 'Novo',
+                              isSelected: currentIndex == 7,
+                              isExpanded: isExpanded,
+                              onTap: () => _openSpecialScreen(context, 7),
+                            ),
+                            const SizedBox(height: 4),
+                            _buildNavItem(
+                              context: context,
+                              icon: Icons.comment_bank_rounded,
+                              inactiveIcon: Icons.comment_bank_outlined,
+                              label: 'Comentários',
+                              isSelected: currentIndex == 2,
+                              isExpanded: isExpanded,
+                              onTap: () => _handleNavigate(context, 2),
+                            ),
+                            const SizedBox(height: 4),
+                            _buildNavItem(
+                              context: context,
+                              icon: Icons.translate_rounded,
+                              inactiveIcon: Icons.translate_outlined,
+                              label: 'Dicionário',
+                              isSelected: currentIndex == 8,
+                              isExpanded: isExpanded,
+                              onTap: () => _openSpecialScreen(context, 8),
+                            ),
+                            const SizedBox(height: 4),
+                            _buildNavItem(
+                              context: context,
+                              icon: Icons.folder_shared_rounded,
+                              inactiveIcon: Icons.folder_shared_outlined,
+                              label: 'Biblioteca',
+                              isSelected: currentIndex == 9,
+                              isExpanded: isExpanded,
+                              onTap: () => _openSpecialScreen(context, 9),
+                            ),
+                            const SizedBox(height: 4),
+                            _buildNavItem(
+                              context: context,
+                              icon: Icons.auto_awesome_rounded,
+                              inactiveIcon: Icons.auto_awesome_outlined,
+                              label: 'IATheos',
+                              badgeText: 'IA',
+                              isSelected: currentIndex == 10,
+                              isExpanded: isExpanded,
+                              onTap: () => _openSpecialScreen(context, 10),
+                            ),
+                            const SizedBox(height: 4),
+                            _buildNavItem(
+                              context: context,
                               icon: Icons.people_alt_rounded,
                               inactiveIcon: Icons.people_alt_outlined,
                               label: 'Comunidade',
@@ -454,16 +556,6 @@ class InstagramTabletSidebar extends ConsumerWidget {
                               isSelected: currentIndex == 6,
                               isExpanded: isExpanded,
                               onTap: () => _handleNavigate(context, 6),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.auto_stories_rounded,
-                              inactiveIcon: Icons.auto_stories_outlined,
-                              label: 'Estudos',
-                              isSelected: currentIndex == 2,
-                              isExpanded: isExpanded,
-                              onTap: () => _handleNavigate(context, 2),
                             ),
                             const SizedBox(height: 4),
                             _buildNavItem(

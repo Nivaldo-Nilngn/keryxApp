@@ -38,69 +38,95 @@ class _StudyPlanWindowState extends ConsumerState<StudyPlanWindow>
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 720;
 
+    final tabBarWidget = TabBar(
+      controller: _tabController,
+      indicatorColor: AppTheme.kPrimaryGold,
+      labelColor: AppTheme.kPrimaryGold,
+      unselectedLabelColor:
+          Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+      indicatorWeight: 3,
+      labelStyle: GoogleFonts.plusJakartaSans(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+      ),
+      unselectedLabelStyle: GoogleFonts.manrope(
+        fontSize: 13,
+      ),
+      tabs: const [
+        Tab(text: 'Hoje', icon: Icon(Icons.today_rounded, size: 20)),
+        Tab(text: 'Plano', icon: Icon(Icons.view_agenda_rounded, size: 20)),
+        Tab(text: 'Progresso', icon: Icon(Icons.insights_rounded, size: 20)),
+        Tab(text: 'Estudos', icon: Icon(Icons.menu_book_rounded, size: 20)),
+      ],
+    );
+
     final topBar = MBibliaTopBar(
       title: 'KeryxApp',
       showLogo: true,
       showBackButton: false,
       isScrolled: true,
-      bottom: TabBar(
-        controller: _tabController,
-        indicatorColor: AppTheme.kPrimaryGold,
-        labelColor: AppTheme.kPrimaryGold,
-        unselectedLabelColor:
-            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-        indicatorWeight: 3,
-        labelStyle: GoogleFonts.plusJakartaSans(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
-        unselectedLabelStyle: GoogleFonts.manrope(
-          fontSize: 13,
-        ),
-        tabs: const [
-          Tab(text: 'Hoje', icon: Icon(Icons.today_rounded, size: 20)),
-          Tab(text: 'Plano', icon: Icon(Icons.view_agenda_rounded, size: 20)),
-          Tab(text: 'Progresso', icon: Icon(Icons.insights_rounded, size: 20)),
-          Tab(text: 'Estudos', icon: Icon(Icons.menu_book_rounded, size: 20)),
-        ],
-      ),
+      bottom: tabBarWidget,
     );
 
-    final Widget content = Stack(
-      children: [
-        TabBarView(
-          controller: _tabController,
-          children: const [
-            HojeTab(),
-            PlanoTab(),
-            ProgressoTab(),
-            GuiasTab(),
-          ],
-        ),
-        if (!isTablet)
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CustomBottomNav(
-              currentIndex: -1,
-              onTap: (index) {
-                ref.read(navigationProvider.notifier).setIndex(index);
-                if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                }
-              },
-              onBack: () {
-                if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                }
-              },
-            ),
-          ),
+    final Widget tabViews = TabBarView(
+      controller: _tabController,
+      children: const [
+        HojeTab(),
+        PlanoTab(),
+        ProgressoTab(),
+        GuiasTab(),
       ],
     );
 
+    final Widget content = isTablet
+        ? Column(
+            children: [
+              Container(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: tabBarWidget,
+                  ),
+                ),
+              ),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.08),
+              ),
+              Expanded(child: tabViews),
+            ],
+          )
+        : Stack(
+            children: [
+              tabViews,
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: CustomBottomNav(
+                  currentIndex: -1,
+                  onTap: (index) {
+                    ref.read(navigationProvider.notifier).setIndex(index);
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                  },
+                  onBack: () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+              ),
+            ],
+          );
+
     final Widget innerScaffold = Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: topBar,
+      appBar: isTablet ? null : topBar,
       body: content,
     );
 
@@ -108,7 +134,7 @@ class _StudyPlanWindowState extends ConsumerState<StudyPlanWindow>
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: InstagramTabletSidebar(
-          currentIndex: -1,
+          currentIndex: 7, // Plano de Estudo
           isRoute: true,
           body: innerScaffold,
           onSelectIndex: (index) {

@@ -9,6 +9,8 @@ import 'package:keryx_app/features/ai/widgets/chat_history_sheet.dart';
 import 'package:keryx_app/features/ai/widgets/chat_input.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/ai_token_state.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/state/navigation_state.dart';
 
 /// Modos / Especialidades de Estudo Teológico da IATheos
 enum TheologicalMode {
@@ -547,8 +549,9 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
     final theme = Theme.of(context);
     const gold = AppTheme.kPrimaryGold;
     final tokens = ref.watch(aiTokenProvider);
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         centerTitle: false,
@@ -741,6 +744,25 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
         ),
       ),
     );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: InstagramTabletSidebar(
+          currentIndex: 10, // IATheos
+          isRoute: true,
+          body: scaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return scaffold;
   }
 
   /// Estado Vazio Moderno estilo ChatGPT / Perplexity com Avatar Celestial,

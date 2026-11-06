@@ -175,11 +175,13 @@ class _BookSummaryScreenState extends ConsumerState<BookSummaryScreen> {
     final Widget innerScaffold = Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       extendBody: true,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-      ),
+      appBar: isTablet
+          ? null
+          : const MBibliaTopBar(
+              title: 'KeryxApp',
+              showLogo: true,
+              showBackButton: false,
+            ),
       body: bodyContent,
     );
 

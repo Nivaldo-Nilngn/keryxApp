@@ -32,8 +32,10 @@ class _GuiasTabState extends ConsumerState<GuiasTab> {
     final isTablet = MediaQuery.sizeOf(context).width >= 720;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final categoriesAsync = ref.watch(studyCategoriesProvider);
+    final selectedGroup = ref.watch(selectedStudyGroupProvider);
     final selectedCategory = ref.watch(selectedStudyCategoryProvider);
+    final allStudiesAsync = ref.watch(biblicalStudiesIndexProvider);
+    final allStudies = allStudiesAsync.asData?.value ?? [];
     final filteredStudies = ref.watch(filteredBiblicalStudiesProvider);
     final displayedStudies = filteredStudies.take(_visibleCount).toList();
 
@@ -167,66 +169,14 @@ class _GuiasTabState extends ConsumerState<GuiasTab> {
           ),
           const SizedBox(height: 14),
 
-          // ── CHIPS DE CATEGORIAS ───────────────────────────────────────────
-          categoriesAsync.maybeWhen(
-            data: (cats) {
-              return SizedBox(
-                height: 38,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: cats.length + 1,
-                  itemBuilder: (context, index) {
-                    final isAll = index == 0;
-                    final catName = isAll ? null : cats[index - 1].name;
-                    final isSelected = selectedCategory == catName;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        selected: isSelected,
-                        showCheckmark: false,
-                        label: Text(
-                          isAll ? 'Todos (${filteredStudies.length})' : catName!,
-                          style: GoogleFonts.outfit(
-                            fontSize: 12.5,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isSelected
-                                ? (isDark ? Colors.black : Colors.white)
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surfaceContainer,
-                        selectedColor: isDark
-                            ? AppTheme.kPrimaryGold
-                            : const Color(0xFFD97706),
-                        side: BorderSide(
-                          color: isSelected
-                              ? Colors.transparent
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.1),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        onSelected: (_) {
-                          ref
-                              .read(selectedStudyCategoryProvider.notifier)
-                              .state = catName;
-                          setState(() => _visibleCount = 20);
-                        },
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-            orElse: () => const SizedBox.shrink(),
+          // ── MENU DE NAVEGAÇÃO HIERÁRQUICO POR GRUPOS & DROPDOWNS (ESTILO ESTUDOBIBLICO.ORG) ──
+          _buildStudyNavigationMenu(
+            context: context,
+            isDark: isDark,
+            selectedGroup: selectedGroup,
+            selectedCategory: selectedCategory,
+            allStudies: allStudies,
+            filteredCount: filteredStudies.length,
           ),
 
           const SizedBox(height: 18),
@@ -354,36 +304,43 @@ class _GuiasTabState extends ConsumerState<GuiasTab> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.bookmarks_rounded,
+                      color: AppTheme.kPrimaryGold,
+                      size: 18,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.bookmarks_rounded,
-                    color: AppTheme.kPrimaryGold,
-                    size: 18,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Meus Planos (${activePlanIds.length}/5)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Meus Planos de Leitura (${activePlanIds.length}/5)',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             if (activePlanIds.length < 5)
               OutlinedButton.icon(
                 onPressed: () => _showPlanCatalogModal(context, activePlanIds),
                 icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text('Adicionar Plano'),
+                label: const Text('Adicionar'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor:
                       isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
@@ -393,7 +350,7 @@ class _GuiasTabState extends ConsumerState<GuiasTab> {
                         : const Color(0xFFD97706).withValues(alpha: 0.4),
                   ),
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   textStyle: GoogleFonts.plusJakartaSans(
@@ -599,7 +556,7 @@ class _GuiasTabState extends ConsumerState<GuiasTab> {
                         icon: const Icon(Icons.delete_outline_rounded,
                             size: 19, color: Colors.redAccent),
                         onPressed: () => _confirmDeletePlan(
-                            context, planInfo.id, planInfo.title),
+                            planInfo.id, planInfo.title),
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -681,8 +638,7 @@ class _GuiasTabState extends ConsumerState<GuiasTab> {
   }
 
   // ── DIÁLOGO DE CONFIRMAÇÃO DE EXCLUSÃO DE PLANO ────────────────────────────
-  Future<void> _confirmDeletePlan(
-      BuildContext context, String planId, String planTitle) async {
+  Future<void> _confirmDeletePlan(String planId, String planTitle) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1186,6 +1142,343 @@ class _GuiasTabState extends ConsumerState<GuiasTab> {
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
           fontSize: 11,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  // ── MENU DE NAVEGAÇÃO HIERÁRQUICO POR GRUPOS & DROPDOWNS (ESTILO ESTUDOBIBLICO.ORG) ──
+  Widget _buildStudyNavigationMenu({
+    required BuildContext context,
+    required bool isDark,
+    required String? selectedGroup,
+    required String? selectedCategory,
+    required List<BiblicalStudy> allStudies,
+    required int filteredCount,
+  }) {
+    // 1. Contagens rápidas por categoria em memória
+    final Map<String, int> catCounts = {};
+    for (final s in allStudies) {
+      for (final c in s.categories) {
+        final key = c.toLowerCase();
+        catCounts[key] = (catCounts[key] ?? 0) + 1;
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Barra horizontal de Menus (estilo menu superior do site)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              // ── 1. BOTÃO "TODOS" ──
+              _buildMenuChip(
+                context: context,
+                label: 'Todos (${allStudies.length})',
+                isSelected: selectedGroup == null && selectedCategory == null,
+                isDark: isDark,
+                onTap: () {
+                  ref.read(selectedStudyGroupProvider.notifier).state = null;
+                  ref.read(selectedStudyCategoryProvider.notifier).state = null;
+                  setState(() => _visibleCount = 20);
+                },
+              ),
+              const SizedBox(width: 8),
+
+              // ── 2. DROPDOWNS DOS 5 GRUPOS PRINCIPAIS ──
+              ...kStudyGroups.map((group) {
+                final isGroupSelected =
+                    selectedGroup?.toLowerCase() == group.title.toLowerCase();
+
+                // Estudo pertence ao grupo
+                final groupCount = allStudies.where((s) => group.matches(s.categories)).length;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      popupMenuTheme: PopupMenuThemeData(
+                        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 10,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.12)
+                                : Colors.black.withValues(alpha: 0.08),
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: PopupMenuButton<String>(
+                      tooltip: group.title,
+                      offset: const Offset(0, 42),
+                      constraints: const BoxConstraints(maxHeight: 380, minWidth: 230),
+                      onSelected: (val) {
+                        ref.read(selectedStudyGroupProvider.notifier).state = group.title;
+                        if (val == '__ALL_GROUP__') {
+                          ref.read(selectedStudyCategoryProvider.notifier).state = null;
+                        } else {
+                          ref.read(selectedStudyCategoryProvider.notifier).state = val;
+                        }
+                        setState(() => _visibleCount = 20);
+                      },
+                      itemBuilder: (context) {
+                        return [
+                          // Opção de ver todos os artigos deste grupo
+                          PopupMenuItem<String>(
+                            value: '__ALL_GROUP__',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.folder_open_rounded,
+                                  size: 18,
+                                  color: (isGroupSelected && selectedCategory == null)
+                                      ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706))
+                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Ver todos em ${group.title}',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 13,
+                                      fontWeight: (isGroupSelected && selectedCategory == null)
+                                          ? FontWeight.bold
+                                          : FontWeight.w600,
+                                      color: (isGroupSelected && selectedCategory == null)
+                                          ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706))
+                                          : Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '$groupCount',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+
+                          // Subcategorias do grupo
+                          ...group.subcategories.map((subcat) {
+                            final count = catCounts[subcat.toLowerCase()] ?? 0;
+                            final isSubSelected = isGroupSelected &&
+                                selectedCategory?.toLowerCase() == subcat.toLowerCase();
+
+                            return PopupMenuItem<String>(
+                              value: subcat,
+                              enabled: count > 0,
+                              child: Row(
+                                children: [
+                                  if (isSubSelected)
+                                    Icon(
+                                      Icons.check_rounded,
+                                      size: 16,
+                                      color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
+                                    )
+                                  else
+                                    const SizedBox(width: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      subcat,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 13,
+                                        fontWeight: isSubSelected ? FontWeight.bold : FontWeight.normal,
+                                        color: count == 0
+                                            ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                                            : isSubSelected
+                                                ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706))
+                                                : Theme.of(context).colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '$count',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 11.5,
+                                      color: count == 0
+                                          ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.25)
+                                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ];
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isGroupSelected
+                              ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706))
+                              : Theme.of(context).colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isGroupSelected
+                                ? Colors.transparent
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              group.title.toUpperCase(),
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                letterSpacing: 0.5,
+                                fontWeight: isGroupSelected ? FontWeight.bold : FontWeight.w600,
+                                color: isGroupSelected
+                                    ? (isDark ? Colors.black : Colors.white)
+                                    : Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 16,
+                              color: isGroupSelected
+                                  ? (isDark ? Colors.black : Colors.white)
+                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+
+        // ── 3. BREADCRUMB / FILTRO ATIVO COM BOTÃO LIMPAR ──
+        if (selectedGroup != null || selectedCategory != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.filter_list_rounded,
+                        size: 14,
+                        color: AppTheme.kPrimaryGold,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        selectedCategory != null
+                            ? '$selectedGroup › $selectedCategory ($filteredCount estudos)'
+                            : '$selectedGroup ($filteredCount estudos)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          ref.read(selectedStudyGroupProvider.notifier).state = null;
+                          ref.read(selectedStudyCategoryProvider.notifier).state = null;
+                          setState(() => _visibleCount = 20);
+                        },
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 15,
+                          color: AppTheme.kPrimaryGold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () {
+                    ref.read(selectedStudyGroupProvider.notifier).state = null;
+                    ref.read(selectedStudyCategoryProvider.notifier).state = null;
+                    setState(() => _visibleCount = 20);
+                  },
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  child: Text(
+                    'Limpar filtro',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11.5,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMenuChip({
+    required BuildContext context,
+    required String label,
+    required bool isSelected,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706))
+              : Theme.of(context).colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? Colors.transparent
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 12.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            color: isSelected
+                ? (isDark ? Colors.black : Colors.white)
+                : Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ),
     );

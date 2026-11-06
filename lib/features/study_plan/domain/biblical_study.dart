@@ -102,5 +102,118 @@ class StudyCategory {
       count: json['count'] as int? ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'slug': slug,
+      'count': count,
+    };
+  }
 }
+
+class StudySectionGroup {
+  final String title;
+  final List<String> subcategories;
+
+  const StudySectionGroup({
+    required this.title,
+    required this.subcategories,
+  });
+
+  bool matches(List<String> studyCategories) {
+    final targets = [
+      title.toLowerCase(),
+      ...subcategories.map((s) => s.toLowerCase()),
+    ];
+    return studyCategories.any((cat) => targets.contains(cat.toLowerCase()));
+  }
+}
+
+const List<StudySectionGroup> kStudyGroups = [
+  StudySectionGroup(
+    title: 'Antigo Testamento',
+    subcategories: [
+      'Pentateuco',
+      'Históricos',
+      'Jó',
+      'Provérbios',
+      'Isaías',
+      'Jeremias',
+      'Joel',
+      'Habacuque',
+      'Ageu',
+      'Malaquias',
+      'Zacarias',
+    ],
+  ),
+  StudySectionGroup(
+    title: 'Defesa da Fé',
+    subcategories: [
+      'Adoração e louvor',
+      'Artigos Teológicos',
+      'Comportamento',
+      'Crítica',
+      'Evangelismo',
+      'Interpretação bíblica',
+      'Lições bíblicas',
+      'Lições para EBD',
+      'Milagres',
+      'Oração',
+      'Parábolas',
+      'Polêmicos',
+      'Propósito Eterno',
+      'Sermões e esboços',
+    ],
+  ),
+  StudySectionGroup(
+    title: 'Doutrinas',
+    subcategories: [
+      'Arrependimento',
+      'Cristologia',
+      'Eleição e Predestinação',
+      'Escatologia',
+      'Igreja',
+      'Justificação',
+      'Pecado',
+      'Regeneração',
+      'Santificação',
+      'Salvação',
+    ],
+  ),
+  StudySectionGroup(
+    title: 'Salmos',
+    subcategories: [
+      'Salmos I',
+      'Salmos II',
+      'Salmos III',
+      'Salmos IV',
+      'Salmos V',
+    ],
+  ),
+  StudySectionGroup(
+    title: 'Novo Testamento',
+    subcategories: [
+      'Evangelho Mateus',
+      'Evangelho Marcos',
+      'Evangelho Lucas',
+      'Evangelho João',
+      'Romanos',
+      'I Coríntios',
+      'II Coríntios',
+      'Gálatas',
+      'Efésios',
+      'Colossenses',
+      'Tito',
+      'Filemom',
+      'Hebreus',
+      'Tiago',
+      'I Pedro',
+      'Judas',
+      'Apocalipse',
+    ],
+  ),
+];
+
 

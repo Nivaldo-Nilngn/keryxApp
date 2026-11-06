@@ -72,12 +72,14 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     final Widget innerScaffold = Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       extendBody: true,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        isScrolled: true,
-        showBackButton: false,
-      ),
+      appBar: isTablet
+          ? null
+          : const MBibliaTopBar(
+              title: 'KeryxApp',
+              showLogo: true,
+              isScrolled: true,
+              showBackButton: false,
+            ),
       body: content,
     );
 
@@ -86,7 +88,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         extendBody: true,
         body: InstagramTabletSidebar(
-          currentIndex: -1,
+          currentIndex: 8, // Dicionário
           isRoute: true,
           body: innerScaffold,
           onSelectIndex: (index) {

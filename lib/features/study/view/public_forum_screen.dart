@@ -225,11 +225,13 @@ class _PublicForumScreenState extends ConsumerState<PublicForumScreen> {
 
     final Widget innerScaffold = Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-      ),
+      appBar: isTablet
+          ? null
+          : const MBibliaTopBar(
+              title: 'KeryxApp',
+              showLogo: true,
+              showBackButton: false,
+            ),
       floatingActionButton: Padding(
         padding: EdgeInsets.only(bottom: isTablet ? 16 : 110),
         child: FloatingActionButton.extended(

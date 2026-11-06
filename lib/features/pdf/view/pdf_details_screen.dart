@@ -959,11 +959,13 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
     final Widget innerScaffold = Scaffold(
       extendBody: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-      ),
+      appBar: isTablet
+          ? null
+          : const MBibliaTopBar(
+              title: 'KeryxApp',
+              showLogo: true,
+              showBackButton: false,
+            ),
       bottomNavigationBar: isTablet
           ? null
           : CustomBottomNav(

@@ -22,17 +22,75 @@ class BiblicalStudiesRepository {
     return categories.any((c) => c.toLowerCase() == 'download');
   }
 
-  /// Carrega o índice leve de estudos e categorias
+  /// Comparador natural inteligente de A a Z (ex: Salmo 1, Salmo 2, Salmo 4, Salmo 17, Salmo 23, Salmo 26...)
+  static int naturalCompare(String a, String b) {
+    final regExp = RegExp(r'(\d+|\D+)');
+    final matchesA =
+        regExp.allMatches(a.toLowerCase()).map((m) => m.group(0)!).toList();
+    final matchesB =
+        regExp.allMatches(b.toLowerCase()).map((m) => m.group(0)!).toList();
+
+    final minLen =
+        matchesA.length < matchesB.length ? matchesA.length : matchesB.length;
+    for (int i = 0; i < minLen; i++) {
+      final partA = matchesA[i];
+      final partB = matchesB[i];
+
+      final numA = int.tryParse(partA);
+      final numB = int.tryParse(partB);
+
+      if (numA != null && numB != null) {
+        final comp = numA.compareTo(numB);
+        if (comp != 0) return comp;
+      } else {
+        final comp = partA.compareTo(partB);
+        if (comp != 0) return comp;
+      }
+    }
+
+    return matchesA.length.compareTo(matchesB.length);
+  }
+
+  void _prewarmDatabase() {
+    Future.microtask(() async {
+      try {
+        await DatabaseService.instance.getEstudosDatabase();
+      } catch (_) {}
+    });
+  }
+
+  /// Carrega o índice leve de estudos e categorias de forma instantânea
   Future<List<BiblicalStudy>> loadIndex() async {
     if (_cachedIndex != null) return _cachedIndex!;
 
-    // Tenta carregar do SQLite se disponível
+    // 1. Carregamento instantâneo a partir do índice JSON (~250KB)
+    try {
+      final jsonStr =
+          await _bundle.loadString('assets/data/estudos/estudos_index.json');
+      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+      final rawPosts = data['posts'] as List<dynamic>? ?? [];
+      _cachedIndex = rawPosts
+          .map((p) => BiblicalStudy.fromJson(p as Map<String, dynamic>))
+          .where((study) => !_isDownloadItem(study.title, study.categories))
+          .toList();
+
+      // Ordena de A a Z com ordenação natural inteligente
+      _cachedIndex!.sort((a, b) => naturalCompare(a.title, b.title));
+
+      // Pré-aquece o banco SQLite em segundo plano sem travar a UI
+      _prewarmDatabase();
+
+      return _cachedIndex!;
+    } catch (_) {}
+
+    // 2. Fallback de segurança: carregar do SQLite se o JSON falhar
     try {
       final db = await DatabaseService.instance.getEstudosDatabase();
       final rows = await db.query(
         'estudos',
         columns: ['id', 'title', 'slug', 'date', 'categories', 'excerpt'],
-        orderBy: 'id DESC',
+        orderBy: 'title COLLATE NOCASE ASC',
       );
       if (rows.isNotEmpty) {
         _cachedIndex = rows.map((r) {
@@ -53,29 +111,36 @@ class BiblicalStudiesRepository {
             excerpt: (r['excerpt'] as String?) ?? '',
           );
         }).where((study) => !_isDownloadItem(study.title, study.categories)).toList();
+
+        // Ordena de A a Z com ordenação natural inteligente
+        _cachedIndex!.sort((a, b) => naturalCompare(a.title, b.title));
+
         return _cachedIndex!;
       }
     } catch (_) {}
 
-    // Fallback: carregar índice json dos assets
-    final jsonStr =
-        await _bundle.loadString('assets/data/estudos/estudos_index.json');
-    final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-
-    final rawPosts = data['posts'] as List<dynamic>? ?? [];
-    _cachedIndex = rawPosts
-        .map((p) => BiblicalStudy.fromJson(p as Map<String, dynamic>))
-        .where((study) => !_isDownloadItem(study.title, study.categories))
-        .toList();
-
-    return _cachedIndex!;
+    return _cachedIndex ?? [];
   }
 
-  /// Retorna as categorias com artigos disponíveis
+  /// Retorna as categorias com artigos disponíveis de forma instantânea
   Future<List<StudyCategory>> loadCategories() async {
     if (_cachedCategories != null) return _cachedCategories!;
 
-    // Tenta carregar do SQLite primeiro
+    // 1. Carregamento ultra rápido do JSON
+    try {
+      final jsonStr =
+          await _bundle.loadString('assets/data/estudos/estudos_index.json');
+      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final rawCats = data['categories'] as List<dynamic>? ?? [];
+      _cachedCategories = rawCats
+          .map((c) => StudyCategory.fromJson(c as Map<String, dynamic>))
+          .where((c) => c.count > 0 && c.name.toLowerCase() != 'download' && c.slug.toLowerCase() != 'download')
+          .toList();
+
+      return _cachedCategories!;
+    } catch (_) {}
+
+    // 2. Fallback do SQLite se necessário
     try {
       final db = await DatabaseService.instance.getEstudosDatabase();
       final rows = await db.query(
@@ -96,16 +161,6 @@ class BiblicalStudiesRepository {
         return _cachedCategories!;
       }
     } catch (_) {}
-
-    // Fallback
-    final jsonStr =
-        await _bundle.loadString('assets/data/estudos/estudos_index.json');
-    final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-    final rawCats = data['categories'] as List<dynamic>? ?? [];
-    _cachedCategories = rawCats
-        .map((c) => StudyCategory.fromJson(c as Map<String, dynamic>))
-        .where((c) => c.count > 0 && c.name.toLowerCase() != 'download' && c.slug.toLowerCase() != 'download')
-        .toList();
 
     return _cachedCategories ?? [];
   }
@@ -149,7 +204,10 @@ final studyCategoriesProvider =
   return repo.loadCategories();
 });
 
-/// Filtro de Categoria ativa (null = Todas)
+/// Filtro de Grupo de Navegação ativo (ex: 'Antigo Testamento', 'Defesa da Fé', etc.; null = Todos)
+final selectedStudyGroupProvider = StateProvider<String?>((ref) => null);
+
+/// Filtro de Subcategoria específica ativa (null = Todas do grupo ou do acervo geral)
 final selectedStudyCategoryProvider = StateProvider<String?>((ref) => null);
 
 /// Busca textual
@@ -158,21 +216,31 @@ final studySearchQueryProvider = StateProvider<String>((ref) => '');
 /// Lista filtrada de estudos
 final filteredBiblicalStudiesProvider = Provider<List<BiblicalStudy>>((ref) {
   final studiesAsync = ref.watch(biblicalStudiesIndexProvider);
+  final selectedGroup = ref.watch(selectedStudyGroupProvider);
   final selectedCat = ref.watch(selectedStudyCategoryProvider);
   final query = ref.watch(studySearchQueryProvider).trim().toLowerCase();
 
   return studiesAsync.maybeWhen(
     data: (allStudies) {
       return allStudies.where((study) {
-        // Filtro de categoria
+        // 1. Filtro de Subcategoria específica
         if (selectedCat != null && selectedCat.isNotEmpty) {
           final hasCat = study.categories.any(
             (c) => c.toLowerCase() == selectedCat.toLowerCase(),
           );
           if (!hasCat) return false;
+        } else if (selectedGroup != null && selectedGroup.isNotEmpty) {
+          // 2. Filtro por Grupo Geral (ex: 'Antigo Testamento', 'Doutrinas', etc.)
+          final groupObj = kStudyGroups.firstWhere(
+            (g) => g.title.toLowerCase() == selectedGroup.toLowerCase(),
+            orElse: () => StudySectionGroup(title: selectedGroup, subcategories: const []),
+          );
+          if (!groupObj.matches(study.categories)) {
+            return false;
+          }
         }
 
-        // Filtro de busca
+        // 3. Filtro de busca textual
         if (query.isNotEmpty) {
           final inTitle = study.title.toLowerCase().contains(query);
           final inExcerpt = study.excerpt.toLowerCase().contains(query);
