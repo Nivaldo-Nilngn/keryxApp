@@ -7,5 +7,5 @@
   "release_notes": "Versão 2.0.9: Otimizações de desempenho e carregamento instantâneo de comentários e livros; remoção da barra de rolagem visual mantendo a navegação tátil suave; novo seletor responsivo de plano de estudo no mobile; correções de layout e alinhamento.",
   "force_update": false,
   "min_version": 1,
-  "sha256": "pending"
+  "sha256": "ea7a38667369b915c35671b8610c1b471e4f3d349e3b09058e91f78ed0ae1107"
 }
