@@ -12,7 +12,7 @@ const DEFAULT_CONFIG = {
   release_notes: "Versão 2.0.7: Acervo integrado com mais de 600 estudos bíblicos e artigos teológicos offline, suporte a múltiplos planos de leitura simultâneos, leitor dedicado de artigos, curadoria do catálogo de estudos, otimização no teclado na busca de PDFs e correções de layout.",
   force_update: false,
   min_version: 1,
-  sha256: "PENDING"
+  sha256: "06c4c1156d60f93d64dba7b067371adf066d8cac54b863c7239398676c93722e"
 };
 
 export default {
