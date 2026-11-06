@@ -1,0 +1,372 @@
+{
+  "id": "cartas-paulinas-30",
+  "title": "Epístolas de Paulo em 30 Dias",
+  "description": "Estudo concentrado das 13 cartas paulinas de Romanos a Filemom.",
+  "weeks": [
+    {
+      "week": 1,
+      "days": [
+        {
+          "day": 1,
+          "passages": [
+            {
+              "book": 45,
+              "from": 1,
+              "to": 3
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "passages": [
+            {
+              "book": 45,
+              "from": 4,
+              "to": 6
+            }
+          ]
+        },
+        {
+          "day": 3,
+          "passages": [
+            {
+              "book": 45,
+              "from": 7,
+              "to": 9
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "passages": [
+            {
+              "book": 45,
+              "from": 10,
+              "to": 12
+            }
+          ]
+        },
+        {
+          "day": 5,
+          "passages": [
+            {
+              "book": 45,
+              "from": 13,
+              "to": 15
+            }
+          ]
+        },
+        {
+          "day": 6,
+          "passages": [
+            {
+              "book": 45,
+              "from": 16,
+              "to": 16
+            },
+            {
+              "book": 46,
+              "from": 1,
+              "to": 2
+            }
+          ]
+        },
+        {
+          "day": 7,
+          "passages": [
+            {
+              "book": 46,
+              "from": 3,
+              "to": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "days": [
+        {
+          "day": 8,
+          "passages": [
+            {
+              "book": 46,
+              "from": 6,
+              "to": 8
+            }
+          ]
+        },
+        {
+          "day": 9,
+          "passages": [
+            {
+              "book": 46,
+              "from": 9,
+              "to": 11
+            }
+          ]
+        },
+        {
+          "day": 10,
+          "passages": [
+            {
+              "book": 46,
+              "from": 12,
+              "to": 14
+            }
+          ]
+        },
+        {
+          "day": 11,
+          "passages": [
+            {
+              "book": 46,
+              "from": 15,
+              "to": 16
+            },
+            {
+              "book": 47,
+              "from": 1,
+              "to": 1
+            }
+          ]
+        },
+        {
+          "day": 12,
+          "passages": [
+            {
+              "book": 47,
+              "from": 2,
+              "to": 4
+            }
+          ]
+        },
+        {
+          "day": 13,
+          "passages": [
+            {
+              "book": 47,
+              "from": 5,
+              "to": 7
+            }
+          ]
+        },
+        {
+          "day": 14,
+          "passages": [
+            {
+              "book": 47,
+              "from": 8,
+              "to": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "days": [
+        {
+          "day": 15,
+          "passages": [
+            {
+              "book": 47,
+              "from": 11,
+              "to": 13
+            }
+          ]
+        },
+        {
+          "day": 16,
+          "passages": [
+            {
+              "book": 48,
+              "from": 1,
+              "to": 3
+            }
+          ]
+        },
+        {
+          "day": 17,
+          "passages": [
+            {
+              "book": 48,
+              "from": 4,
+              "to": 6
+            }
+          ]
+        },
+        {
+          "day": 18,
+          "passages": [
+            {
+              "book": 49,
+              "from": 1,
+              "to": 3
+            }
+          ]
+        },
+        {
+          "day": 19,
+          "passages": [
+            {
+              "book": 49,
+              "from": 4,
+              "to": 6
+            }
+          ]
+        },
+        {
+          "day": 20,
+          "passages": [
+            {
+              "book": 50,
+              "from": 1,
+              "to": 3
+            }
+          ]
+        },
+        {
+          "day": 21,
+          "passages": [
+            {
+              "book": 50,
+              "from": 4,
+              "to": 4
+            },
+            {
+              "book": 51,
+              "from": 1,
+              "to": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "days": [
+        {
+          "day": 22,
+          "passages": [
+            {
+              "book": 51,
+              "from": 3,
+              "to": 4
+            },
+            {
+              "book": 52,
+              "from": 1,
+              "to": 1
+            }
+          ]
+        },
+        {
+          "day": 23,
+          "passages": [
+            {
+              "book": 52,
+              "from": 2,
+              "to": 4
+            }
+          ]
+        },
+        {
+          "day": 24,
+          "passages": [
+            {
+              "book": 52,
+              "from": 5,
+              "to": 5
+            },
+            {
+              "book": 53,
+              "from": 1,
+              "to": 2
+            }
+          ]
+        },
+        {
+          "day": 25,
+          "passages": [
+            {
+              "book": 53,
+              "from": 3,
+              "to": 3
+            },
+            {
+              "book": 54,
+              "from": 1,
+              "to": 2
+            }
+          ]
+        },
+        {
+          "day": 26,
+          "passages": [
+            {
+              "book": 54,
+              "from": 3,
+              "to": 5
+            }
+          ]
+        },
+        {
+          "day": 27,
+          "passages": [
+            {
+              "book": 54,
+              "from": 6,
+              "to": 6
+            },
+            {
+              "book": 55,
+              "from": 1,
+              "to": 2
+            }
+          ]
+        },
+        {
+          "day": 28,
+          "passages": [
+            {
+              "book": 55,
+              "from": 3,
+              "to": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 5,
+      "days": [
+        {
+          "day": 29,
+          "passages": [
+            {
+              "book": 56,
+              "from": 1,
+              "to": 2
+            }
+          ]
+        },
+        {
+          "day": 30,
+          "passages": [
+            {
+              "book": 56,
+              "from": 3,
+              "to": 3
+            },
+            {
+              "book": 57,
+              "from": 1,
+              "to": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

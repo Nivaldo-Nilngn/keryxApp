@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 
 class GuideScreen extends ConsumerStatefulWidget {
   const GuideScreen({super.key});
@@ -153,84 +154,84 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
     }).toList();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-      ),
-      body: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                child: Text(
-                  'Seu guia para aproveitar cada ferramenta.',
-                  style: GoogleFonts.outfit(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                    fontSize: 16,
+    final Widget bodyContent = Stack(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+              child: Text(
+                'Seu guia para aproveitar cada ferramenta.',
+                style: GoogleFonts.outfit(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                  ),
+                  boxShadow: isDark ? [] : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                  decoration: InputDecoration(
+                    icon: Icon(Icons.search_rounded, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                    hintText: 'Buscar no guia',
+                    hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
+                    border: InputBorder.none,
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
-                    ),
-                    boxShadow: isDark ? [] : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      icon: Icon(Icons.search_rounded, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
-                      hintText: 'Buscar no guia',
-                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
-                      border: InputBorder.none,
-                    ),
-                  ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.separated(
+                padding: EdgeInsets.only(
+                  left: 20.0,
+                  right: 20.0,
+                  top: 8.0,
+                  bottom: isTablet ? 32.0 : 100.0,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 8.0, bottom: 100.0), // Padding extra no bottom pra nav bar
-                  itemCount: filteredItems.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final item = filteredItems[index];
-                    final isExpanded = _expandedIndex == index;
+                itemCount: filteredItems.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final item = filteredItems[index];
+                  final isExpanded = _expandedIndex == index;
 
-                    return _buildExpandableCard(
-                      item: item,
-                      isExpanded: isExpanded,
-                      onToggle: () {
-                        setState(() {
-                          _expandedIndex = isExpanded ? null : index;
-                        });
-                      },
-                    );
-                  },
-                ),
+                  return _buildExpandableCard(
+                    item: item,
+                    isExpanded: isExpanded,
+                    onToggle: () {
+                      setState(() {
+                        _expandedIndex = isExpanded ? null : index;
+                      });
+                    },
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+        if (!isTablet)
           Align(
             alignment: Alignment.bottomCenter,
             child: CustomBottomNav(
@@ -242,9 +243,37 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
               onBack: () => Navigator.pop(context),
             ),
           ),
-        ],
-      ),
+      ],
     );
+
+    final Widget innerScaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: const MBibliaTopBar(
+        title: 'KeryxApp',
+        showLogo: true,
+        showBackButton: false,
+      ),
+      body: bodyContent,
+    );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: InstagramTabletSidebar(
+          currentIndex: -1,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
 
   Widget _buildExpandableCard({

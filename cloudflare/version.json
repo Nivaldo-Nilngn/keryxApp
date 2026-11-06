@@ -1,11 +1,11 @@
 {
-  "latest_version": 15,
-  "version_name": "2.0.6",
-  "release_date": "2026-11-04",
-  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.6/keryxApp.apk",
+  "latest_version": 16,
+  "version_name": "2.0.7",
+  "release_date": "2026-11-06",
+  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.7/keryxApp.apk",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.6: Opção de escolher estilo da barra de navegação (Flutuante ou Fixa no rodapé) nas configurações, alinhamento perfeito do rodapé sem frestas, histórico de IA Theos, formatação visual refinada nas respostas de teologia e grandes otimizações de performance.",
+  "release_notes": "Versão 2.0.7: Acervo integrado com mais de 600 estudos bíblicos e artigos teológicos offline, suporte a múltiplos planos de leitura simultâneos, leitor dedicado de artigos, curadoria do catálogo de estudos, otimização no teclado na busca de PDFs e correções de layout.",
   "force_update": false,
   "min_version": 1,
-  "sha256": "c0dfef6690404c5db7329aedba664055975e246858158fff014618a7c09bdb32"
+  "sha256": "PENDING"
 }

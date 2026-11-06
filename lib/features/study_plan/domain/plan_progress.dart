@@ -8,6 +8,7 @@ class PlanProgress {
   final int streak; // Sequência atual de dias seguidos lidos
   final DateTime? lastCompletedDate; // Data da última leitura realizada
   final Map<int, String>? _notes; // Anotações e reflexões por dia (dia -> texto)
+  final bool isStarted; // Indica se o usuário iniciou a leitura do plano
 
   Set<int> get completedDays => _completedDays ?? const {};
   Map<int, String> get notes => _notes ?? const {};
@@ -19,6 +20,7 @@ class PlanProgress {
     this.streak = 0,
     this.lastCompletedDate,
     Map<int, String>? notes,
+    this.isStarted = false,
   })  : _completedDays = completedDays,
         _notes = notes;
 
@@ -30,6 +32,7 @@ class PlanProgress {
       completedDays: const {},
       streak: 0,
       notes: const {},
+      isStarted: false,
     );
   }
 
@@ -61,6 +64,7 @@ class PlanProgress {
     int? streak,
     DateTime? lastCompletedDate,
     Map<int, String>? notes,
+    bool? isStarted,
   }) {
     return PlanProgress(
       planId: planId ?? this.planId,
@@ -69,6 +73,7 @@ class PlanProgress {
       streak: streak ?? this.streak,
       lastCompletedDate: lastCompletedDate ?? this.lastCompletedDate,
       notes: notes ?? this.notes,
+      isStarted: isStarted ?? this.isStarted,
     );
   }
 
@@ -84,17 +89,20 @@ class PlanProgress {
       }
     }
 
+    final completed = ((json['completedDays'] as List<dynamic>?) ?? [])
+        .map((d) => d as int)
+        .toSet();
+
     return PlanProgress(
       planId: json['planId'] as String,
       startDate: DateTime.parse(json['startDate'] as String),
-      completedDays: ((json['completedDays'] as List<dynamic>?) ?? [])
-          .map((d) => d as int)
-          .toSet(),
+      completedDays: completed,
       streak: (json['streak'] as int?) ?? 0,
       lastCompletedDate: json['lastCompletedDate'] != null
           ? DateTime.tryParse(json['lastCompletedDate'] as String)
           : null,
       notes: parsedNotes,
+      isStarted: (json['isStarted'] as bool?) ?? completed.isNotEmpty,
     );
   }
 
@@ -103,6 +111,7 @@ class PlanProgress {
     'startDate': startDate.toIso8601String(),
     'completedDays': completedDays.toList()..sort(),
     'streak': streak,
+    'isStarted': isStarted,
     if (lastCompletedDate != null)
       'lastCompletedDate': lastCompletedDate!.toIso8601String(),
     if (notes.isNotEmpty)

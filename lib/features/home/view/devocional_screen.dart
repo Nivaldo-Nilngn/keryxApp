@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/gestures.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/home/service/devocional_service.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
@@ -29,39 +30,25 @@ class DevocionalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 720;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     // 72 (altura da navbar) + 24 (margem inferior da navbar) + safe area do celular + 48 (espaço de respiro visual)
-    final bottomPadding = 72.0 + 24.0 + bottomInset + 48.0;
+    final bottomPadding = isTablet ? 32.0 : (72.0 + 24.0 + bottomInset + 48.0);
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showBackButton: false,
-      ),
-      extendBody: true,
-      bottomNavigationBar: BookDetailBottomNav(
-        currentIndex: 0,
-        onTap: (index) {
-          ref.read(navigationProvider.notifier).setIndex(index);
-          Navigator.popUntil(context, (route) => route.isFirst);
-        },
-        onBack: () => Navigator.pop(context),
-      ),
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          return keryx_nav.handleNavbarScrollNotification(
-            notification,
-            ref.read(navbarVisibleProvider),
-            (visible) => ref.read(navbarVisibleProvider.notifier).state = visible,
-          );
-        },
-        child: SafeArea(
-          bottom: false,
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(20, 24, 20, bottomPadding),
-            child: Column(
+    final Widget bodyContent = NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        return keryx_nav.handleNavbarScrollNotification(
+          notification,
+          ref.read(navbarVisibleProvider),
+          (visible) => ref.read(navbarVisibleProvider.notifier).state = visible,
+        );
+      },
+      child: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(20, 24, 20, bottomPadding),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Card Principal no estilo do Card da Home (Sem degradê)
@@ -264,8 +251,46 @@ class DevocionalScreen extends ConsumerWidget {
         ),
       ),
     ),
-  ),
-);
+  );
+
+    final Widget innerScaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: const MBibliaTopBar(
+        title: 'KeryxApp',
+        showBackButton: false,
+      ),
+      extendBody: true,
+      bottomNavigationBar: isTablet
+          ? null
+          : BookDetailBottomNav(
+              currentIndex: 0,
+              onTap: (index) {
+                ref.read(navigationProvider.notifier).setIndex(index);
+                Navigator.popUntil(context, (route) => route.isFirst);
+              },
+              onBack: () => Navigator.pop(context),
+            ),
+      body: bodyContent,
+    );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: InstagramTabletSidebar(
+          currentIndex: 0,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
 
   Widget _buildContentWithLinks(BuildContext context, WidgetRef ref, String content) {

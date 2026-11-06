@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import '../../application/study_plan_providers.dart';
-import '../../domain/domain.dart';
 import '../study_plan_reader_screen.dart';
 
 class PlanoTab extends ConsumerWidget {
@@ -14,7 +13,7 @@ class PlanoTab extends ConsumerWidget {
     final planAsync = ref.watch(chronologicalPlanProvider);
     final progress = ref.watch(studyPlanProgressProvider);
     final todayInfo = ref.watch(todayPlanDayProvider);
-    final isTablet = MediaQuery.of(context).size.width >= 768;
+    final isTablet = MediaQuery.sizeOf(context).width >= 768;
 
     return planAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -25,16 +24,16 @@ class PlanoTab extends ConsumerWidget {
             left: isTablet ? 32.0 : 16.0,
             right: isTablet ? 32.0 : 16.0,
             top: 16.0,
-            bottom: 120.0, // Espaço para a CustomBottomNav flutuante
+            bottom: isTablet ? 32.0 : 120.0, // Espaço para a CustomBottomNav flutuante apenas no mobile
           ),
           itemCount: plan.weeks.length,
           itemBuilder: (context, index) {
             final week = plan.weeks[index];
             final weekNum = week.week;
-            final completedCount =
-                PlanIndex.completedDaysInWeek(weekNum, progress.completedDays);
-            final weekRatio = completedCount / 7.0;
-            final isWeekFullyCompleted = completedCount == 7;
+            final daysInWeek = week.days.isNotEmpty ? week.days.length : 7;
+            final completedCount = week.days.where((d) => progress.completedDays.contains(d.day)).length;
+            final weekRatio = daysInWeek > 0 ? completedCount / daysInWeek : 0.0;
+            final isWeekFullyCompleted = completedCount == daysInWeek;
             final isCurrentWeek = todayInfo.week == weekNum;
 
             return Container(

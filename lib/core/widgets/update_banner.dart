@@ -17,9 +17,6 @@ class UpdateBanner extends ConsumerStatefulWidget {
 class _UpdateBannerState extends ConsumerState<UpdateBanner> {
   bool _isDismissedLocally = false;
   String? _currentDismissKey;
-  bool _isDownloading = false;
-  double _downloadProgress = 0.0;
-  String? _downloadProgressText;
 
   @override
   void initState() {
@@ -69,6 +66,7 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
   Widget build(BuildContext context) {
     final updateInfo = ref.watch(latestUpdateInfoProvider).valueOrNull;
     final isForceUpdate = !kIsWeb && ref.watch(isForceUpdateRequiredProvider);
+    final downloadState = ref.watch(updateDownloadProvider);
 
     // ── CENÁRIO 1: Navegador Web (kIsWeb) ──────────────────────────────────
     if (kIsWeb) {
@@ -91,7 +89,7 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
       }
 
       // Se o usuário dispensou este banner nesta versão/dispositivo, não exibe
-      if (!isForceUpdate && _isDismissedLocally) {
+      if (!isForceUpdate && _isDismissedLocally && !downloadState.isDownloading) {
         return const SizedBox.shrink();
       }
 
@@ -138,75 +136,52 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
             ? updateInfo!.downloadUrl.trim()
             : 'https://github.com/Nivaldo-Nilngn/keryxApp/releases/latest/download/keryxApp.apk';
 
+        final isDownloading = downloadState.isDownloading;
+        final isCompleted = downloadState.isCompleted;
+        final hasError = downloadState.hasError;
+
+        String buttonLabel = 'BAIXAR';
+        if (isDownloading) {
+          buttonLabel = 'BAIXANDO...';
+        } else if (isCompleted) {
+          buttonLabel = 'BAIXADO';
+        } else if (hasError) {
+          buttonLabel = 'TENTAR';
+        }
+
+        String subtitle = isTablet
+            ? 'Instale o app oficial no seu Tablet • Recursos offline'
+            : 'Para Android • Recursos offline';
+
+        if (isDownloading && downloadState.progressText != null) {
+          subtitle = downloadState.progressText!;
+        } else if (isCompleted) {
+          subtitle = 'Download concluído! Verifique seus downloads.';
+        } else if (hasError && downloadState.errorMessage != null) {
+          subtitle = downloadState.errorMessage!;
+        }
+
         return _buildLayout(
           context: context,
-          canDismiss: !isForceUpdate,
+          canDismiss: !isForceUpdate && !isDownloading,
           title: isTablet ? 'KeryxApp para Tablet Android' : 'Baixar KeryxApp Oficial',
-          subtitle: isTablet
-              ? 'Instale o app oficial no seu Tablet • Recursos offline'
-              : 'Para Android • Recursos offline',
-          buttonLabel: 'BAIXAR',
-          mainColor: const Color(0xFF10B981),
+          subtitle: subtitle,
+          buttonLabel: buttonLabel,
+          mainColor: hasError ? Colors.redAccent : const Color(0xFF10B981),
           icon: isTablet ? Icons.tablet_android_rounded : Icons.install_mobile_rounded,
-          isDownloading: _isDownloading,
-          downloadProgress: _downloadProgress,
-          progressText: _downloadProgressText,
-          onTap: _isDownloading
+          isDownloading: isDownloading,
+          downloadProgress: downloadState.progress,
+          progressText: downloadState.progressText,
+          onTap: isDownloading
               ? () {}
-              : () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  setState(() {
-                    _isDownloading = true;
-                    _downloadProgress = 0.0;
-                    _downloadProgressText = 'Iniciando download...';
-                  });
-
-                  final ok = await downloadFile(
-                    downloadUrl,
-                    fileName: 'keryxApp.apk',
-                    onProgress: (progress, loaded, total) {
-                      if (mounted) {
-                        setState(() {
-                          _downloadProgress = progress;
-                          if (progress >= 0 && total > 0) {
-                            final loadedMb = (loaded / (1024 * 1024)).toStringAsFixed(1);
-                            final totalMb = (total / (1024 * 1024)).toStringAsFixed(1);
-                            final pct = (progress * 100).toInt();
-                            _downloadProgressText = '$pct% ($loadedMb MB / $totalMb MB)';
-                          } else {
-                            final loadedMb = (loaded / (1024 * 1024)).toStringAsFixed(1);
-                            _downloadProgressText = '$loadedMb MB baixados...';
-                          }
-                        });
-                      }
-                    },
-                  );
-
-                  if (mounted) {
-                    setState(() {
-                      _isDownloading = false;
-                      _downloadProgress = 0.0;
-                      _downloadProgressText = null;
-                    });
-
-                    if (ok) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Download concluído com sucesso! Verifique sua pasta de downloads.'),
-                          backgroundColor: Color(0xFF10B981),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    } else {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Não foi possível baixar direto. Tentando pelo navegador...'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }
-                },
+              : () => ref.read(updateDownloadProvider.notifier).startDownload(
+                    downloadUrl: downloadUrl,
+                    versionName: updateInfo?.versionName,
+                    context: context,
+                  ),
+          onCancel: isDownloading
+              ? () => ref.read(updateDownloadProvider.notifier).cancel()
+              : null,
           onDismiss: () => _handleDismiss(key),
         );
       }
@@ -222,25 +197,87 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
       _checkDismissStatus();
     }
 
-    if (!isForceUpdate && _isDismissedLocally) {
+    // Se estiver baixando ou concluído, mantém o card visível para acompanhar ou instalar
+    if (!isForceUpdate &&
+        _isDismissedLocally &&
+        !downloadState.isDownloading &&
+        !downloadState.isCompleted) {
       return const SizedBox.shrink();
     }
 
     final isAvailable = ref.watch(isUpdateAvailableProvider);
 
-    if (isAvailable && updateInfo != null) {
-      final versionLabel = updateInfo.versionName.isNotEmpty ? ' v${updateInfo.versionName}' : '';
+    if ((isAvailable || downloadState.isDownloading || downloadState.isCompleted) &&
+        updateInfo != null) {
+      final versionLabel =
+          updateInfo.versionName.isNotEmpty ? ' v${updateInfo.versionName}' : '';
+
+      final bool isDownloading = downloadState.isDownloading;
+      final bool isCompleted = downloadState.isCompleted;
+      final bool hasError = downloadState.hasError;
+
+      String buttonLabel = 'ATUALIZAR';
+      if (isDownloading) {
+        buttonLabel = 'BAIXANDO...';
+      } else if (isCompleted) {
+        buttonLabel = 'INSTALAR';
+      } else if (hasError) {
+        buttonLabel = 'TENTAR';
+      }
+
+      String subtitle = updateInfo.releaseNotes.isNotEmpty
+          ? updateInfo.releaseNotes
+          : 'Toque para atualizar agora';
+
+      if (isDownloading && downloadState.progressText != null) {
+        subtitle = downloadState.progressText!;
+      } else if (isCompleted) {
+        subtitle = 'Download concluído! Toque para instalar o KeryxApp.';
+      } else if (hasError && downloadState.errorMessage != null) {
+        subtitle = 'Falha: ${downloadState.errorMessage} (Toque para tentar)';
+      }
+
+      IconData bannerIcon = Icons.system_update_rounded;
+      if (isCompleted) {
+        bannerIcon = Icons.check_circle_rounded;
+      } else if (hasError) {
+        bannerIcon = Icons.error_outline_rounded;
+      } else if (isDownloading) {
+        bannerIcon = Icons.downloading_rounded;
+      }
+
+      final Color mainColor = hasError
+          ? Colors.redAccent
+          : (isCompleted ? const Color(0xFF10B981) : const Color(0xFF22C55E));
+
       return _buildLayout(
         context: context,
-        canDismiss: !isForceUpdate,
+        canDismiss: !isForceUpdate && !isDownloading,
         title: 'Nova Atualização$versionLabel',
-        subtitle: updateInfo.releaseNotes.isNotEmpty
-            ? updateInfo.releaseNotes
-            : 'Toque para atualizar agora',
-        buttonLabel: 'ATUALIZAR',
-        mainColor: const Color(0xFF22C55E),
-        icon: Icons.system_update_rounded,
-        onTap: () => ref.read(downloadServiceProvider).downloadAndInstall(context, updateInfo),
+        subtitle: subtitle,
+        buttonLabel: buttonLabel,
+        mainColor: mainColor,
+        icon: bannerIcon,
+        isDownloading: isDownloading,
+        downloadProgress: downloadState.progress,
+        progressText: downloadState.progressText,
+        onTap: () {
+          if (isDownloading) return;
+          if (isCompleted && downloadState.downloadedFilePath != null) {
+            ref.read(downloadServiceProvider).openInstaller(
+                  downloadState.downloadedFilePath!,
+                  context: context,
+                );
+          } else {
+            ref.read(downloadServiceProvider).downloadAndInstall(
+                  context,
+                  updateInfo,
+                );
+          }
+        },
+        onCancel: isDownloading
+            ? () => ref.read(updateDownloadProvider.notifier).cancel()
+            : null,
         onDismiss: () => _handleDismiss(key),
       );
     }
@@ -258,6 +295,7 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
     required IconData icon,
     required VoidCallback onTap,
     required VoidCallback onDismiss,
+    VoidCallback? onCancel,
     bool isDownloading = false,
     double downloadProgress = 0.0,
     String? progressText,
@@ -359,7 +397,21 @@ class _UpdateBannerState extends ConsumerState<UpdateBanner> {
                       ),
                     ),
                   ),
-                  if (canDismiss && !isDownloading) ...[
+                  if (isDownloading && onCancel != null) ...[
+                    const SizedBox(width: 2),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 15,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.50),
+                      ),
+                      tooltip: 'Cancelar download',
+                      onPressed: onCancel,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                      splashRadius: 12,
+                    ),
+                  ] else if (canDismiss && !isDownloading) ...[
                     const SizedBox(width: 2),
                     IconButton(
                       icon: Icon(

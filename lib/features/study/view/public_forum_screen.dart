@@ -8,6 +8,7 @@ import 'package:keryx_app/features/study/view_model/public_annotations_provider.
 import 'package:keryx_app/features/study/view/public_annotation_detail_screen.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/study/view/note_detail_screen.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
@@ -63,6 +64,7 @@ class _PublicForumScreenState extends ConsumerState<PublicForumScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(publicAnnotationsProvider);
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
     // Garante que a navbar não venha oculta da tela anterior
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -71,25 +73,7 @@ class _PublicForumScreenState extends ConsumerState<PublicForumScreen> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 110),
-        child: FloatingActionButton.extended(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          onPressed: () => _createNewTopic(context, ref),
-          icon: Icon(Icons.add_comment_rounded, color: Theme.of(context).colorScheme.onPrimary),
-          label: Text('Novo Tópico',
-              style: GoogleFonts.outfit(
-                  color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.bold)),
-        ),
-      ),
-      body: Stack(
+    final Widget bodyContent = Stack(
         children: [
           RefreshIndicator(
             color: _gold,
@@ -224,20 +208,60 @@ class _PublicForumScreenState extends ConsumerState<PublicForumScreen> {
           ),
         ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CustomBottomNav(
-              currentIndex: 6, // Index não correspondente para não realçar nenhum botão
-              onTap: (index) {
-                Navigator.pop(context);
-                ref.read(navigationProvider.notifier).setIndex(index);
-              },
-              onBack: () => Navigator.pop(context),
+          if (!isTablet)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CustomBottomNav(
+                currentIndex: 6, // Index não correspondente para não realçar nenhum botão
+                onTap: (index) {
+                  Navigator.pop(context);
+                  ref.read(navigationProvider.notifier).setIndex(index);
+                },
+                onBack: () => Navigator.pop(context),
+              ),
             ),
-          ),
         ],
+      );
+
+    final Widget innerScaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: const MBibliaTopBar(
+        title: 'KeryxApp',
+        showLogo: true,
+        showBackButton: false,
       ),
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(bottom: isTablet ? 16 : 110),
+        child: FloatingActionButton.extended(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          onPressed: () => _createNewTopic(context, ref),
+          icon: Icon(Icons.add_comment_rounded, color: Theme.of(context).colorScheme.onPrimary),
+          label: Text('Novo Tópico',
+              style: GoogleFonts.outfit(
+                  color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.bold)),
+        ),
+      ),
+      body: bodyContent,
     );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: InstagramTabletSidebar(
+          currentIndex: 6,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
   Widget _buildFilterChip(String label, String value) {
     final isSelected = _sortBy == value;

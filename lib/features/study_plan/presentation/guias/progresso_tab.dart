@@ -114,7 +114,7 @@ class ProgressoTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final planAsync = ref.watch(chronologicalPlanProvider);
     final progress = ref.watch(studyPlanProgressProvider);
-    final isTablet = MediaQuery.of(context).size.width >= 768;
+    final isTablet = MediaQuery.sizeOf(context).width >= 768;
 
     return planAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -125,8 +125,9 @@ class ProgressoTab extends ConsumerWidget {
         final percentage = progress.getPercentage(totalDays);
         final percentFormatted = (percentage * 100).toStringAsFixed(1);
         int completedWeeks = 0;
-        for (int w = 1; w <= plan.totalWeeks; w++) {
-          if (PlanIndex.completedDaysInWeek(w, progress.completedDays) == 7) {
+        for (final week in plan.weeks) {
+          final daysInWeek = week.days.isNotEmpty ? week.days.length : 7;
+          if (week.days.where((d) => progress.completedDays.contains(d.day)).length == daysInWeek) {
             completedWeeks++;
           }
         }
@@ -170,7 +171,7 @@ class ProgressoTab extends ConsumerWidget {
             left: isTablet ? 32.0 : 16.0,
             right: isTablet ? 32.0 : 16.0,
             top: 20.0,
-            bottom: 120.0, // Espaço para a CustomBottomNav flutuante
+            bottom: isTablet ? 32.0 : 120.0, // Espaço para a CustomBottomNav flutuante apenas no mobile
           ),
           child: isTablet
               ? Row(

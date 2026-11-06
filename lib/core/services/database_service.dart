@@ -14,6 +14,7 @@ enum _VerseSchema { araS, mySword, standard, myBibleVerses }
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
+  static DatabaseService get instance => _instance;
   DatabaseService._internal();
 
   final Map<String, Database> _databases = {};
@@ -1616,6 +1617,130 @@ class DatabaseService {
       debugPrint('❌ Erro ao buscar temas Thompson: $e');
       return [];
     }
+  }
+
+  // ==========================================
+  // Estudos Bíblicos Teológicos (estudos.db)
+  // ==========================================
+  static const _estudosKey = 'ESTUDOS_DB';
+  static const _estudosAsset = 'assets/database/estudos.db';
+  static const _estudosFilename = 'estudos.db';
+  static const _estudosVersion = 2;
+
+  /// Abre ou copia o banco `estudos.db` dos assets (605 estudos + 66 categorias).
+  Future<Database> getEstudosDatabase() async {
+    _ensureWebFactory();
+    if (_databases.containsKey(_estudosKey)) return _databases[_estudosKey]!;
+
+    String destPath;
+    if (!kIsWeb) {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      destPath = join(appDocDir.path, _estudosFilename);
+    } else {
+      final dbPath = await databaseFactoryFfiWeb.getDatabasesPath();
+      destPath = join(dbPath, _estudosFilename);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedVersion = prefs.getInt('estudos_db_version') ?? 1;
+
+    bool exists = false;
+    if (!kIsWeb) {
+      exists = await io.File(destPath).exists();
+      if (exists && savedVersion < _estudosVersion) {
+        try {
+          await io.File(destPath).delete();
+        } catch (_) {}
+        exists = false;
+      } else if (exists) {
+        final length = await io.File(destPath).length();
+        if (length < 1024 * 1024) { // Menos de 1MB significa arquivo incompleto
+          try {
+            await io.File(destPath).delete();
+          } catch (_) {}
+          exists = false;
+        }
+      }
+    } else {
+      try {
+        if (savedVersion < _estudosVersion) {
+          exists = false;
+        } else if (prefs.getBool('web_db_ready_estudos_v2') == true) {
+          exists = true;
+        } else {
+          final factory = databaseFactoryFfiWeb;
+          final candidates = [
+            _estudosFilename,
+            destPath,
+            _estudosFilename.startsWith('/') ? _estudosFilename.substring(1) : '/$_estudosFilename',
+          ];
+          for (final c in candidates) {
+            if (await factory.databaseExists(c)) {
+              exists = true;
+              break;
+            }
+          }
+        }
+      } catch (_) {
+        exists = false;
+      }
+    }
+
+    if (!exists) {
+      debugPrint('📦 Copiando $_estudosFilename dos assets (v$_estudosVersion)...');
+      try {
+        final data = await rootBundle.load(_estudosAsset);
+        final bytes = data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        );
+
+        if (!kIsWeb) {
+          await io.File(destPath).writeAsBytes(bytes, flush: true);
+        } else {
+          final factory = databaseFactoryFfiWeb;
+          await factory.writeDatabaseBytes(destPath, Uint8List.fromList(bytes));
+          await prefs.setBool('web_db_ready_estudos_v2', true);
+        }
+        await prefs.setInt('estudos_db_version', _estudosVersion);
+        debugPrint('✅ $_estudosFilename copiado para $destPath (v$_estudosVersion)');
+      } catch (e) {
+        debugPrint('Erro ao copiar estudos db: $e');
+      }
+    }
+
+    Database db;
+    if (!kIsWeb) {
+      db = await openDatabase(destPath, readOnly: true);
+    } else {
+      db = await databaseFactoryFfiWeb.openDatabase(
+        destPath,
+        options: OpenDatabaseOptions(readOnly: true),
+      );
+    }
+
+    _databases[_estudosKey] = db;
+    return db;
+  }
+
+  /// Retorna o conteúdo de um estudo por id diretamente do banco de dados SQLite.
+  Future<String?> getEstudoContentById(int id) async {
+    try {
+      final db = await getEstudosDatabase();
+      final rows = await db.query(
+        'estudos',
+        columns: ['content'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        return rows.first['content'] as String?;
+      }
+    } catch (e) {
+      debugPrint('❌ Erro ao buscar estudo $id no SQLite: $e');
+    }
+    return null;
   }
 
   /// Fecha todos os bancos de dados abertos

@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/core/services/telegram/cloudflare_pdf_service.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/services/book_cover_service.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -123,7 +124,10 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       if (_tabController.index == 1 && !_tabController.indexIsChanging) _loadTelegram();
     });
     _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text.trim());
+      final q = _searchController.text.trim();
+      if (_searchQuery != q) {
+        setState(() => _searchQuery = q);
+      }
     });
     _loadLocalBooks();
     _loadTelegram();
@@ -227,26 +231,9 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        isScrolled: true,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Theme.of(context).colorScheme.primary,
-          labelColor: Theme.of(context).colorScheme.primary,
-          unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'Biblioteca', icon: Icon(Icons.folder_shared_rounded)),
-            Tab(text: 'Acervo Online', icon: Icon(Icons.cloud_download_rounded)),
-          ],
-        ),
-      ),
-        body: Stack(
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+
+    final Widget content = Stack(
           children: [
             Column(
               children: [
@@ -466,22 +453,67 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
             ),
             
             // Floating Navbar
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: CustomBottomNav(
-                currentIndex: 2,
-                onBack: () => Navigator.pop(context),
-                onTap: (index) {
-                  ref.read(navigationProvider.notifier).setIndex(index);
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
-                },
+            if (!isTablet)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: CustomBottomNav(
+                  currentIndex: 2,
+                  onBack: () => Navigator.pop(context),
+                  onTap: (index) {
+                    ref.read(navigationProvider.notifier).setIndex(index);
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
               ),
-            ),
           ],
+        );
+
+    final topBar = MBibliaTopBar(
+      title: 'KeryxApp',
+      showLogo: true,
+      showBackButton: false,
+      isScrolled: true,
+      bottom: TabBar(
+        controller: _tabController,
+        indicatorColor: Theme.of(context).colorScheme.primary,
+        labelColor: Theme.of(context).colorScheme.primary,
+        unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+        indicatorWeight: 3,
+        tabs: const [
+          Tab(text: 'Biblioteca', icon: Icon(Icons.folder_shared_rounded)),
+          Tab(text: 'Acervo Online', icon: Icon(Icons.cloud_download_rounded)),
+        ],
+      ),
+    );
+
+    final Widget innerScaffold = Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: topBar,
+      body: content,
+    );
+
+    if (isTablet) {
+      return Scaffold(
+        resizeToAvoidBottomInset: false,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: InstagramTabletSidebar(
+          currentIndex: 5,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
         ),
       );
+    }
+
+    return innerScaffold;
   }
 
   Widget _buildTelegramTab() {
@@ -829,7 +861,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       return _buildEmptySearchResults();
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = MediaQuery.sizeOf(context).width;
     final horizontalPad = screenWidth > 960
         ? (screenWidth - 960) / 2 + 20
         : 20.0;
@@ -1115,7 +1147,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
   Widget _buildEmptyLibraryHub({required bool isEbooks}) {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
-    final isMobile = MediaQuery.of(context).size.width < 600;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1645,13 +1677,44 @@ class _BookCard extends StatefulWidget {
 class _BookCardState extends State<_BookCard> {
   final BookCoverService _coverService = BookCoverService();
   BookMetadata? _metadata;
+  Uint8List? _cachedBase64Bytes;
+  String? _lastCoverUrl;
 
   @override
   void initState() {
     super.initState();
     _metadata = _coverService.getCachedMetadata(widget.name);
+    _updateCachedBytes();
     if (_metadata == null || (widget.isLocal && !_metadata!.isRealPdfCover)) {
       _loadCover();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_BookCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.name != widget.name || oldWidget.path != widget.path) {
+      _metadata = _coverService.getCachedMetadata(widget.name);
+      _updateCachedBytes();
+      if (_metadata == null || (widget.isLocal && !_metadata!.isRealPdfCover)) {
+        _loadCover();
+      }
+    }
+  }
+
+  void _updateCachedBytes() {
+    final coverUrl = _metadata?.coverUrl;
+    if (coverUrl != _lastCoverUrl) {
+      _lastCoverUrl = coverUrl;
+      if (coverUrl != null && coverUrl.startsWith('data:image')) {
+        try {
+          _cachedBase64Bytes = base64Decode(coverUrl.split(',').last);
+        } catch (_) {
+          _cachedBase64Bytes = null;
+        }
+      } else {
+        _cachedBase64Bytes = null;
+      }
     }
   }
 
@@ -1664,6 +1727,7 @@ class _BookCardState extends State<_BookCard> {
     if (mounted && meta != _metadata) {
       setState(() {
         _metadata = meta;
+        _updateCachedBytes();
       });
     }
   }
@@ -1927,16 +1991,14 @@ class _BookCardState extends State<_BookCard> {
           errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
         );
       } else if (_metadata!.coverUrl!.startsWith('data:image')) {
-        try {
-          final bytes = base64Decode(_metadata!.coverUrl!.split(',').last);
+        if (_cachedBase64Bytes != null) {
           return Image.memory(
-            bytes,
+            _cachedBase64Bytes!,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
           );
-        } catch (_) {
-          return _buildPlaceholder();
         }
+        return _buildPlaceholder();
       } else {
         return Image.network(
           _metadata!.coverUrl!,

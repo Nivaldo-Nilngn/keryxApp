@@ -11,6 +11,7 @@ import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/features/bible/reading/view/commentary_reader_screen.dart';
 import 'package:keryx_app/core/widgets/keryx_top_bar.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -48,14 +49,9 @@ class StoreItemDetailsScreen extends ConsumerWidget {
     final isDownloaded = state.isDownloaded(item.filename);
     final downloadProgress = state.downloadProgress[item.filename];
     final isDownloading = downloadProgress != null;
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: KeryxTopBar(
-        title: item.name,
-        showBackButton: false,
-      ),
-      body: Stack(
+    final Widget bodyContent = Stack(
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
@@ -534,22 +530,50 @@ class StoreItemDetailsScreen extends ConsumerWidget {
               );
             },
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: CustomBottomNav(
-              currentIndex: 5,
-              onTap: (index) {
-                ref.read(navigationProvider.notifier).setIndex(index);
-                Navigator.popUntil(context, (route) => route.isFirst);
-              },
-              onBack: () => Navigator.pop(context),
+          if (!isTablet)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: CustomBottomNav(
+                currentIndex: 5,
+                onTap: (index) {
+                  ref.read(navigationProvider.notifier).setIndex(index);
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                },
+                onBack: () => Navigator.pop(context),
+              ),
             ),
-          ),
         ],
+      );
+
+    final Widget innerScaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: KeryxTopBar(
+        title: item.name,
+        showBackButton: false,
       ),
+      body: bodyContent,
     );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: InstagramTabletSidebar(
+          currentIndex: 5,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
 
   Widget _buildSimilarItemsList(BuildContext context, StoreState state) {

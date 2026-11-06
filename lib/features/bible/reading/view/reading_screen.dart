@@ -17,6 +17,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/core/utils/bible_text_parser.dart';
 import 'package:keryx_app/core/utils/keryx_color_contrast.dart';
@@ -384,28 +385,13 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       }
     });
 
-    return CallbackShortcuts(
-      bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _changeChapter(1),
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _changeChapter(-1),
-        const SingleActivator(LogicalKeyboardKey.pageDown): () => _changeChapter(1),
-        const SingleActivator(LogicalKeyboardKey.pageUp): () => _changeChapter(-1),
-      },
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          extendBody: true,
-          appBar: const MBibliaTopBar(
-            title: 'KeryxApp',
-            showLogo: true,
-            showBackButton: false,
-          ),
-      body: Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: Stack(
-          children: [
-            asyncChapter.when(
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+
+    final Widget readingBody = Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Stack(
+        children: [
+          asyncChapter.when(
               loading: () => const Center(
                 child: CircularProgressIndicator(color: AppTheme.kPrimaryGold),
               ),
@@ -540,82 +526,116 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
-                      padding: EdgeInsets.only(
-                        bottom: isNavbarVisible
-                            ? (72.0 + 24.0 + MediaQuery.of(context).padding.bottom)
-                            : MediaQuery.of(context).padding.bottom,
-                      ),
-                      width: double.infinity,
-                      color: Theme.of(context).brightness == Brightness.light
-                          ? Colors.white
-                          : const Color(0xFF161B2B),
-                      child: asyncChapter.maybeWhen(
-                        data: (chapter) => _buildAudioController(chapter),
-                        orElse: () => const SizedBox.shrink(),
-                      ),
+                    padding: EdgeInsets.only(
+                      bottom: (isNavbarVisible && !isTablet)
+                          ? (72.0 + 24.0 + MediaQuery.of(context).padding.bottom)
+                          : MediaQuery.of(context).padding.bottom,
                     ),
-                  BookDetailBottomNav(
-                    currentIndex: 1,
-                    forceHide: hasSelection,
-                    onTap: (index) {
-                      if (index == 1) return;
-                      if (index == 0) {
-                        Navigator.popUntil(context, (route) => route.isFirst);
-                        ref.read(navigationProvider.notifier).setIndex(0);
-                      } else if (index == 3 || index == 4) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => Scaffold(
-                              body: Stack(
-                                children: [
-                                  if (index == 3)
-                                    const keryx_annotations.AnnotationsScreen()
-                                  else
-                                    const keryx_favorites.FavoritesScreen(),
-                                  Positioned(
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    child: CustomBottomNav(
-                                      currentIndex: index,
-                                      onTap: (newIndex) {
-                                        if (newIndex == index) return;
-                                        Navigator.pop(context); // Pop this tab
-                                        if (newIndex != 1) {
-                                          if (newIndex == 0) {
-                                            Navigator.popUntil(
-                                              context,
-                                              (route) => route.isFirst,
-                                            );
-                                            ref
-                                                .read(navigationProvider.notifier)
-                                            .setIndex(0);
-                                      }
-                                    }
-                                  },
-                                  onBack: () => Navigator.pop(context),
+                    width: double.infinity,
+                    color: Theme.of(context).brightness == Brightness.light
+                        ? Colors.white
+                        : const Color(0xFF161B2B),
+                    child: asyncChapter.maybeWhen(
+                      data: (chapter) => _buildAudioController(chapter),
+                      orElse: () => const SizedBox.shrink(),
+                    ),
+                  ),
+                  if (!isTablet)
+                    BookDetailBottomNav(
+                      currentIndex: 1,
+                      forceHide: hasSelection,
+                      onTap: (index) {
+                        if (index == 1) return;
+                        if (index == 0) {
+                          Navigator.popUntil(context, (route) => route.isFirst);
+                          ref.read(navigationProvider.notifier).setIndex(0);
+                        } else if (index == 3 || index == 4) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Scaffold(
+                                body: Stack(
+                                  children: [
+                                    if (index == 3)
+                                      const keryx_annotations.AnnotationsScreen()
+                                    else
+                                      const keryx_favorites.FavoritesScreen(),
+                                    Positioned(
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      child: CustomBottomNav(
+                                        currentIndex: index,
+                                        onTap: (newIndex) {
+                                          if (newIndex == index) return;
+                                          Navigator.pop(context); // Pop this tab
+                                          if (newIndex != 1) {
+                                            if (newIndex == 0) {
+                                              Navigator.popUntil(
+                                                context,
+                                                (route) => route.isFirst,
+                                              );
+                                              ref
+                                                  .read(navigationProvider.notifier)
+                                                  .setIndex(0);
+                                            }
+                                          }
+                                        },
+                                        onBack: () => Navigator.pop(context),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                },
-                onBack: () => Navigator.pop(context),
+                            ),
+                          );
+                        }
+                      },
+                      onBack: () => Navigator.pop(context),
+                    ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
-  ),
-),
-),
-);
-}
+      );
+
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _changeChapter(1),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _changeChapter(-1),
+        const SingleActivator(LogicalKeyboardKey.pageDown): () => _changeChapter(1),
+        const SingleActivator(LogicalKeyboardKey.pageUp): () => _changeChapter(-1),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          extendBody: true,
+          appBar: isTablet
+              ? null
+              : const MBibliaTopBar(
+                  title: 'KeryxApp',
+                  showLogo: true,
+                  showBackButton: false,
+                ),
+          body: isTablet
+              ? InstagramTabletSidebar(
+                  currentIndex: 1, // Bíblia
+                  isRoute: true,
+                  body: readingBody,
+                  onSelectIndex: (index) {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                    ref.read(navigationProvider.notifier).setIndex(index);
+                  },
+                )
+              : readingBody,
+        ),
+      ),
+    );
+  }
 
   void _showComparisonSheet(List<int> selectedVerseNumbers) {
     showVerseComparisonScreen(

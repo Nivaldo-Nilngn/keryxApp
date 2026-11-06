@@ -16,6 +16,7 @@ import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:http/http.dart' as http;
 import 'package:keryx_app/features/store/repository/b2_service.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 
 // ── Paleta ──────────────────────────────────────────────────────────────────
 // Utiliza-se Theme.of(context) em vez de cores hardcoded para suportar temas claro e escuro.
@@ -150,25 +151,20 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showBackButton: true,
-        showLogo: true,
-      ),
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.light,
-        child: SafeArea(
-          child: Stack(
-            children: [
-              _loading
-                  ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
-                  : _error != null
-                      ? Center(child: Padding(padding: const EdgeInsets.all(24),
-                          child: Text(_error!, style: const TextStyle(color: Colors.redAccent))))
-                      : _buildBody(),
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+
+    final Widget content = AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: SafeArea(
+        child: Stack(
+          children: [
+            _loading
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
+                : _error != null
+                    ? Center(child: Padding(padding: const EdgeInsets.all(24),
+                        child: Text(_error!, style: const TextStyle(color: Colors.redAccent))))
+                    : _buildBody(),
+            if (!isTablet)
               Align(
                 alignment: Alignment.bottomCenter,
                 child: CustomBottomNav(
@@ -180,11 +176,39 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                   onBack: () => Navigator.of(context).pop(),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
+
+    final Widget innerScaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: MBibliaTopBar(
+        title: isTablet ? (widget.book.name.isNotEmpty ? widget.book.name : 'Harpa Cristã') : 'KeryxApp',
+        showBackButton: true,
+        showLogo: !isTablet,
+      ),
+      body: content,
+    );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: InstagramTabletSidebar(
+          currentIndex: 5,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
 
   Widget _buildBody() {
@@ -529,17 +553,16 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
     final numStr = hymn.number.padLeft(3, '0');
     final hasPrev = _currentIndex > 0;
     final hasNext = _currentIndex < widget.hymns.length - 1;
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.light,
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-              // ── App Bar ────────────────────────────────────────────────
+    final Widget bodyContent = AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+            // ── App Bar ────────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
                 child: Row(children: [
@@ -692,21 +715,38 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
               ),
             ],
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-                child: CustomBottomNav(
-                  currentIndex: ref.watch(navigationProvider),
-                  onTap: (i) {
-                    ref.read(navigationProvider.notifier).setIndex(i);
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
-                  onBack: () => Navigator.of(context).pop(),
-                ),
+          if (!isTablet)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CustomBottomNav(
+                currentIndex: ref.watch(navigationProvider),
+                onTap: (i) {
+                  ref.read(navigationProvider.notifier).setIndex(i);
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                onBack: () => Navigator.of(context).pop(),
               ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
+    ),
+  );
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: isTablet
+          ? InstagramTabletSidebar(
+              currentIndex: 5,
+              isRoute: true,
+              body: bodyContent,
+              onSelectIndex: (index) {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+                ref.read(navigationProvider.notifier).setIndex(index);
+              },
+            )
+          : bodyContent,
     );
   }
 

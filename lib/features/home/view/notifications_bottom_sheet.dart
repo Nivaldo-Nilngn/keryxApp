@@ -385,10 +385,8 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                               : 'Nova versão disponível para o seu aparelho. Toque para baixar e atualizar agora.',
                           isUnread: true,
                           onTap: () {
-                            final url = (updateInfo.downloadUrl.isNotEmpty)
-                                ? updateInfo.downloadUrl.trim()
-                                : 'https://keryx-version.nivaldo-nilngn.workers.dev/download';
-                            ref.read(downloadServiceProvider).downloadAndInstall(context, url);
+                            ref.read(downloadServiceProvider).downloadAndInstall(context, updateInfo);
+                            Navigator.of(context).pop();
                           },
                           onDelete: () {
                             ref.read(dismissedNotificationIdsProvider.notifier).dismiss('update_v${updateInfo.versionName}');

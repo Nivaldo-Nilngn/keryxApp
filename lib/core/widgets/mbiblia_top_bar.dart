@@ -1138,6 +1138,10 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
   Widget _buildSystemSettingsSection(BuildContext context, FontSettings settings) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+    final navBarSummary = !isTablet
+        ? ' • Barra ${ref.watch(navBarStyleProvider) == NavBarStyle.floating ? "Flutuante" : "Fixa"}'
+        : '';
 
     return Container(
       decoration: BoxDecoration(
@@ -1213,7 +1217,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Fonte: ${settings.fontFamily} • ${settings.fontSize.toInt()}px • Barra ${ref.watch(navBarStyleProvider) == NavBarStyle.floating ? "Flutuante" : "Fixa"}',
+                          'Fonte: ${settings.fontFamily} • ${settings.fontSize.toInt()}px$navBarSummary',
                           style: GoogleFonts.manrope(
                             fontSize: 12,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -1416,10 +1420,12 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
-                  Text('ESTILO DA BARRA DE NAVEGAÇÃO', style: _sectionTitleStyle(context)),
-                  const SizedBox(height: 12),
-                  _buildNavBarStyleSelector(context),
+                  if (!isTablet) ...[
+                    const SizedBox(height: 24),
+                    Text('ESTILO DA BARRA DE NAVEGAÇÃO', style: _sectionTitleStyle(context)),
+                    const SizedBox(height: 12),
+                    _buildNavBarStyleSelector(context),
+                  ],
                 ],
               ),
             ),

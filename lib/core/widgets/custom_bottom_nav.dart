@@ -27,10 +27,20 @@ class KeryxBottomNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+    if (isTablet) {
+      return const SizedBox.shrink();
+    }
+
+    final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (isKeyboardOpen || forceHide) {
+      return const SizedBox.shrink();
+    }
+
     final navBarStyle = ref.watch(navBarStyleProvider);
     final isFloating = navBarStyle == NavBarStyle.floating;
     final isVisible = isFloating ? (ref.watch(navbarVisibleProvider) && !forceHide) : !forceHide;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
     final theme = Theme.of(context);
     final themeMode = ref.watch(themeModeProvider);
 
@@ -352,12 +362,14 @@ class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
   final VoidCallback onBack;
+  final bool forceHide;
 
   const CustomBottomNav({
     super.key,
     required this.currentIndex,
     required this.onTap,
     required this.onBack,
+    this.forceHide = false,
   });
 
   @override
@@ -367,6 +379,7 @@ class CustomBottomNav extends StatelessWidget {
       currentIndex: currentIndex,
       onTap: onTap,
       onBack: onBack,
+      forceHide: forceHide,
     );
   }
 }

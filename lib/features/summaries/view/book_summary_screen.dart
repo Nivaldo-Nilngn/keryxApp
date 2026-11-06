@@ -6,6 +6,7 @@ import 'package:keryx_app/features/bible/model/bible_model.dart';
 import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 
 import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
@@ -26,22 +27,15 @@ class _BookSummaryScreenState extends ConsumerState<BookSummaryScreen> {
   Widget build(BuildContext context) {
     final bookId = widget.book.id ?? BibleMetadata.findBookId(widget.book.abbrev);
     final summary = BibleSummaries.getSummary(bookId);
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      extendBody: true,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-      ),
-      body: Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100), // Espaçamento topo ajustado
+    final Widget bodyContent = Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(20, 20, 20, isTablet ? 32 : 100), // Espaçamento topo ajustado
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -162,21 +156,52 @@ class _BookSummaryScreenState extends ConsumerState<BookSummaryScreen> {
             ),
             
             // Navbar Fixa
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: BookDetailBottomNav(
-                currentIndex: 1, // Sempre na aba da Bíblia
-                onTap: (index) {
-                  Navigator.pop(context); // Sai do resumo
-                  ref.read(navigationProvider.notifier).setIndex(index); // Muda a aba
-                },
-                onBack: () => Navigator.pop(context),
+            if (!isTablet)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: BookDetailBottomNav(
+                  currentIndex: 1, // Sempre na aba da Bíblia
+                  onTap: (index) {
+                    Navigator.pop(context); // Sai do resumo
+                    ref.read(navigationProvider.notifier).setIndex(index); // Muda a aba
+                  },
+                  onBack: () => Navigator.pop(context),
+                ),
               ),
-            ),
           ],
         ),
+      );
+
+    final Widget innerScaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      extendBody: true,
+      appBar: const MBibliaTopBar(
+        title: 'KeryxApp',
+        showLogo: true,
+        showBackButton: false,
       ),
+      body: bodyContent,
     );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        extendBody: true,
+        body: InstagramTabletSidebar(
+          currentIndex: 1,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
 
   // ── WIDGETS ─────────────────────────────────────────────────────────────────

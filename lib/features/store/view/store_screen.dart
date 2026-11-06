@@ -211,6 +211,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     final state = ref.watch(storeProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final searchQuery = ref.watch(searchQueryProvider);
+    final isTablet = MediaQuery.of(context).size.width >= 720;
     
     // Filtrar itens para a biblioteca (inclui baixados e itens salvos na nuvem da conta)
     final libraryItems = state.availablePackages.where((item) {
@@ -246,16 +247,18 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         length: 3,
         child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: KeryxTopBar(
-          title: 'KeryxApp',
-          showBackButton: false,
-          additionalActions: [
-            IconButton(
-              icon: Icon(Icons.refresh_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-              onPressed: () => ref.read(storeProvider.notifier).refresh(),
-            )
-          ],
-        ),
+        appBar: isTablet
+            ? null
+            : KeryxTopBar(
+                title: 'KeryxApp',
+                showBackButton: false,
+                additionalActions: [
+                  IconButton(
+                    icon: Icon(Icons.refresh_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                    onPressed: () => ref.read(storeProvider.notifier).refresh(),
+                  )
+                ],
+              ),
         body: SafeArea(
           bottom: false,
           child: Column(
@@ -263,7 +266,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
             children: [
               // Search Bar Premium
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                padding: EdgeInsets.fromLTRB(20, isTablet ? 20 : 16, 20, 8),
                 child: GlassCard(
                   borderRadius: 24,
                   padding: EdgeInsets.zero,
@@ -276,13 +279,21 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                       prefixIcon: Icon(Icons.search_rounded, color: Theme.of(context).colorScheme.primary),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                      suffixIcon: searchQuery.isNotEmpty ? IconButton(
-                        icon: Icon(Icons.close_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), size: 20),
-                        onPressed: () {
-                          ref.read(searchQueryProvider.notifier).state = '';
-                          FocusScope.of(context).unfocus();
-                        },
-                      ) : null,
+                      suffixIcon: searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.close_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), size: 20),
+                              onPressed: () {
+                                ref.read(searchQueryProvider.notifier).state = '';
+                                FocusScope.of(context).unfocus();
+                              },
+                            )
+                          : (isTablet
+                              ? IconButton(
+                                  tooltip: 'Atualizar',
+                                  icon: Icon(Icons.refresh_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                                  onPressed: () => ref.read(storeProvider.notifier).refresh(),
+                                )
+                              : null),
                     ),
                   ),
                 ),

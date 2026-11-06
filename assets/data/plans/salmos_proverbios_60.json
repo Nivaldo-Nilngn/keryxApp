@@ -1,0 +1,657 @@
+{
+  "id": "salmos-proverbios-60",
+  "title": "Sabedoria & Louvor em 60 Dias",
+  "description": "Todos os Salmos e Provérbios para enriquecer sua oração diária e comunhão com Deus.",
+  "weeks": [
+    {
+      "week": 1,
+      "days": [
+        {
+          "day": 1,
+          "passages": [
+            {
+              "book": 19,
+              "from": 1,
+              "to": 4
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "passages": [
+            {
+              "book": 19,
+              "from": 5,
+              "to": 7
+            }
+          ]
+        },
+        {
+          "day": 3,
+          "passages": [
+            {
+              "book": 19,
+              "from": 8,
+              "to": 10
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "passages": [
+            {
+              "book": 19,
+              "from": 11,
+              "to": 13
+            }
+          ]
+        },
+        {
+          "day": 5,
+          "passages": [
+            {
+              "book": 19,
+              "from": 14,
+              "to": 16
+            }
+          ]
+        },
+        {
+          "day": 6,
+          "passages": [
+            {
+              "book": 19,
+              "from": 17,
+              "to": 19
+            }
+          ]
+        },
+        {
+          "day": 7,
+          "passages": [
+            {
+              "book": 19,
+              "from": 20,
+              "to": 22
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "days": [
+        {
+          "day": 8,
+          "passages": [
+            {
+              "book": 19,
+              "from": 23,
+              "to": 25
+            }
+          ]
+        },
+        {
+          "day": 9,
+          "passages": [
+            {
+              "book": 19,
+              "from": 26,
+              "to": 28
+            }
+          ]
+        },
+        {
+          "day": 10,
+          "passages": [
+            {
+              "book": 19,
+              "from": 29,
+              "to": 31
+            }
+          ]
+        },
+        {
+          "day": 11,
+          "passages": [
+            {
+              "book": 19,
+              "from": 32,
+              "to": 34
+            }
+          ]
+        },
+        {
+          "day": 12,
+          "passages": [
+            {
+              "book": 19,
+              "from": 35,
+              "to": 37
+            }
+          ]
+        },
+        {
+          "day": 13,
+          "passages": [
+            {
+              "book": 19,
+              "from": 38,
+              "to": 40
+            }
+          ]
+        },
+        {
+          "day": 14,
+          "passages": [
+            {
+              "book": 19,
+              "from": 41,
+              "to": 43
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "days": [
+        {
+          "day": 15,
+          "passages": [
+            {
+              "book": 19,
+              "from": 44,
+              "to": 46
+            }
+          ]
+        },
+        {
+          "day": 16,
+          "passages": [
+            {
+              "book": 19,
+              "from": 47,
+              "to": 49
+            }
+          ]
+        },
+        {
+          "day": 17,
+          "passages": [
+            {
+              "book": 19,
+              "from": 50,
+              "to": 52
+            }
+          ]
+        },
+        {
+          "day": 18,
+          "passages": [
+            {
+              "book": 19,
+              "from": 53,
+              "to": 55
+            }
+          ]
+        },
+        {
+          "day": 19,
+          "passages": [
+            {
+              "book": 19,
+              "from": 56,
+              "to": 58
+            }
+          ]
+        },
+        {
+          "day": 20,
+          "passages": [
+            {
+              "book": 19,
+              "from": 59,
+              "to": 61
+            }
+          ]
+        },
+        {
+          "day": 21,
+          "passages": [
+            {
+              "book": 19,
+              "from": 62,
+              "to": 64
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "days": [
+        {
+          "day": 22,
+          "passages": [
+            {
+              "book": 19,
+              "from": 65,
+              "to": 67
+            }
+          ]
+        },
+        {
+          "day": 23,
+          "passages": [
+            {
+              "book": 19,
+              "from": 68,
+              "to": 70
+            }
+          ]
+        },
+        {
+          "day": 24,
+          "passages": [
+            {
+              "book": 19,
+              "from": 71,
+              "to": 73
+            }
+          ]
+        },
+        {
+          "day": 25,
+          "passages": [
+            {
+              "book": 19,
+              "from": 74,
+              "to": 76
+            }
+          ]
+        },
+        {
+          "day": 26,
+          "passages": [
+            {
+              "book": 19,
+              "from": 77,
+              "to": 79
+            }
+          ]
+        },
+        {
+          "day": 27,
+          "passages": [
+            {
+              "book": 19,
+              "from": 80,
+              "to": 82
+            }
+          ]
+        },
+        {
+          "day": 28,
+          "passages": [
+            {
+              "book": 19,
+              "from": 83,
+              "to": 85
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 5,
+      "days": [
+        {
+          "day": 29,
+          "passages": [
+            {
+              "book": 19,
+              "from": 86,
+              "to": 88
+            }
+          ]
+        },
+        {
+          "day": 30,
+          "passages": [
+            {
+              "book": 19,
+              "from": 89,
+              "to": 91
+            }
+          ]
+        },
+        {
+          "day": 31,
+          "passages": [
+            {
+              "book": 19,
+              "from": 92,
+              "to": 94
+            }
+          ]
+        },
+        {
+          "day": 32,
+          "passages": [
+            {
+              "book": 19,
+              "from": 95,
+              "to": 97
+            }
+          ]
+        },
+        {
+          "day": 33,
+          "passages": [
+            {
+              "book": 19,
+              "from": 98,
+              "to": 100
+            }
+          ]
+        },
+        {
+          "day": 34,
+          "passages": [
+            {
+              "book": 19,
+              "from": 101,
+              "to": 103
+            }
+          ]
+        },
+        {
+          "day": 35,
+          "passages": [
+            {
+              "book": 19,
+              "from": 104,
+              "to": 106
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 6,
+      "days": [
+        {
+          "day": 36,
+          "passages": [
+            {
+              "book": 19,
+              "from": 107,
+              "to": 109
+            }
+          ]
+        },
+        {
+          "day": 37,
+          "passages": [
+            {
+              "book": 19,
+              "from": 110,
+              "to": 112
+            }
+          ]
+        },
+        {
+          "day": 38,
+          "passages": [
+            {
+              "book": 19,
+              "from": 113,
+              "to": 115
+            }
+          ]
+        },
+        {
+          "day": 39,
+          "passages": [
+            {
+              "book": 19,
+              "from": 116,
+              "to": 118
+            }
+          ]
+        },
+        {
+          "day": 40,
+          "passages": [
+            {
+              "book": 19,
+              "from": 119,
+              "to": 121
+            }
+          ]
+        },
+        {
+          "day": 41,
+          "passages": [
+            {
+              "book": 19,
+              "from": 122,
+              "to": 124
+            }
+          ]
+        },
+        {
+          "day": 42,
+          "passages": [
+            {
+              "book": 19,
+              "from": 125,
+              "to": 127
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 7,
+      "days": [
+        {
+          "day": 43,
+          "passages": [
+            {
+              "book": 19,
+              "from": 128,
+              "to": 130
+            }
+          ]
+        },
+        {
+          "day": 44,
+          "passages": [
+            {
+              "book": 19,
+              "from": 131,
+              "to": 133
+            }
+          ]
+        },
+        {
+          "day": 45,
+          "passages": [
+            {
+              "book": 19,
+              "from": 134,
+              "to": 136
+            }
+          ]
+        },
+        {
+          "day": 46,
+          "passages": [
+            {
+              "book": 19,
+              "from": 137,
+              "to": 139
+            }
+          ]
+        },
+        {
+          "day": 47,
+          "passages": [
+            {
+              "book": 19,
+              "from": 140,
+              "to": 142
+            }
+          ]
+        },
+        {
+          "day": 48,
+          "passages": [
+            {
+              "book": 19,
+              "from": 143,
+              "to": 145
+            }
+          ]
+        },
+        {
+          "day": 49,
+          "passages": [
+            {
+              "book": 19,
+              "from": 146,
+              "to": 148
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 8,
+      "days": [
+        {
+          "day": 50,
+          "passages": [
+            {
+              "book": 19,
+              "from": 149,
+              "to": 150
+            },
+            {
+              "book": 20,
+              "from": 1,
+              "to": 1
+            }
+          ]
+        },
+        {
+          "day": 51,
+          "passages": [
+            {
+              "book": 20,
+              "from": 2,
+              "to": 4
+            }
+          ]
+        },
+        {
+          "day": 52,
+          "passages": [
+            {
+              "book": 20,
+              "from": 5,
+              "to": 7
+            }
+          ]
+        },
+        {
+          "day": 53,
+          "passages": [
+            {
+              "book": 20,
+              "from": 8,
+              "to": 10
+            }
+          ]
+        },
+        {
+          "day": 54,
+          "passages": [
+            {
+              "book": 20,
+              "from": 11,
+              "to": 13
+            }
+          ]
+        },
+        {
+          "day": 55,
+          "passages": [
+            {
+              "book": 20,
+              "from": 14,
+              "to": 16
+            }
+          ]
+        },
+        {
+          "day": 56,
+          "passages": [
+            {
+              "book": 20,
+              "from": 17,
+              "to": 19
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "week": 9,
+      "days": [
+        {
+          "day": 57,
+          "passages": [
+            {
+              "book": 20,
+              "from": 20,
+              "to": 22
+            }
+          ]
+        },
+        {
+          "day": 58,
+          "passages": [
+            {
+              "book": 20,
+              "from": 23,
+              "to": 25
+            }
+          ]
+        },
+        {
+          "day": 59,
+          "passages": [
+            {
+              "book": 20,
+              "from": 26,
+              "to": 28
+            }
+          ]
+        },
+        {
+          "day": 60,
+          "passages": [
+            {
+              "book": 20,
+              "from": 29,
+              "to": 31
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

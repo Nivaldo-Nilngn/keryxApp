@@ -5,6 +5,70 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.7',
+      buildNumber: 16,
+      title: 'Acervo de Estudos Bíblicos, Multiplanos de Leitura & Otimizações',
+      releaseDate: '06 de Novembro de 2026',
+      highlight:
+          'Novo acervo integrado com mais de 600 estudos bíblicos teológicos e exegéticos offline, suporte a múltiplos planos de leitura simultâneos, leitor dedicado de artigos teológicos, curadoria do catálogo e refinamentos visuais de performance.',
+      items: [
+        // ── Novos Recursos (Implementações) ─────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Acervo de Estudos Bíblicos Integrado',
+          description:
+              'Acesse diretamente no aplicativo mais de 600 estudos teológicos, doutrinários e exegéticos categorizados, com busca instantânea e banco SQLite local veloz.',
+          customIcon: Icons.menu_book_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Multiplanos de Leitura Bíblica',
+          description:
+              'Agora você pode iniciar e acompanhar múltiplos planos de leitura bíblica simultaneamente (Cronológico, Canônico, Evangelhos, Cartas Paulinas), alternando entre eles com facilidade.',
+          customIcon: Icons.event_note_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Leitor Dedicado de Estudos Teológicos',
+          description:
+              'Leitura confortável com tipografia aprimorada, tempo estimado de leitura, badges de categoria e ferramentas de compartilhamento.',
+          customIcon: Icons.article_rounded,
+        ),
+
+        // ── Modificações & Melhorias ─────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Curadoria Exclusiva de Conteúdo Teológico',
+          description:
+              'Catálogo refinado e filtrado para conter exclusivamente artigos e reflexões de teologia, removendo instaladores ou links externos de programas.',
+          customIcon: Icons.auto_awesome_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Navegação Simplificada e Limpa',
+          description:
+              'Remoção de elementos visuais redundantes na Loja e eliminação de setas de retorno desnecessárias em telas integradas à navegação principal.',
+          customIcon: Icons.clean_hands_rounded,
+        ),
+
+        // ── Correções (Bug Fixes) ───────────────────────────────────
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Fluidez do Teclado na Pesquisa de PDFs',
+          description:
+              'Otimização na renderização do campo de busca na biblioteca de PDFs, garantindo abertura e fechamento suave do teclado sem travamentos.',
+          customIcon: Icons.speed_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Correção de Overflow no Plano de Estudos',
+          description:
+              'Eliminação de quebra de layout de pixels no cartão de reflexão diária da aba Hoje.',
+          customIcon: Icons.check_circle_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.6',
       buildNumber: 15,
       title: 'Estilo da Barra de Navegação, Histórico de IA & Otimizações',

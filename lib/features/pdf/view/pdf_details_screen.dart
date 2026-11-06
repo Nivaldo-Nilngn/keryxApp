@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/features/pdf/view/pdf_viewer_screen.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/services/book_cover_service.dart';
 import 'package:keryx_app/core/services/pdf_service.dart';
 import 'package:keryx_app/core/services/graph_service.dart';
@@ -406,23 +408,9 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-      ),
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: 2,
-        onBack: () => Navigator.pop(context),
-        onTap: (index) {
-          if (index != 2) {
-            Navigator.pop(context);
-          }
-        },
-      ),
-      body: LayoutBuilder(
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+
+    final Widget mainBody = LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 1000;
 
@@ -966,8 +954,51 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
             ],
           );
         },
+      );
+
+    final Widget innerScaffold = Scaffold(
+      extendBody: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: const MBibliaTopBar(
+        title: 'KeryxApp',
+        showLogo: true,
+        showBackButton: false,
       ),
+      bottomNavigationBar: isTablet
+          ? null
+          : CustomBottomNav(
+              currentIndex: 2,
+              onBack: () => Navigator.pop(context),
+              onTap: (index) {
+                if (index != 2) {
+                  Navigator.pop(context);
+                }
+              },
+            ),
+      body: mainBody,
     );
+
+    if (isTablet) {
+      return Scaffold(
+        extendBody: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Consumer(
+          builder: (context, ref, _) => InstagramTabletSidebar(
+            currentIndex: 5,
+            isRoute: true,
+            body: innerScaffold,
+            onSelectIndex: (index) {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+              ref.read(navigationProvider.notifier).setIndex(index);
+            },
+          ),
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
 
   Widget _buildSimilarItemsList(BuildContext context) {

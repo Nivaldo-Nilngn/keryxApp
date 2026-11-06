@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'guias/hoje_tab.dart';
 import 'guias/plano_tab.dart';
@@ -35,46 +36,48 @@ class _StudyPlanWindowState extends ConsumerState<StudyPlanWindow>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        showBackButton: false,
-        isScrolled: true,
-        bottom: TabBar(
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+
+    final topBar = MBibliaTopBar(
+      title: 'KeryxApp',
+      showLogo: true,
+      showBackButton: false,
+      isScrolled: true,
+      bottom: TabBar(
+        controller: _tabController,
+        indicatorColor: AppTheme.kPrimaryGold,
+        labelColor: AppTheme.kPrimaryGold,
+        unselectedLabelColor:
+            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+        indicatorWeight: 3,
+        labelStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+        unselectedLabelStyle: GoogleFonts.manrope(
+          fontSize: 13,
+        ),
+        tabs: const [
+          Tab(text: 'Hoje', icon: Icon(Icons.today_rounded, size: 20)),
+          Tab(text: 'Plano', icon: Icon(Icons.view_agenda_rounded, size: 20)),
+          Tab(text: 'Progresso', icon: Icon(Icons.insights_rounded, size: 20)),
+          Tab(text: 'Estudos', icon: Icon(Icons.menu_book_rounded, size: 20)),
+        ],
+      ),
+    );
+
+    final Widget content = Stack(
+      children: [
+        TabBarView(
           controller: _tabController,
-          indicatorColor: AppTheme.kPrimaryGold,
-          labelColor: AppTheme.kPrimaryGold,
-          unselectedLabelColor:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-          indicatorWeight: 3,
-          labelStyle: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-          unselectedLabelStyle: GoogleFonts.manrope(
-            fontSize: 13,
-          ),
-          tabs: const [
-            Tab(text: 'Hoje', icon: Icon(Icons.today_rounded, size: 20)),
-            Tab(text: 'Plano', icon: Icon(Icons.view_agenda_rounded, size: 20)),
-            Tab(text: 'Progresso', icon: Icon(Icons.insights_rounded, size: 20)),
-            Tab(text: 'Planos', icon: Icon(Icons.auto_stories_rounded, size: 20)),
+          children: const [
+            HojeTab(),
+            PlanoTab(),
+            ProgressoTab(),
+            GuiasTab(),
           ],
         ),
-      ),
-      body: Stack(
-        children: [
-          TabBarView(
-            controller: _tabController,
-            children: const [
-              HojeTab(),
-              PlanoTab(),
-              ProgressoTab(),
-              GuiasTab(),
-            ],
-          ),
+        if (!isTablet)
           Align(
             alignment: Alignment.bottomCenter,
             child: CustomBottomNav(
@@ -92,8 +95,32 @@ class _StudyPlanWindowState extends ConsumerState<StudyPlanWindow>
               },
             ),
           ),
-        ],
-      ),
+      ],
     );
+
+    final Widget innerScaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: topBar,
+      body: content,
+    );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: InstagramTabletSidebar(
+          currentIndex: -1,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
 }

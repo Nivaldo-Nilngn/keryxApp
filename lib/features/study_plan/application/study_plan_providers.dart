@@ -5,12 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import '../data/plan_repository.dart';
 import '../domain/domain.dart';
+export '../data/study_history_service.dart';
 
 /// Informações do dia de leitura de hoje
 @immutable
 class TodayPlanInfo {
-  final int day; // Dia global do plano (1..364)
-  final int week; // Semana do plano (1..52)
+  final int day; // Dia global do plano (1..N)
+  final int week; // Semana do plano (1..N)
   final int dayOfWeek; // Dia da semana no plano (1..7)
   final bool isCompleted;
 
@@ -39,24 +40,141 @@ class TodayPlanInfo {
       'TodayPlanInfo(day: $day, week: $week, dayOfWeek: $dayOfWeek, isCompleted: $isCompleted)';
 }
 
-/// Carrega o plano cronológico de 52 semanas em memória uma única vez
-final chronologicalPlanProvider = FutureProvider<StudyPlan>((ref) async {
-  final repo = ref.watch(planRepositoryProvider);
-  return repo.loadChronologicalPlan();
+// ─────────────────────────────────────────────────────────────────────────────
+// GERENCIADOR DE PLANOS ATIVOS (ATÉ 5 PLANOS SIMULTÂNEOS)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ActivePlanIdsNotifier extends StateNotifier<List<String>> {
+  final SharedPreferences? _prefs;
+  static const String _keyActivePlans = 'study_plan_active_plan_ids';
+
+  ActivePlanIdsNotifier(this._prefs) : super(const ['cronologico-52']) {
+    _loadFromStorage();
+  }
+
+  void _loadFromStorage() {
+    if (_prefs == null) return;
+    final list = _prefs.getStringList(_keyActivePlans);
+    if (list != null && list.isNotEmpty) {
+      state = list.take(5).toList();
+    }
+  }
+
+  /// Adiciona um novo plano à lista ativa (máximo de 5 planos)
+  Future<bool> addPlan(String planId) async {
+    if (state.contains(planId)) return true;
+    if (state.length >= 5) return false;
+
+    final updated = [...state, planId];
+    state = updated;
+    if (_prefs != null) {
+      await _prefs.setStringList(_keyActivePlans, updated);
+    }
+    return true;
+  }
+
+  /// Remove um plano da lista de planos ativos e limpa seu progresso
+  Future<void> removePlan(
+    String planId, {
+    String? currentSelectedPlanId,
+    Future<void> Function(String nextPlanId)? onSwitchPlan,
+  }) async {
+    final updated = state.where((id) => id != planId).toList();
+    state = updated;
+    if (_prefs != null) {
+      await _prefs.setStringList(_keyActivePlans, updated);
+      // Remove chaves salvas do plano excluído
+      await _prefs.remove('study_plan_start_date_$planId');
+      await _prefs.remove('study_plan_completed_days_$planId');
+      await _prefs.remove('study_plan_streak_$planId');
+      await _prefs.remove('study_plan_last_date_$planId');
+      await _prefs.remove('study_plan_notes_$planId');
+      await _prefs.remove('study_plan_is_started_$planId');
+    }
+
+    // Se o plano removido era o atualmente selecionado, seleciona o próximo ou fallback
+    if (currentSelectedPlanId == planId && onSwitchPlan != null) {
+      final next = updated.isNotEmpty ? updated.first : 'cronologico-52';
+      await onSwitchPlan(next);
+      if (updated.isEmpty) {
+        await addPlan('cronologico-52');
+      }
+    }
+  }
+}
+
+final activePlanIdsProvider =
+    StateNotifierProvider<ActivePlanIdsNotifier, List<String>>((ref) {
+  SharedPreferences? prefs;
+  try {
+    prefs = ref.watch(sharedPreferencesProvider);
+  } catch (_) {}
+  return ActivePlanIdsNotifier(prefs);
 });
 
-/// Índice em memória do plano para acesso O(1)
-final chronologicalIndexProvider = FutureProvider<PlanIndex>((ref) async {
-  final plan = await ref.watch(chronologicalPlanProvider.future);
+// ─────────────────────────────────────────────────────────────────────────────
+// PLANO ATUALMENTE SELECIONADO NA INTERFACE
+// ─────────────────────────────────────────────────────────────────────────────
+
+class CurrentPlanIdNotifier extends StateNotifier<String> {
+  final SharedPreferences? _prefs;
+  static const String _keyCurrentPlan = 'study_plan_current_plan_id';
+
+  CurrentPlanIdNotifier(this._prefs) : super('cronologico-52') {
+    _loadFromStorage();
+  }
+
+  void _loadFromStorage() {
+    if (_prefs == null) return;
+    final saved = _prefs.getString(_keyCurrentPlan);
+    if (saved != null && saved.isNotEmpty) {
+      state = saved;
+    }
+  }
+
+  Future<void> selectPlan(String planId) async {
+    state = planId;
+    if (_prefs != null) {
+      await _prefs.setString(_keyCurrentPlan, planId);
+    }
+  }
+}
+
+final currentPlanIdProvider =
+    StateNotifierProvider<CurrentPlanIdNotifier, String>((ref) {
+  SharedPreferences? prefs;
+  try {
+    prefs = ref.watch(sharedPreferencesProvider);
+  } catch (_) {}
+  return CurrentPlanIdNotifier(prefs);
+});
+
+/// Carrega o modelo StudyPlan do plano atualmente selecionado
+final currentStudyPlanProvider = FutureProvider<StudyPlan>((ref) async {
+  final planId = ref.watch(currentPlanIdProvider);
+  final repo = ref.watch(planRepositoryProvider);
+  return repo.loadPlan(planId);
+});
+
+/// Índice em memória do plano atualmente selecionado para acesso O(1)
+final currentPlanIndexProvider = FutureProvider<PlanIndex>((ref) async {
+  final plan = await ref.watch(currentStudyPlanProvider.future);
   return PlanIndex(plan);
 });
 
-/// Notifier que gerencia o estado e progresso do plano de estudo
+// Aliases para compatibilidade reversa com telas existentes
+final chronologicalPlanProvider = currentStudyPlanProvider;
+final chronologicalIndexProvider = currentPlanIndexProvider;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTIFIER DE PROGRESSO DO PLANO SELECIONADO
+// ─────────────────────────────────────────────────────────────────────────────
+
 class StudyPlanNotifier extends StateNotifier<PlanProgress> {
   final SharedPreferences? _prefs;
   final String planId;
 
-  StudyPlanNotifier(this._prefs, {this.planId = 'cronologico-52'})
+  StudyPlanNotifier(this._prefs, {required this.planId})
       : super(PlanProgress.initial(planId)) {
     _loadFromStorage();
   }
@@ -66,6 +184,9 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
   String get _keyStreak => 'study_plan_streak_$planId';
   String get _keyLastDate => 'study_plan_last_date_$planId';
   String get _keyNotes => 'study_plan_notes_$planId';
+  String get _keyIsStarted => 'study_plan_is_started_$planId';
+
+  PlanProgress get currentProgress => state;
 
   void _loadFromStorage() {
     if (_prefs == null) return;
@@ -96,6 +217,8 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
       } catch (_) {}
     }
 
+    final isStarted = _prefs.getBool(_keyIsStarted) ?? (completedDays.isNotEmpty);
+
     state = PlanProgress(
       planId: planId,
       startDate: startDate,
@@ -103,14 +226,27 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
       streak: streak,
       lastCompletedDate: lastCompletedDate,
       notes: notes,
+      isStarted: isStarted,
     );
   }
 
-  /// Define a data de início do plano (ex.: 1º de Janeiro ou hoje)
+  /// Marca que o usuário iniciou a leitura deste plano
+  Future<void> startPlan() async {
+    if (state.isStarted) return;
+    final now = DateTime.now();
+    state = state.copyWith(isStarted: true, startDate: now);
+    if (_prefs != null) {
+      await _prefs.setBool(_keyIsStarted, true);
+      await _prefs.setString(_keyStartDate, now.toIso8601String());
+    }
+  }
+
+  /// Define a data de início do plano
   Future<void> setStartDate(DateTime date) async {
-    state = state.copyWith(startDate: date);
+    state = state.copyWith(startDate: date, isStarted: true);
     if (_prefs != null) {
       await _prefs.setString(_keyStartDate, date.toIso8601String());
+      await _prefs.setBool(_keyIsStarted, true);
     }
   }
 
@@ -152,6 +288,7 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
           imported.completedDays.map((e) => e.toString()).toList(),
         );
         await _prefs.setInt(_keyStreak, imported.streak);
+        await _prefs.setBool(_keyIsStarted, imported.isStarted);
         if (imported.lastCompletedDate != null) {
           await _prefs.setString(
             _keyLastDate,
@@ -171,7 +308,7 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
     }
   }
 
-  /// Alterna o estado de conclusão de um dia (1..364)
+  /// Alterna o estado de conclusão de um dia
   Future<void> toggleDay(int dayNumber, {DateTime? now}) async {
     final currentCompleted = Set<int>.from(state.completedDays);
     final currentTime = now ?? DateTime.now();
@@ -182,10 +319,9 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
       // Desmarcar
       currentCompleted.remove(dayNumber);
     } else {
-      // Marcar como concluído
+      // Marcar como concluído e marcar plano como iniciado
       currentCompleted.add(dayNumber);
 
-      // Atualiza o streak baseado na data
       if (newLastDate == null) {
         newStreak = 1;
       } else {
@@ -194,13 +330,10 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
         final diffDays = todayNorm.difference(lastNorm).inDays;
 
         if (diffDays == 1) {
-          // Leu no dia seguinte: incrementa sequência
           newStreak += 1;
         } else if (diffDays == 0) {
-          // Já leu hoje: mantém streak atual
           newStreak = newStreak == 0 ? 1 : newStreak;
         } else {
-          // Quebrou a sequência: reinicia em 1
           newStreak = 1;
         }
       }
@@ -211,6 +344,7 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
       completedDays: currentCompleted,
       streak: newStreak,
       lastCompletedDate: newLastDate,
+      isStarted: true,
     );
 
     if (_prefs != null) {
@@ -219,13 +353,14 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
         currentCompleted.map((e) => e.toString()).toList(),
       );
       await _prefs.setInt(_keyStreak, newStreak);
+      await _prefs.setBool(_keyIsStarted, true);
       if (newLastDate != null) {
         await _prefs.setString(_keyLastDate, newLastDate.toIso8601String());
       }
     }
   }
 
-  /// Reinicia todo o progresso do plano
+  /// Reinicia todo o progresso do plano atual
   Future<void> reset() async {
     final now = DateTime.now();
     state = PlanProgress.initial(planId).copyWith(startDate: now);
@@ -236,26 +371,42 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
       await _prefs.remove(_keyStreak);
       await _prefs.remove(_keyLastDate);
       await _prefs.remove(_keyNotes);
+      await _prefs.remove(_keyIsStarted);
     }
   }
 }
 
-/// Provider do estado e progresso do plano
+/// Provider do estado e progresso do plano atualmente selecionado
 final studyPlanProgressProvider =
     StateNotifierProvider<StudyPlanNotifier, PlanProgress>((ref) {
+  final planId = ref.watch(currentPlanIdProvider);
   SharedPreferences? prefs;
   try {
     prefs = ref.watch(sharedPreferencesProvider);
-  } catch (_) {
-    // Para ambientes de teste isolados sem override
+  } catch (_) {}
+  return StudyPlanNotifier(prefs, planId: planId);
+});
+
+/// Provider para consultar progresso de qualquer plano (usado em listas de planos)
+final planProgressFamilyProvider =
+    Provider.family<PlanProgress, String>((ref, planId) {
+  final current = ref.watch(currentPlanIdProvider);
+  if (current == planId) {
+    return ref.watch(studyPlanProgressProvider);
   }
-  return StudyPlanNotifier(prefs);
+  SharedPreferences? prefs;
+  try {
+    prefs = ref.watch(sharedPreferencesProvider);
+  } catch (_) {}
+  return StudyPlanNotifier(prefs, planId: planId).currentProgress;
 });
 
 /// Calcula dinamicamente o dia de leitura correspondente a hoje
 final todayPlanDayProvider = Provider<TodayPlanInfo>((ref) {
   final progress = ref.watch(studyPlanProgressProvider);
-  return calculateTodayPlanInfo(progress.startDate, progress.completedDays);
+  final planIndexAsync = ref.watch(currentPlanIndexProvider);
+  final totalDays = planIndexAsync.value?.totalDays ?? 364;
+  return calculateTodayPlanInfo(progress.startDate, progress.completedDays, totalDays: totalDays);
 });
 
 /// Helper puro testável para cálculo da data/dia de hoje
@@ -263,19 +414,17 @@ TodayPlanInfo calculateTodayPlanInfo(
   DateTime startDate,
   Set<int> completedDays, {
   DateTime? currentDate,
+  int totalDays = 364,
 }) {
   final now = currentDate ?? DateTime.now();
 
-  // Normaliza eliminando as horas para contagem precisa de dias civis
   final startNorm = DateTime(startDate.year, startDate.month, startDate.day);
   final todayNorm = DateTime(now.year, now.month, now.day);
 
   final diffDays = todayNorm.difference(startNorm).inDays;
 
-  // Se a data de início for hoje, diffDays = 0 -> dia 1
-  // Se começou antes, avança proporcionalmente
-  // Se a data for no futuro (start > today), trava no dia 1
-  final dayNumber = (diffDays + 1).clamp(1, 364);
+  final effectiveTotal = totalDays > 0 ? totalDays : 1;
+  final dayNumber = (diffDays + 1).clamp(1, effectiveTotal);
   final weekNumber = PlanIndex.weekOf(dayNumber);
   final dayOfWeek = PlanIndex.dayOfWeek(dayNumber);
   final isCompleted = completedDays.contains(dayNumber);

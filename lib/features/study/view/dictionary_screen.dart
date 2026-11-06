@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/widgets/mbiblia_top_bar.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart';
@@ -46,21 +47,14 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   @override
   Widget build(BuildContext context) {
     final dictId = ref.watch(selectedDictionaryProvider);
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      extendBody: true,
-      appBar: const MBibliaTopBar(
-        title: 'KeryxApp',
-        showLogo: true,
-        isScrolled: true,
-        showBackButton: false,
-      ),
-      body: Stack(
-        children: [
-          _buildBodyContent(dictId),
+    final Widget content = Stack(
+      children: [
+        _buildBodyContent(dictId),
 
-          // Navbar Fixa
+        // Navbar Fixa (apenas mobile)
+        if (!isTablet)
           Align(
             alignment: Alignment.bottomCenter,
             child: DictionaryBottomNav(
@@ -72,9 +66,40 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
               },
             ),
           ),
-        ],
-      ),
+      ],
     );
+
+    final Widget innerScaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      extendBody: true,
+      appBar: const MBibliaTopBar(
+        title: 'KeryxApp',
+        showLogo: true,
+        isScrolled: true,
+        showBackButton: false,
+      ),
+      body: content,
+    );
+
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        extendBody: true,
+        body: InstagramTabletSidebar(
+          currentIndex: -1,
+          isRoute: true,
+          body: innerScaffold,
+          onSelectIndex: (index) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            ref.read(navigationProvider.notifier).setIndex(index);
+          },
+        ),
+      );
+    }
+
+    return innerScaffold;
   }
 
   Widget _buildBodyContent(String dictId) {

@@ -36,6 +36,8 @@ class UpdateRequiredScreen extends ConsumerWidget {
         ? accessInfo.updateNoticeMessage!
         : 'O Administrador solicitou a atualização obrigatória do aplicativo para garantir a segurança e o bom funcionamento dos dados. Atualize seu aplicativo para ter o acesso restaurado imediatamente.';
 
+    final downloadState = ref.watch(updateDownloadProvider);
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
@@ -214,21 +216,53 @@ class UpdateRequiredScreen extends ConsumerWidget {
                     height: 52,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.kPrimaryGold,
+                        backgroundColor: downloadState.isCompleted
+                            ? const Color(0xFF10B981)
+                            : AppTheme.kPrimaryGold,
                         foregroundColor: const Color(0xFF111223),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: 0,
                       ),
-                      onPressed: () {
-                        ref
-                            .read(downloadServiceProvider)
-                            .downloadAndInstall(context, downloadUrl);
-                      },
-                      icon: const Icon(Icons.download_rounded, size: 22),
+                      onPressed: downloadState.isDownloading
+                          ? null
+                          : () {
+                              if (downloadState.isCompleted &&
+                                  downloadState.downloadedFilePath != null) {
+                                ref.read(downloadServiceProvider).openInstaller(
+                                      downloadState.downloadedFilePath!,
+                                      context: context,
+                                    );
+                              } else {
+                                ref
+                                    .read(downloadServiceProvider)
+                                    .downloadAndInstall(context, downloadUrl);
+                              }
+                            },
+                      icon: downloadState.isDownloading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Color(0xFF111223),
+                              ),
+                            )
+                          : Icon(
+                              downloadState.isCompleted
+                                  ? Icons.check_circle_rounded
+                                  : Icons.download_rounded,
+                              size: 22,
+                            ),
                       label: Text(
-                        kIsWeb ? 'Baixar Atualização (keryxApp.apk)' : 'Baixar e Atualizar Agora',
+                        downloadState.isDownloading
+                            ? (downloadState.progressText ?? 'Baixando atualização...')
+                            : (downloadState.isCompleted
+                                ? 'Instalar Atualização Agora'
+                                : (kIsWeb
+                                    ? 'Baixar Atualização (keryxApp.apk)'
+                                    : 'Baixar e Atualizar Agora')),
                         style: GoogleFonts.outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -236,6 +270,18 @@ class UpdateRequiredScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  if (downloadState.isDownloading) ...[
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: downloadState.progress >= 0 ? downloadState.progress : null,
+                        minHeight: 5,
+                        backgroundColor: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.kPrimaryGold),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
 
                   // Botão de Verificar Novamente
