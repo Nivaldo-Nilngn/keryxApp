@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:keryx_app/core/widgets/responsive_layout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
+import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/study/view/dictionary_detail_screen.dart';
 
 class DictionaryScreen extends ConsumerStatefulWidget {
@@ -26,6 +28,9 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
 
   String? _selectedLetter;
   bool _isSearching = false;
+  String _debouncedQuery = '';
+  Timer? _debounceTimer;
+
   final List<String> _alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   final _searchFieldKey = GlobalKey();
   final _letterSearchFieldKey = GlobalKey();
@@ -35,11 +40,42 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     super.initState();
     if (widget.initialSearch != null && widget.initialSearch!.isNotEmpty) {
       _isSearching = true;
+      _debouncedQuery = widget.initialSearch!.trim();
     }
+  }
+
+  void _onSearchChanged(String val) {
+    _debounceTimer?.cancel();
+    final trimmed = val.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _debouncedQuery = '';
+        _isSearching = false;
+      });
+      return;
+    }
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _debouncedQuery = trimmed;
+          _isSearching = true;
+        });
+      }
+    });
+  }
+
+  void _submitSearch() {
+    _debounceTimer?.cancel();
+    final trimmed = _searchController.text.trim();
+    setState(() {
+      _debouncedQuery = trimmed;
+      _isSearching = trimmed.length >= 2;
+    });
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -77,10 +113,13 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
           : const MBibliaTopBar(
               title: 'KeryxApp',
               showLogo: true,
-              isScrolled: true,
               showBackButton: false,
             ),
-      body: content,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: content,
+      ),
     );
 
     if (isTablet) {
@@ -105,6 +144,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   }
 
   Widget _buildBodyContent(String dictId) {
+    final activeQuery = _debouncedQuery.isNotEmpty ? _debouncedQuery : _searchController.text.trim();
     if (_selectedLetter != null) {
       return Column(
         children: [
@@ -112,7 +152,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
           _buildDictionarySelector(),
           _buildLetterSearchSection(),
           Expanded(
-            child: _isSearching && _searchController.text.length >= 2
+            child: _isSearching && activeQuery.length >= 2
                 ? _buildSearchResults(dictId)
                 : _buildLetterResults(dictId),
           ),
@@ -120,7 +160,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
       );
     }
 
-    if (_isSearching && _searchController.text.length >= 2) {
+    if (_isSearching && activeQuery.length >= 2) {
       return Column(
         children: [
           _buildWebHeader(),
@@ -139,6 +179,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
           _buildWebHeader(),
           _buildDictionarySelector(),
           _buildWebSearchSection(),
+          _buildDictionaryCarousel(),
           _buildLettersGrid(dictId),
           _buildInfoSection(dictId),
         ],
@@ -576,19 +617,12 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onChanged: (val) {
-                  setState(() {
-                    _isSearching = val.length >= 2;
-                  });
-                },
+                onChanged: _onSearchChanged,
+                onSubmitted: (_) => _submitSearch(),
               ),
             ),
             GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isSearching = _searchController.text.length >= 2;
-                });
-              },
+              onTap: _submitSearch,
               child: const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: Icon(
@@ -597,6 +631,202 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                   size: 24,
                 ), // blue-500
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── CARROSSEL DE CARDS DE DESTAQUE NO DICIONÁRIO (ESTILO HOME) ─────────────
+  Widget _buildDictionaryCarousel() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.kPrimaryGold),
+              const SizedBox(width: 8),
+              Text(
+                'LÉXICOS & FERRAMENTAS',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                  color: AppTheme.kPrimaryGold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 142,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              physics: const BouncingScrollPhysics(),
+              children: [
+                _buildDictionaryFeatureCard(
+                  title: 'Léxico Strong',
+                  subtitle: 'Raiz hebraica e grega de cada palavra bíblica.',
+                  badgeText: 'Hebraico & Grego',
+                  badgeIcon: Icons.translate_rounded,
+                  badgeColor: const Color(0xFF7C3AED),
+                  actionIcon: Icons.menu_book_rounded,
+                  onTap: () {
+                    final dicts = ref.read(availableDictionariesListProvider).entries;
+                    final strong = dicts.firstWhere(
+                      (e) => e.value.toLowerCase().contains('strong'),
+                      orElse: () => dicts.isNotEmpty ? dicts.first : const MapEntry('', ''),
+                    );
+                    if (strong.value.isNotEmpty) {
+                      ref.read(selectedDictionaryProvider.notifier).state = strong.value;
+                    }
+                  },
+                ),
+                const SizedBox(width: 12),
+                _buildDictionaryFeatureCard(
+                  title: 'Termos Teológicos',
+                  subtitle: 'Graça, aliança, redenção, justificação e santidade.',
+                  badgeText: 'Doutrina',
+                  badgeIcon: Icons.school_rounded,
+                  badgeColor: const Color(0xFF0284C7),
+                  actionIcon: Icons.auto_stories_rounded,
+                  onTap: () {
+                    _searchController.text = 'Graça';
+                    setState(() => _isSearching = true);
+                  },
+                ),
+                const SizedBox(width: 12),
+                _buildDictionaryFeatureCard(
+                  title: 'Lugares & Arqueologia',
+                  subtitle: 'Jerusalém, Babilônia, Egito, rios e nações antigas.',
+                  badgeText: 'Geografia',
+                  badgeIcon: Icons.public_rounded,
+                  badgeColor: const Color(0xFFD97706),
+                  actionIcon: Icons.explore_rounded,
+                  onTap: () {
+                    _searchController.text = 'Jerusalém';
+                    setState(() => _isSearching = true);
+                  },
+                ),
+                const SizedBox(width: 12),
+                _buildDictionaryFeatureCard(
+                  title: 'Índice Alfabético',
+                  subtitle: 'Selecione qualquer letra abaixo para navegar de A a Z.',
+                  badgeText: 'Índice A-Z',
+                  badgeIcon: Icons.sort_by_alpha_rounded,
+                  badgeColor: const Color(0xFF10B981),
+                  actionIcon: Icons.format_list_bulleted_rounded,
+                  onTap: () {
+                    setState(() => _selectedLetter = 'A');
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDictionaryFeatureCard({
+    required String title,
+    required String subtitle,
+    required String badgeText,
+    IconData? badgeIcon,
+    required Color badgeColor,
+    required IconData actionIcon,
+    VoidCallback? onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 256,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: badgeColor.withValues(alpha: 0.3), width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (badgeIcon != null) ...[
+                        Icon(badgeIcon, color: badgeColor, size: 12),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        badgeText,
+                        style: GoogleFonts.outfit(
+                          color: badgeColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  actionIcon,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  size: 18,
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.outfit(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ],
         ),
@@ -625,10 +855,10 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _alphabet.length,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: ResponsiveLayout.isExpanded(context) ? 6 : 4,
-              childAspectRatio: 1.0,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+              crossAxisCount: ResponsiveLayout.isExpanded(context) ? 8 : 4,
+              childAspectRatio: ResponsiveLayout.isExpanded(context) ? 1.5 : 1.1,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
             ),
             itemBuilder: (context, index) {
               final letter = _alphabet[index];
@@ -880,19 +1110,12 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onChanged: (val) {
-                  setState(() {
-                    _isSearching = val.length >= 2;
-                  });
-                },
+                onChanged: _onSearchChanged,
+                onSubmitted: (_) => _submitSearch(),
               ),
             ),
             GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isSearching = _searchController.text.length >= 2;
-                });
-              },
+              onTap: _submitSearch,
               child: Container(
                 margin: const EdgeInsets.all(6),
                 padding: const EdgeInsets.symmetric(
@@ -925,7 +1148,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   }
 
   Widget _buildSearchResults(String dictId) {
-    final query = _searchController.text;
+    final query = _debouncedQuery.isNotEmpty ? _debouncedQuery : _searchController.text.trim();
     if (query.length < 2) return const SizedBox();
 
     final asyncSearch = ref.watch(
@@ -1008,7 +1231,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 155),
       physics: const BouncingScrollPhysics(),
       itemCount: words.length,
       separatorBuilder: (_, __) => const SizedBox(height: 16),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,9 +19,28 @@ class GuiasTab extends ConsumerStatefulWidget {
 class _GuiasTabState extends ConsumerState<GuiasTab> {
   final TextEditingController _searchController = TextEditingController();
   int _visibleCount = 20;
+  Timer? _debounceTimer;
+
+  void _onSearchChanged(String val) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        ref.read(studySearchQueryProvider.notifier).state = val;
+        setState(() => _visibleCount = 20);
+      }
+    });
+  }
+
+  void _clearSearch() {
+    _debounceTimer?.cancel();
+    _searchController.clear();
+    ref.read(studySearchQueryProvider.notifier).state = '';
+    setState(() => _visibleCount = 20);
+  }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -39,255 +59,266 @@ class _GuiasTabState extends ConsumerState<GuiasTab> {
     final filteredStudies = ref.watch(filteredBiblicalStudiesProvider);
     final displayedStudies = filteredStudies.take(_visibleCount).toList();
 
-    return SingleChildScrollView(
+    final horizontalPadding = isTablet ? 32.0 : 16.0;
+
+    return CustomScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.only(
-        left: isTablet ? 32.0 : 16.0,
-        right: isTablet ? 32.0 : 16.0,
-        top: 20.0,
-        bottom: isTablet ? 32.0 : 120.0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ── TÍTULO DA SEÇÃO ───────────────────────────────────────────────
-          Text(
-            'Planos & Estudos Bíblicos',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.only(
+            left: horizontalPadding,
+            right: horizontalPadding,
+            top: 20.0,
+            bottom: 14.0,
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Aprofunde seu conhecimento com planos de leitura bíblica simultâneos (até 5) e centenas de estudos teológicos completos.',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.7),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // ── SEÇÃO: MEUS PLANOS DE LEITURA (ATÉ 5) ─────────────────────────
-          _buildMyPlansSection(context, activePlanIds, currentPlanId, isDark),
-
-          const SizedBox(height: 32),
-
-          // ── SEÇÃO: ACERVO DE ESTUDOS TEOLÓGICOS ───────────────────────────
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── TÍTULO DA SEÇÃO ───────────────────────────────────────────────
+                Text(
+                  'Planos & Estudos Bíblicos',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.menu_book_rounded,
-                  color: AppTheme.kPrimaryGold,
-                  size: 20,
+                const SizedBox(height: 6),
+                Text(
+                  'Aprofunde seu conhecimento com planos de leitura bíblica simultâneos (até 5) e centenas de estudos teológicos completos.',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 20),
+
+                // ── SEÇÃO: MEUS PLANOS DE LEITURA (ATÉ 5) ─────────────────────────
+                _buildMyPlansSection(context, activePlanIds, currentPlanId, isDark),
+
+                const SizedBox(height: 32),
+
+                // ── SEÇÃO: ACERVO DE ESTUDOS TEOLÓGICOS ───────────────────────────
+                Row(
                   children: [
-                    Text(
-                      'Acervo de Estudos Bíblicos',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.menu_book_rounded,
+                        color: AppTheme.kPrimaryGold,
+                        size: 20,
                       ),
                     ),
-                    Text(
-                      'Artigos doutrinários, exegéticos e devocionais completos',
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Acervo de Estudos Bíblicos',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          Text(
+                            'Artigos doutrinários, exegéticos e devocionais completos',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-          // ── BARRA DE PESQUISA ─────────────────────────────────────────────
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.08),
-              ),
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) {
-                ref.read(studySearchQueryProvider.notifier).state = val;
-                setState(() => _visibleCount = 20);
-              },
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-              decoration: InputDecoration(
-                hintText: 'Buscar por título, passagem ou palavra-chave...',
-                hintStyle: GoogleFonts.outfit(
-                  fontSize: 13.5,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.4),
-                ),
-                prefixIcon: const Icon(Icons.search_rounded, size: 22),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          ref.read(studySearchQueryProvider.notifier).state = '';
-                          setState(() => _visibleCount = 20);
-                        },
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // ── MENU DE NAVEGAÇÃO HIERÁRQUICO POR GRUPOS & DROPDOWNS (ESTILO ESTUDOBIBLICO.ORG) ──
-          _buildStudyNavigationMenu(
-            context: context,
-            isDark: isDark,
-            selectedGroup: selectedGroup,
-            selectedCategory: selectedCategory,
-            allStudies: allStudies,
-            filteredCount: filteredStudies.length,
-          ),
-
-          const SizedBox(height: 18),
-
-          // ── LISTA DE ESTUDOS ──────────────────────────────────────────────
-          if (filteredStudies.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.search_off_rounded,
-                      size: 48,
+                // ── BARRA DE PESQUISA COM DEBOUNCE ──────────────────────────────
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withValues(alpha: 0.3),
+                          .withValues(alpha: 0.08),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Nenhum estudo encontrado',
-                      style: GoogleFonts.outfit(
-                        fontSize: 15,
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por título, passagem ou palavra-chave...',
+                      hintStyle: GoogleFonts.outfit(
+                        fontSize: 13.5,
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withValues(alpha: 0.6),
+                            .withValues(alpha: 0.4),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else ...[
-            Text(
-              '${filteredStudies.length} estudos disponíveis',
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.5),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Grid no tablet ou lista no mobile
-            if (isTablet)
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  mainAxisExtent: 210,
-                ),
-                itemCount: displayedStudies.length,
-                itemBuilder: (context, index) {
-                  return _buildStudyCard(
-                      context, displayedStudies[index], isDark);
-                },
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: displayedStudies.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 14),
-                itemBuilder: (context, index) {
-                  return _buildStudyCard(
-                      context, displayedStudies[index], isDark);
-                },
-              ),
-
-            // Botão "Carregar Mais Estudos"
-            if (_visibleCount < filteredStudies.length)
-              Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Center(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.kPrimaryGold,
-                      side: const BorderSide(color: AppTheme.kPrimaryGold),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _visibleCount = (_visibleCount + 20)
-                            .clamp(0, filteredStudies.length);
-                      });
-                    },
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: Text(
-                      'Carregar Mais Estudos (${filteredStudies.length - _visibleCount} restantes)',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 22),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                              onPressed: _clearSearch,
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ],
-      ),
+                const SizedBox(height: 14),
+
+                // ── MENU DE NAVEGAÇÃO HIERÁRQUICO POR GRUPOS & DROPDOWNS ──
+                _buildStudyNavigationMenu(
+                  context: context,
+                  isDark: isDark,
+                  selectedGroup: selectedGroup,
+                  selectedCategory: selectedCategory,
+                  allStudies: allStudies,
+                  filteredCount: filteredStudies.length,
+                ),
+
+                const SizedBox(height: 18),
+
+                if (filteredStudies.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.search_off_rounded,
+                            size: 48,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.3),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Nenhum estudo encontrado',
+                            style: GoogleFonts.outfit(
+                              fontSize: 15,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    '${filteredStudies.length} estudos disponíveis',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.5),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── ESTUDOS VIRTUALIZADOS NATIVAMENTE VIA SLIVERS ───────────────────
+        if (filteredStudies.isNotEmpty)
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+            sliver: isTablet
+                ? SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      mainAxisExtent: 210,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildStudyCard(
+                        context,
+                        displayedStudies[index],
+                        isDark,
+                      ),
+                      childCount: displayedStudies.length,
+                    ),
+                  )
+                : SliverList.separated(
+                    itemCount: displayedStudies.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 14),
+                    itemBuilder: (context, index) => _buildStudyCard(
+                      context,
+                      displayedStudies[index],
+                      isDark,
+                    ),
+                  ),
+          ),
+
+        // ── BOTÃO CARREGAR MAIS & ESPAÇO INFERIOR SEGURO ─────────────────────
+        SliverPadding(
+          padding: EdgeInsets.only(
+            left: horizontalPadding,
+            right: horizontalPadding,
+            bottom: isTablet ? 32.0 : 155.0,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: _visibleCount < filteredStudies.length
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Center(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.kPrimaryGold,
+                          side: const BorderSide(color: AppTheme.kPrimaryGold),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _visibleCount = (_visibleCount + 20)
+                                .clamp(0, filteredStudies.length);
+                          });
+                        },
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: Text(
+                          'Carregar Mais Estudos (${filteredStudies.length - _visibleCount} restantes)',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
+      ],
     );
   }
 

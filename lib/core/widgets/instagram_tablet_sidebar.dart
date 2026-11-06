@@ -354,16 +354,27 @@ class InstagramTabletSidebar extends ConsumerWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final manualExpanded = ref.watch(sidebarExpandedProvider);
     final isExpanded = manualExpanded ?? (screenWidth >= 1150);
-    final sidebarWidth = isExpanded ? 230.0 : 76.0;
+    final sidebarWidth = isExpanded ? 245.0 : 72.0;
 
     final currentUser = FirebaseAuth.instance.currentUser;
-    final userData = ref.watch(userDataProvider).valueOrNull;
-    final userPhoto = (userData?['photoUrl'] as String?)?.trim() ??
-        currentUser?.photoURL?.trim();
-    final userName = (userData?['name'] as String?)?.trim() ??
+    final userName = ref.watch(
+          userDataProvider.select(
+            (v) => (v.valueOrNull?['name'] as String?)?.trim(),
+          ),
+        ) ??
         currentUser?.displayName ??
         'Perfil';
-    final userFrameId = (userData?['avatarFrame'] as String?) ?? 'gold';
+    final userPhoto = ref.watch(
+          userDataProvider.select(
+            (v) => (v.valueOrNull?['photoUrl'] as String?)?.trim(),
+          ),
+        ) ??
+        currentUser?.photoURL?.trim();
+    final userFrameId = ref.watch(
+      userDataProvider.select(
+        (v) => (v.valueOrNull?['avatarFrame'] as String?) ?? 'gold',
+      ),
+    );
 
     final bgColor = isDark ? const Color(0xFF101018) : Colors.white;
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
@@ -395,9 +406,9 @@ class InstagramTabletSidebar extends ConsumerWidget {
                     children: [
                       // 1. Topo: Logo + Nome do App com transição suave de opacidade
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(19, 16, 14, 16),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
                         child: SizedBox(
-                          height: 38,
+                          height: 34,
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: () => _handleNavigate(context, 0),
@@ -406,620 +417,239 @@ class InstagramTabletSidebar extends ConsumerWidget {
                               child: Row(
                                 children: [
                                   Container(
-                                    width: 38,
-                                    height: 38,
+                                    width: 34,
+                                    height: 34,
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(9),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withValues(alpha: 0.15),
-                                          blurRadius: 6,
+                                          blurRadius: 5,
                                           offset: const Offset(0, 2),
                                         ),
                                       ],
                                     ),
                                     child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(9),
                                       child: Image.asset(
                                         'assets/img/logo.png',
                                         fit: BoxFit.cover,
                                       ),
                                     ),
                                   ),
-                              Expanded(
-                                child: ClipRect(
-                                  child: AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 160),
-                                    curve: Curves.easeInOut,
-                                    opacity: isExpanded ? 1.0 : 0.0,
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      physics: const NeverScrollableScrollPhysics(),
-                                      child: SizedBox(
-                                        width: 150,
-                                        child: Row(
-                                          children: [
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                'KeryxApp',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.clip,
-                                                softWrap: false,
-                                                style: GoogleFonts.plusJakartaSans(
-                                                  fontSize: 18.5,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Theme.of(context).colorScheme.onSurface,
-                                                  letterSpacing: -0.4,
+                                  Expanded(
+                                    child: ClipRect(
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(milliseconds: 160),
+                                        curve: Curves.easeInOut,
+                                        opacity: isExpanded ? 1.0 : 0.0,
+                                        child: SingleChildScrollView(
+                                          scrollDirection: Axis.horizontal,
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          child: SizedBox(
+                                            width: 175,
+                                            child: Row(
+                                              children: [
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    'KeryxApp',
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.clip,
+                                                    softWrap: false,
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 17.5,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: Theme.of(context).colorScheme.onSurface,
+                                                      letterSpacing: -0.3,
+                                                    ),
+                                                  ),
                                                 ),
-                                              ),
+                                              ],
                                             ),
-                                          ],
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 2),
+
+                      // 2. Itens de Navegação das Telas (Ultra-compacto e sem barra de rolagem visível)
+                      Expanded(
+                        child: ScrollConfiguration(
+                          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                          child: ListView(
+                            physics: const ClampingScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 7),
+                            children: [
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.home_rounded,
+                                inactiveIcon: Icons.home_outlined,
+                                label: 'Início',
+                                isSelected: currentIndex == 0,
+                                isExpanded: isExpanded,
+                                onTap: () => _handleNavigate(context, 0),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.menu_book_rounded,
+                                inactiveIcon: Icons.menu_book_outlined,
+                                label: 'Bíblia',
+                                isSelected: currentIndex == 1,
+                                isExpanded: isExpanded,
+                                onTap: () => _handleNavigate(context, 1),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.calendar_month_rounded,
+                                inactiveIcon: Icons.calendar_month_outlined,
+                                label: 'Plano de Estudo',
+                                badgeText: 'Novo',
+                                isSelected: currentIndex == 7,
+                                isExpanded: isExpanded,
+                                onTap: () => _openSpecialScreen(context, 7),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.comment_bank_rounded,
+                                inactiveIcon: Icons.comment_bank_outlined,
+                                label: 'Comentários',
+                                isSelected: currentIndex == 2,
+                                isExpanded: isExpanded,
+                                onTap: () => _handleNavigate(context, 2),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.translate_rounded,
+                                inactiveIcon: Icons.translate_outlined,
+                                label: 'Dicionário',
+                                isSelected: currentIndex == 8,
+                                isExpanded: isExpanded,
+                                onTap: () => _openSpecialScreen(context, 8),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.folder_shared_rounded,
+                                inactiveIcon: Icons.folder_shared_outlined,
+                                label: 'Biblioteca',
+                                isSelected: currentIndex == 9,
+                                isExpanded: isExpanded,
+                                onTap: () => _openSpecialScreen(context, 9),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.auto_awesome_rounded,
+                                inactiveIcon: Icons.auto_awesome_outlined,
+                                label: 'IATheos',
+                                badgeText: 'IA',
+                                isSelected: currentIndex == 10,
+                                isExpanded: isExpanded,
+                                onTap: () => _openSpecialScreen(context, 10),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.people_alt_rounded,
+                                inactiveIcon: Icons.people_alt_outlined,
+                                label: 'Comunidade',
+                                isSelected: currentIndex == 6,
+                                isExpanded: isExpanded,
+                                onTap: () => _handleNavigate(context, 6),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.edit_note_rounded,
+                                inactiveIcon: Icons.edit_note_outlined,
+                                label: 'Anotações',
+                                isSelected: currentIndex == 3,
+                                isExpanded: isExpanded,
+                                onTap: () => _handleNavigate(context, 3),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.bookmark_rounded,
+                                inactiveIcon: Icons.bookmark_border_rounded,
+                                label: 'Favoritos',
+                                isSelected: currentIndex == 4,
+                                isExpanded: isExpanded,
+                                onTap: () => _handleNavigate(context, 4),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.shopping_bag_rounded,
+                                inactiveIcon: Icons.shopping_bag_outlined,
+                                label: 'Loja',
+                                isSelected: currentIndex == 5,
+                                isExpanded: isExpanded,
+                                onTap: () => _handleNavigate(context, 5),
+                              ),
+                              const SizedBox(height: 2),
+                              // Botão Criar (+ Post / Story)
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.add_box_rounded,
+                                inactiveIcon: Icons.add_box_outlined,
+                                label: 'Criar',
+                                isSelected: false,
+                                isExpanded: isExpanded,
+                                highlightGold: true,
+                                onTap: () => _showCreateOptions(context),
                               ),
                             ],
                           ),
                         ),
                       ),
-                    ),
-                  ),
 
-                      const SizedBox(height: 6),
-
-                      // 2. Itens de Navegação das Telas
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                      // 3. Rodapé do Menu Lateral Compacto (Perfil + Ações Rápidas: Tema, Notificações, Mais)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(7, 3, 7, 6),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.home_rounded,
-                              inactiveIcon: Icons.home_outlined,
-                              label: 'Página inicial',
-                              isSelected: currentIndex == 0,
-                              isExpanded: isExpanded,
-                              onTap: () => _handleNavigate(context, 0),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.menu_book_rounded,
-                              inactiveIcon: Icons.menu_book_outlined,
-                              label: 'Bíblia',
-                              isSelected: currentIndex == 1,
-                              isExpanded: isExpanded,
-                              onTap: () => _handleNavigate(context, 1),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.calendar_month_rounded,
-                              inactiveIcon: Icons.calendar_month_outlined,
-                              label: 'Plano de Estudo',
-                              badgeText: 'Novo',
-                              isSelected: currentIndex == 7,
-                              isExpanded: isExpanded,
-                              onTap: () => _openSpecialScreen(context, 7),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.comment_bank_rounded,
-                              inactiveIcon: Icons.comment_bank_outlined,
-                              label: 'Comentários',
-                              isSelected: currentIndex == 2,
-                              isExpanded: isExpanded,
-                              onTap: () => _handleNavigate(context, 2),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.translate_rounded,
-                              inactiveIcon: Icons.translate_outlined,
-                              label: 'Dicionário',
-                              isSelected: currentIndex == 8,
-                              isExpanded: isExpanded,
-                              onTap: () => _openSpecialScreen(context, 8),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.folder_shared_rounded,
-                              inactiveIcon: Icons.folder_shared_outlined,
-                              label: 'Biblioteca',
-                              isSelected: currentIndex == 9,
-                              isExpanded: isExpanded,
-                              onTap: () => _openSpecialScreen(context, 9),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.auto_awesome_rounded,
-                              inactiveIcon: Icons.auto_awesome_outlined,
-                              label: 'IATheos',
-                              badgeText: 'IA',
-                              isSelected: currentIndex == 10,
-                              isExpanded: isExpanded,
-                              onTap: () => _openSpecialScreen(context, 10),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.people_alt_rounded,
-                              inactiveIcon: Icons.people_alt_outlined,
-                              label: 'Comunidade',
-                              badgeText: 'Novo',
-                              isSelected: currentIndex == 6,
-                              isExpanded: isExpanded,
-                              onTap: () => _handleNavigate(context, 6),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.edit_note_rounded,
-                              inactiveIcon: Icons.edit_note_outlined,
-                              label: 'Anotações',
-                              isSelected: currentIndex == 3,
-                              isExpanded: isExpanded,
-                              onTap: () => _handleNavigate(context, 3),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.bookmark_rounded,
-                              inactiveIcon: Icons.bookmark_border_rounded,
-                              label: 'Favoritos',
-                              isSelected: currentIndex == 4,
-                              isExpanded: isExpanded,
-                              onTap: () => _handleNavigate(context, 4),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.shopping_bag_rounded,
-                              inactiveIcon: Icons.shopping_bag_outlined,
-                              label: 'Loja',
-                              isSelected: currentIndex == 5,
-                              isExpanded: isExpanded,
-                              onTap: () => _handleNavigate(context, 5),
-                            ),
-                            const SizedBox(height: 12),
                             Divider(
                               color: isDark ? Colors.white10 : Colors.black12,
                               height: 1,
                               indent: 4,
                               endIndent: 4,
                             ),
-                            const SizedBox(height: 12),
-
-                            // Botão Criar (+ Post / Story)
-                            _buildNavItem(
-                              context: context,
-                              icon: Icons.add_box_rounded,
-                              inactiveIcon: Icons.add_box_outlined,
-                              label: 'Criar',
-                              isSelected: false,
-                              isExpanded: isExpanded,
-                              highlightGold: true,
-                              onTap: () => _showCreateOptions(context),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // 3. Rodapé do Menu Lateral (Tema + Perfil + Mais)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                        child: Column(
-                          children: [
-                            // Botão Direto de Tema (Alternar Exibição / Tema)
-                            Tooltip(
-                              message: 'Alternar Exibição / Tema',
-                              child: InkWell(
-                                onTap: () => _showThemeDialog(context, ref),
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: Icon(
-                                          Icons.palette_outlined,
-                                          size: 24,
-                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: ClipRect(
-                                          child: AnimatedOpacity(
-                                            duration: const Duration(milliseconds: 160),
-                                            curve: Curves.easeInOut,
-                                            opacity: isExpanded ? 1.0 : 0.0,
-                                            child: SingleChildScrollView(
-                                              scrollDirection: Axis.horizontal,
-                                              physics: const NeverScrollableScrollPhysics(),
-                                              child: SizedBox(
-                                                width: 150,
-                                                child: Row(
-                                                  children: [
-                                                    const SizedBox(width: 12),
-                                                    Text(
-                                                      'Tema',
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.clip,
-                                                      softWrap: false,
-                                                      style: GoogleFonts.outfit(
-                                                        fontSize: 14.5,
-                                                        fontWeight: FontWeight.w600,
-                                                        color: Theme.of(context).colorScheme.onSurface,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 4),
-
-                            // Botão Direto de Notificações (Abaixo de Tema)
-                            Consumer(
-                              builder: (context, ref, _) {
-                                final unreadCount = ref.watch(unreadNotificationsCountProvider);
-                                return Tooltip(
-                                  message: unreadCount > 0
-                                      ? 'Notificações ($unreadCount não lida${unreadCount > 1 ? 's' : ''})'
-                                      : 'Notificações',
-                                  child: InkWell(
-                                    onTap: () {
-                                      showModalBottomSheet(
-                                        context: context,
-                                        isScrollControlled: true,
-                                        backgroundColor: Colors.transparent,
-                                        constraints: const BoxConstraints(maxWidth: double.infinity),
-                                        builder: (_) => const NotificationsBottomSheet(),
-                                      );
-                                    },
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Container(
-                                      height: 44,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: Stack(
-                                              clipBehavior: Clip.none,
-                                              children: [
-                                                Center(
-                                                  child: Icon(
-                                                    unreadCount > 0
-                                                        ? Icons.notifications_active_outlined
-                                                        : Icons.notifications_none_rounded,
-                                                    size: 24,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withValues(alpha: 0.8),
-                                                  ),
-                                                ),
-                                                if (unreadCount > 0)
-                                                  Positioned(
-                                                    top: -2,
-                                                    right: -2,
-                                                    child: Container(
-                                                      padding: const EdgeInsets.all(3.5),
-                                                      decoration: const BoxDecoration(
-                                                        color: Color(0xFFEF4444),
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                      constraints: const BoxConstraints(
-                                                        minWidth: 8,
-                                                        minHeight: 8,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: ClipRect(
-                                              child: AnimatedOpacity(
-                                                duration: const Duration(milliseconds: 160),
-                                                curve: Curves.easeInOut,
-                                                opacity: isExpanded ? 1.0 : 0.0,
-                                                child: SingleChildScrollView(
-                                                  scrollDirection: Axis.horizontal,
-                                                  physics: const NeverScrollableScrollPhysics(),
-                                                  child: SizedBox(
-                                                    width: 150,
-                                                    child: Row(
-                                                      children: [
-                                                        const SizedBox(width: 12),
-                                                        Text(
-                                                          'Notificações',
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow.clip,
-                                                          softWrap: false,
-                                                          style: GoogleFonts.outfit(
-                                                            fontSize: 14.5,
-                                                            fontWeight: FontWeight.w600,
-                                                            color: Theme.of(context)
-                                                                .colorScheme
-                                                                .onSurface,
-                                                          ),
-                                                        ),
-                                                        if (unreadCount > 0) ...[
-                                                          const SizedBox(width: 8),
-                                                          Container(
-                                                            padding: const EdgeInsets.symmetric(
-                                                              horizontal: 6,
-                                                              vertical: 2,
-                                                            ),
-                                                            decoration: BoxDecoration(
-                                                              color: const Color(0xFFEF4444),
-                                                              borderRadius:
-                                                                  BorderRadius.circular(10),
-                                                            ),
-                                                            child: Text(
-                                                              '$unreadCount',
-                                                              style: GoogleFonts.outfit(
-                                                                fontSize: 11,
-                                                                fontWeight: FontWeight.bold,
-                                                                color: Colors.white,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-
                             const SizedBox(height: 4),
 
                             // Item de Perfil
-                            Tooltip(
-                              message: 'Meu Perfil ($userName)',
-                              child: InkWell(
-                                onTap: () {
-                                  if (onProfileTap != null) {
-                                    onProfileTap!();
-                                  } else {
-                                    _handleNavigate(context, 6);
-                                  }
-                                },
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: Center(
-                                          child: CommunityUserAvatar(
-                                            photoUrl: userPhoto,
-                                            name: userName,
-                                            radius: 12,
-                                            avatarFrame: userFrameId,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: ClipRect(
-                                          child: AnimatedOpacity(
-                                            duration: const Duration(milliseconds: 160),
-                                            curve: Curves.easeInOut,
-                                            opacity: isExpanded ? 1.0 : 0.0,
-                                            child: SingleChildScrollView(
-                                              scrollDirection: Axis.horizontal,
-                                              physics: const NeverScrollableScrollPhysics(),
-                                              child: SizedBox(
-                                                width: 150,
-                                                child: Row(
-                                                  children: [
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Text(
-                                                        userName,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
-                                                        softWrap: false,
-                                                        style: GoogleFonts.outfit(
-                                                          fontSize: 14,
-                                                          fontWeight: FontWeight.w600,
-                                                          color: Theme.of(context).colorScheme.onSurface,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                            _buildProfileItem(
+                              context: context,
+                              ref: ref,
+                              isExpanded: isExpanded,
+                              userName: userName,
+                              userPhoto: userPhoto,
+                              userFrameId: userFrameId,
+                              isDark: isDark,
                             ),
 
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
 
-                            PopupMenuButton<String>(
-                              tooltip: 'Mais opções',
-                              offset: const Offset(10, -220),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.12)
-                                      : Colors.black.withValues(alpha: 0.08),
-                                ),
-                              ),
-                              color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
-                              elevation: 12,
-                              onSelected: (val) {
-                                if (val == 'settings') {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    constraints: const BoxConstraints(maxWidth: double.infinity),
-                                    builder: (context) => const UnifiedSettingsSheet(),
-                                  );
-                                } else if (val == 'profile') {
-                                  showEditProfileModal(context, ref);
-                                } else if (val == 'whats_new') {
-                                  ref.read(releaseNotesServiceProvider).showReleaseNotes(context);
-                                } else if (val == 'guide') {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const GuideScreen()),
-                                  );
-                                } else if (val == 'logout') {
-                                  _handleLogout(context, ref);
-                                }
-                              },
-                              itemBuilder: (ctx) => [
-                                const PopupMenuItem(
-                                  value: 'settings',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.settings_outlined, size: 20),
-                                      SizedBox(width: 12),
-                                      Text('Configurações'),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'profile',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.account_circle_outlined, size: 20),
-                                      SizedBox(width: 12),
-                                      Text('Editar Perfil'),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'whats_new',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.auto_awesome_rounded, size: 20, color: Color(0xFFFFD56B)),
-                                      SizedBox(width: 12),
-                                      Text('Novidades da Versão'),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'guide',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.help_outline_rounded, size: 20),
-                                      SizedBox(width: 12),
-                                      Text('Guia do Usuário'),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuDivider(),
-                                const PopupMenuItem(
-                                  value: 'logout',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.logout_rounded, size: 20, color: Color(0xFFFF5252)),
-                                      SizedBox(width: 12),
-                                      Text('Sair da Conta', style: TextStyle(color: Color(0xFFFF5252), fontWeight: FontWeight.w600)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              child: Container(
-                                height: 44,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: Icon(
-                                        Icons.menu_rounded,
-                                        size: 24,
-                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: ClipRect(
-                                        child: AnimatedOpacity(
-                                          duration: const Duration(milliseconds: 160),
-                                          curve: Curves.easeInOut,
-                                          opacity: isExpanded ? 1.0 : 0.0,
-                                          child: SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            physics: const NeverScrollableScrollPhysics(),
-                                            child: SizedBox(
-                                              width: 150,
-                                              child: Row(
-                                                children: [
-                                                  const SizedBox(width: 12),
-                                                  Text(
-                                                    'Mais',
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.clip,
-                                                    softWrap: false,
-                                                    style: GoogleFonts.outfit(
-                                                      fontSize: 14.5,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: Theme.of(context).colorScheme.onSurface,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            // Barra de Ações Rápidas (Tema, Notificações, Mais)
+                            _buildFooterActionBar(
+                              context: context,
+                              ref: ref,
+                              isExpanded: isExpanded,
+                              isDark: isDark,
                             ),
                           ],
                         ),
@@ -1162,6 +792,319 @@ class InstagramTabletSidebar extends ConsumerWidget {
     );
   }
 
+  Widget _buildProfileItem({
+    required BuildContext context,
+    required WidgetRef ref,
+    required bool isExpanded,
+    required String userName,
+    required String? userPhoto,
+    required String userFrameId,
+    required bool isDark,
+  }) {
+    return Tooltip(
+      message: 'Meu Perfil ($userName)',
+      preferBelow: false,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () {
+            if (onProfileTap != null) {
+              onProfileTap!();
+            } else {
+              _handleNavigate(context, 6);
+            }
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: Center(
+                    child: CommunityUserAvatar(
+                      photoUrl: userPhoto,
+                      name: userName,
+                      radius: 11,
+                      avatarFrame: userFrameId,
+                    ),
+                  ),
+                ),
+                if (isExpanded) ...[
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      userName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooterActionBar({
+    required BuildContext context,
+    required WidgetRef ref,
+    required bool isExpanded,
+    required bool isDark,
+  }) {
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
+    if (!isExpanded) {
+      return _buildMoreMenuButton(
+        context,
+        ref,
+        isDark,
+        onSurface,
+        isExpanded: false,
+        unreadCount: unreadCount,
+      );
+    }
+
+    return Container(
+      height: 30,
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Row(
+        children: [
+          // 1. Tema
+          Expanded(
+            child: Tooltip(
+              message: 'Alternar Tema',
+              preferBelow: false,
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(7),
+                child: InkWell(
+                  onTap: () => _showThemeDialog(context, ref),
+                  borderRadius: BorderRadius.circular(7),
+                  child: Center(
+                    child: Icon(
+                      Icons.palette_outlined,
+                      size: 17,
+                      color: onSurface.withValues(alpha: 0.75),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 14,
+            color: isDark ? Colors.white10 : Colors.black12,
+          ),
+          // 2. Notificações
+          Expanded(
+            child: Tooltip(
+              message: unreadCount > 0
+                  ? 'Notificações ($unreadCount)'
+                  : 'Notificações',
+              preferBelow: false,
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(7),
+                child: InkWell(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      constraints: const BoxConstraints(maxWidth: double.infinity),
+                      builder: (_) => const NotificationsBottomSheet(),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(7),
+                  child: Center(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Icon(
+                          unreadCount > 0
+                              ? Icons.notifications_active_outlined
+                              : Icons.notifications_none_rounded,
+                          size: 17,
+                          color: unreadCount > 0 ? AppTheme.kPrimaryGold : onSurface.withValues(alpha: 0.75),
+                        ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            top: -1,
+                            right: -1,
+                            child: Container(
+                              width: 5.5,
+                              height: 5.5,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFEF4444),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 14,
+            color: isDark ? Colors.white10 : Colors.black12,
+          ),
+          // 3. Mais Opções (PopupMenu)
+          Expanded(
+            child: _buildMoreMenuButton(
+              context,
+              ref,
+              isDark,
+              onSurface,
+              isExpanded: true,
+              unreadCount: unreadCount,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMoreMenuButton(
+    BuildContext context,
+    WidgetRef ref,
+    bool isDark,
+    Color onSurface, {
+    required bool isExpanded,
+    required int unreadCount,
+  }) {
+    return PopupMenuButton<String>(
+      tooltip: 'Mais opções',
+      offset: const Offset(10, -220),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+      elevation: 12,
+      onSelected: (val) {
+        if (val == 'settings') {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            constraints: const BoxConstraints(maxWidth: double.infinity),
+            builder: (context) => const UnifiedSettingsSheet(),
+          );
+        } else if (val == 'profile') {
+          showEditProfileModal(context, ref);
+        } else if (val == 'whats_new') {
+          ref.read(releaseNotesServiceProvider).showReleaseNotes(context);
+        } else if (val == 'guide') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const GuideScreen()),
+          );
+        } else if (val == 'logout') {
+          _handleLogout(context, ref);
+        }
+      },
+      itemBuilder: (ctx) => [
+        const PopupMenuItem(
+          value: 'settings',
+          child: Row(
+            children: [
+              Icon(Icons.settings_outlined, size: 20),
+              SizedBox(width: 12),
+              Text('Configurações'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'profile',
+          child: Row(
+            children: [
+              Icon(Icons.account_circle_outlined, size: 20),
+              SizedBox(width: 12),
+              Text('Editar Perfil'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'whats_new',
+          child: Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 20, color: Color(0xFFFFD56B)),
+              SizedBox(width: 12),
+              Text('Novidades da Versão'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'guide',
+          child: Row(
+            children: [
+              Icon(Icons.help_outline_rounded, size: 20),
+              SizedBox(width: 12),
+              Text('Guia do Usuário'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'logout',
+          child: Row(
+            children: [
+              Icon(Icons.logout_rounded, size: 20, color: Color(0xFFFF5252)),
+              SizedBox(width: 12),
+              Text('Sair da Conta', style: TextStyle(color: Color(0xFFFF5252), fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ],
+      child: isExpanded
+          ? Center(
+              child: Icon(
+                Icons.more_horiz_rounded,
+                size: 19,
+                color: onSurface.withValues(alpha: 0.75),
+              ),
+            )
+          : Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.menu_rounded,
+                  size: 21,
+                  color: onSurface.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+    );
+  }
+
   Widget _buildNavItem({
     required BuildContext context,
     required IconData icon,
@@ -1183,26 +1126,27 @@ class InstagramTabletSidebar extends ConsumerWidget {
 
     return Tooltip(
       message: label,
+      preferBelow: false,
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            height: 35,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               color: isSelected
                   ? activeColor.withValues(alpha: 0.14)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
                 SizedBox(
-                  width: 24,
-                  height: 24,
+                  width: 22,
+                  height: 22,
                   child: Stack(
                     clipBehavior: Clip.none,
                     alignment: Alignment.center,
@@ -1210,15 +1154,15 @@ class InstagramTabletSidebar extends ConsumerWidget {
                       Icon(
                         isSelected ? icon : inactiveIcon,
                         color: itemColor,
-                        size: isSelected ? 24 : 22,
+                        size: isSelected ? 20.5 : 19.0,
                       ),
                       if (badgeText != null && !isExpanded)
                         Positioned(
                           top: -2,
                           right: -2,
                           child: Container(
-                            width: 7,
-                            height: 7,
+                            width: 6,
+                            height: 6,
                             decoration: const BoxDecoration(
                               color: Color(0xFF10B981),
                               shape: BoxShape.circle,
@@ -1238,10 +1182,10 @@ class InstagramTabletSidebar extends ConsumerWidget {
                         scrollDirection: Axis.horizontal,
                         physics: const NeverScrollableScrollPhysics(),
                         child: SizedBox(
-                          width: 148,
+                          width: 175,
                           child: Row(
                             children: [
-                              const SizedBox(width: 14),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   label,
@@ -1249,24 +1193,24 @@ class InstagramTabletSidebar extends ConsumerWidget {
                                   overflow: TextOverflow.ellipsis,
                                   softWrap: false,
                                   style: GoogleFonts.outfit(
-                                    fontSize: 14.5,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    fontSize: 13.5,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                                     color: itemColor,
                                   ),
                                 ),
                               ),
                               if (badgeText != null)
                                 Container(
-                                  margin: const EdgeInsets.only(left: 6),
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                  margin: const EdgeInsets.only(left: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF10B981).withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(5),
                                   ),
                                   child: Text(
                                     badgeText,
                                     style: GoogleFonts.outfit(
-                                      fontSize: 10,
+                                      fontSize: 9.5,
                                       fontWeight: FontWeight.bold,
                                       color: const Color(0xFF10B981),
                                     ),

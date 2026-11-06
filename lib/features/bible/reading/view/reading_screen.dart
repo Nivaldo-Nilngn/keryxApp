@@ -476,19 +476,38 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                               chapter,
                             ),
                             const SizedBox(height: 24),
-                            if (fontSettings.splitPage && MediaQuery.of(context).size.width >= 600)
-                              _buildTwoColumnVerses(
-                                verses: chapter.verses,
-                                version: version,
-                                effectiveSubVersion: effectiveSubVersion,
-                                fontSettings: fontSettings,
-                                activeAudioVerseNumber: activeAudioVerseNumber,
-                                selectedVerses: selectedVerses,
-                                highlights: highlights,
-                                favorites: favorites,
-                              )
-                            else
-                              ...chapter.verses.map((verse) {
+                            ...(() {
+                              final effectiveTextColor = KeryxColorContrast.ensureReadableTextColor(
+                                fontSettings.textColor != null
+                                    ? Color(fontSettings.textColor!)
+                                    : null,
+                                context,
+                              );
+                              final cachedVerseStyle = _getFontStyle(
+                                fontSettings.fontFamily,
+                                fontSize: fontSettings.fontSize,
+                                height: 1.6,
+                                color: effectiveTextColor,
+                              );
+
+                              if (fontSettings.splitPage && MediaQuery.of(context).size.width >= 600) {
+                                return [
+                                  _buildTwoColumnVerses(
+                                    verses: chapter.verses,
+                                    version: version,
+                                    effectiveSubVersion: effectiveSubVersion,
+                                    fontSettings: fontSettings,
+                                    activeAudioVerseNumber: activeAudioVerseNumber,
+                                    selectedVerses: selectedVerses,
+                                    highlights: highlights,
+                                    favorites: favorites,
+                                    cachedVerseStyle: cachedVerseStyle,
+                                    cachedTextColor: effectiveTextColor,
+                                  ),
+                                ];
+                              }
+
+                              return chapter.verses.map((verse) {
                                 return _buildVerseItem(
                                   verse: verse,
                                   version: version,
@@ -499,8 +518,11 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                                   highlights: highlights,
                                   favorites: favorites,
                                   isTwoColumn: false,
+                                  cachedVerseStyle: cachedVerseStyle,
+                                  cachedTextColor: effectiveTextColor,
                                 );
-                              }),
+                              }).toList();
+                            })(),
                             _buildPagination(),
                           ],
                         ),
@@ -1352,6 +1374,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     required Map<String, int> highlights,
     required Set<String> favorites,
     bool isTwoColumn = false,
+    TextStyle? cachedVerseStyle,
+    Color? cachedTextColor,
   }) {
     _verseKeys[verse.number] ??= GlobalKey();
     final isAudioActiveInChapter = activeAudioVerseNumber != null;
@@ -1453,22 +1477,28 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
                       final isRtl = BibleTextParser.isRtlText(verseToRender.text);
 
+                      final effectiveTextColor = cachedTextColor ??
+                          KeryxColorContrast.ensureReadableTextColor(
+                            fontSettings.textColor != null
+                                ? Color(fontSettings.textColor!)
+                                : null,
+                            context,
+                          );
+
+                      final effectiveVerseStyle = cachedVerseStyle ??
+                          _getFontStyle(
+                            fontSettings.fontFamily,
+                            fontSize: fontSettings.fontSize,
+                            height: 1.6,
+                            color: effectiveTextColor,
+                          );
+
                       return [
                         RichText(
                           textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
                           textAlign: isRtl ? TextAlign.right : TextAlign.left,
                           text: TextSpan(
-                            style: _getFontStyle(
-                              fontSettings.fontFamily,
-                              fontSize: fontSettings.fontSize,
-                              height: 1.6,
-                              color: KeryxColorContrast.ensureReadableTextColor(
-                                fontSettings.textColor != null
-                                    ? Color(fontSettings.textColor!)
-                                    : null,
-                                context,
-                              ),
-                            ),
+                            style: effectiveVerseStyle,
                             children: [
                               WidgetSpan(
                                 alignment: PlaceholderAlignment.middle,
@@ -1482,18 +1512,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                                   decoration: BoxDecoration(
                                     color: badgeBgColor,
                                     shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: badgeBgColor.withValues(alpha: 0.4),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
                                     displayNumber,
-                                    style: GoogleFonts.outfit(
+                                    style: TextStyle(
+                                      fontFamily: GoogleFonts.outfit().fontFamily,
                                       fontSize: badgeFontSize,
                                       fontWeight: FontWeight.w900,
                                       color: Colors.white,
@@ -1506,6 +1530,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                                 version,
                                 effectiveSubVersion,
                                 fontSettings,
+                                cachedTextColor: effectiveTextColor,
                               ),
                             ],
                           ),
@@ -1544,6 +1569,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     required Set<int> selectedVerses,
     required Map<String, int> highlights,
     required Set<String> favorites,
+    TextStyle? cachedVerseStyle,
+    Color? cachedTextColor,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dividerColor = isDark
@@ -1575,6 +1602,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                   highlights: highlights,
                   favorites: favorites,
                   isTwoColumn: true,
+                  cachedVerseStyle: cachedVerseStyle,
+                  cachedTextColor: cachedTextColor,
                 )).toList(),
               ),
             ),
@@ -1595,6 +1624,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                   highlights: highlights,
                   favorites: favorites,
                   isTwoColumn: true,
+                  cachedVerseStyle: cachedVerseStyle,
+                  cachedTextColor: cachedTextColor,
                 )).toList(),
               ),
             ),
@@ -1611,8 +1642,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     BibleVerse verse,
     String version,
     String? effectiveSubVersion,
-    FontSettings fontSettings,
-  ) {
+    FontSettings fontSettings, {
+    Color? cachedTextColor,
+  }) {
     final vUpper = version.toUpperCase();
     final hasStrongs = BibleService.versionsWithStrongs.contains(vUpper) ||
         vUpper.endsWith('_S') ||
@@ -1626,7 +1658,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       verseNumber: verse.number,
       isStrongVersion: hasStrongs,
       subVersionFilter: effectiveSubVersion,
-      textColor: KeryxColorContrast.ensureReadableTextColor(
+      textColor: cachedTextColor ?? KeryxColorContrast.ensureReadableTextColor(
         fontSettings.textColor != null ? Color(fontSettings.textColor!) : null,
         context,
       ),

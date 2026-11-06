@@ -272,7 +272,11 @@ class DevocionalScreen extends ConsumerWidget {
               },
               onBack: () => Navigator.pop(context),
             ),
-      body: bodyContent,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: bodyContent,
+      ),
     );
 
     if (isTablet) {

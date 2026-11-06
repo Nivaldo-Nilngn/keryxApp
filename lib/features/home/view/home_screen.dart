@@ -130,17 +130,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       const UpdateBanner(),
-                      _buildHeroBanner(),
+                      const RepaintBoundary(child: _HomeHeroBanner()),
                       const SizedBox(height: 24),
-                      _buildCarousel(),
+                      const RepaintBoundary(child: _HomeCarousel()),
                       const SizedBox(height: 32),
-                      _buildContinueReading(),
+                      const RepaintBoundary(child: _HomeContinueReading()),
                       const SizedBox(height: 32),
-                      _buildMainTools(),
+                      RepaintBoundary(
+                        child: _HomeMainTools(
+                          isHarpaDismissed: _isHarpaDismissed,
+                          onDismissHarpa: _dismissHarpaCard,
+                        ),
+                      ),
                       const SizedBox(height: 32),
-                      _buildDevotional(),
+                      const RepaintBoundary(child: _HomeDevotional()),
                       const SizedBox(height: 32),
-                      _buildPrimeirosPassosBanner(),
+                      const _HomePrimeirosPassosBanner(),
                       const SizedBox(height: 32),
                     ]),
                   ),
@@ -152,8 +157,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ),
     );
   }
+}
 
-  String _getGreeting() {
+// ============================================================================
+// ISOLATED CONSUMER WIDGETS (FASE 4 - ZERO UNNECESSARY REBUILDS)
+// ============================================================================
+
+class _HomeHeroBanner extends ConsumerWidget {
+  const _HomeHeroBanner();
+
+  static String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) {
       return 'Bom dia';
@@ -164,11 +177,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     }
   }
 
-  Widget _buildHeroBanner() {
-    final authState = ref.watch(authStateProvider);
-    final user = authState.value;
-    final userData = ref.watch(userDataProvider);
-    String name = userData.value?['name'] ?? user?.displayName ?? 'Visitante';
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userName = ref.watch(userDataProvider.select((u) => u.value?['name'] as String?));
+    final authDisplayName = ref.watch(authStateProvider.select((a) => a.value?.displayName));
+    String name = userName ?? authDisplayName ?? 'Visitante';
     if (name.contains(' ')) {
       name = name.split(' ')[0]; // Pega só o primeiro nome
     }
@@ -231,75 +244,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ),
     );
   }
+}
 
-  Widget _buildPrimeirosPassosBanner() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const GuideScreen()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.menu_book_rounded,
-                  color: Color(0xFFFFB95F), // Dourado
-                  size: 24,
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Primeiros passos',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Conheça todas as ferramentas',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 24,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+class _HomeCarousel extends StatelessWidget {
+  const _HomeCarousel();
 
-  Widget _buildCarousel() {
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       height: 140,
       child: ListView(
@@ -307,12 +258,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         clipBehavior: Clip.none,
         children: [
           _buildCarouselCard(
+            context: context,
             title: 'IATheos Chat',
             subtitle:
                 'Estude a bíblia conversando com a nossa IA teológica avançada.',
             badgeText: 'Novo',
             badgeIcon: Icons.smart_toy_outlined,
-            badgeColor: const Color(0xFF7C3AED), // #7C3AED
+            badgeColor: const Color(0xFF7C3AED),
             actionIcon: Icons.auto_awesome_rounded,
             onTap: () {
               Navigator.push(
@@ -323,6 +275,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           ),
           const SizedBox(width: 12),
           _buildCarouselCard(
+            context: context,
             title: 'Primeiros Passos',
             subtitle:
                 'Descubra como usar o app e desfrutar de todos os recursos bíblicos.',
@@ -339,6 +292,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           ),
           const SizedBox(width: 12),
           _buildCarouselCard(
+            context: context,
             title: 'Plano de Estudo',
             subtitle:
                 'Leitura bíblica cronológica em 1 ano (52 semanas).',
@@ -359,6 +313,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   Widget _buildCarouselCard({
+    required BuildContext context,
     required String title,
     required String subtitle,
     required String badgeText,
@@ -371,94 +326,88 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       onTap: onTap,
       child: Container(
         width: 256,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (badgeIcon != null) ...[
-                      Icon(badgeIcon, color: badgeColor, size: 12),
-                      const SizedBox(width: 4),
-                    ],
-                    Text(
-                      badgeText,
-                      style: TextStyle(
-                        color: badgeColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (badgeIcon != null) ...[
+                        Icon(badgeIcon, color: badgeColor, size: 12),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        badgeText,
+                        style: TextStyle(
+                          color: badgeColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Icon(actionIcon, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), size: 18),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                Icon(actionIcon, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), size: 18),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontSize: 12,
-                  height: 1.3,
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ],
-      ),
-    ));
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.outfit(
-        color: Theme.of(context).colorScheme.onSurface,
-        fontSize: 22,
-        fontWeight: FontWeight.bold,
-        letterSpacing: -0.5,
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildContinueReading() {
+class _HomeContinueReading extends ConsumerWidget {
+  const _HomeContinueReading();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final lastRead = ref.watch(lastReadProvider);
     final selectedVersion = ref.watch(selectedVersionProvider);
 
@@ -486,7 +435,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Continue Lendo'),
+        _buildSectionHeader(context, 'Continue Lendo'),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () {
@@ -573,16 +522,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ],
     );
   }
+}
 
-  Widget _buildMainTools() {
+class _HomeMainTools extends ConsumerWidget {
+  final bool isHarpaDismissed;
+  final VoidCallback onDismissHarpa;
+
+  const _HomeMainTools({
+    required this.isHarpaDismissed,
+    required this.onDismissHarpa,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final storeState = ref.watch(downloadedStorePackagesProvider);
-        final localVersions = BibleService.availableVersions.where((v) {
-          return storeState.isDownloaded('$v.sqlite') || 
-                 storeState.isDownloaded('$v.mybible') || 
-                 storeState.isDownloaded('$v.bbl.mybible') || 
-                 storeState.isDownloaded('$v.db') ||
-                 v == 'NVI' || v == 'ACF' || v == 'ARA_S';
-        }).toList();
+    final localVersions = BibleService.availableVersions.where((v) {
+      return storeState.isDownloaded('$v.sqlite') || 
+             storeState.isDownloaded('$v.mybible') || 
+             storeState.isDownloaded('$v.bbl.mybible') || 
+             storeState.isDownloaded('$v.db') ||
+             v == 'NVI' || v == 'ACF' || v == 'ARA_S';
+    }).toList();
 
     final downloadedBibles = storeState.availablePackages
         .where((p) => p.category == StoreCategory.bibles && storeState.isDownloaded(p.filename));
@@ -647,7 +607,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Ferramentas Principais'),
+        _buildSectionHeader(context, 'Ferramentas Principais'),
         const SizedBox(height: 12),
         GridView(
           shrinkWrap: true,
@@ -715,7 +675,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 Colors.white,
               ),
               onTap: () {
-                ref.read(navigationProvider.notifier).setIndex(4); // Favoritos (assumindo que vamos adicionar no MainLayout index 4)
+                ref.read(navigationProvider.notifier).setIndex(4); // Favoritos
               },
             ),
             _buildToolCard(
@@ -796,30 +756,104 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 );
               },
             ),
-            if (isHarpaDownloaded || !_isHarpaDismissed)
-              _buildHarpaCard(
-                context: context,
+            if (isHarpaDownloaded || !isHarpaDismissed)
+              _HomeHarpaCard(
                 harpaPackage: harpaPackage,
                 isDownloaded: isHarpaDownloaded,
                 harpaBook: harpaBook,
+                onDismiss: onDismissHarpa,
               ),
           ],
         ),
-        if (isHarpaDownloaded)
-          ...[
-            const SizedBox(height: 24),
-            _buildHymnOfTheDay(harpaBook, context),
-          ],
+        if (isHarpaDownloaded) ...[
+          const SizedBox(height: 24),
+          _buildHymnOfTheDay(harpaBook, context),
+        ],
       ],
     );
   }
 
-  Widget _buildHarpaCard({
-    required BuildContext context,
-    required StoreItem? harpaPackage,
-    required bool isDownloaded,
-    required StoreItem harpaBook,
-  }) {
+  Widget _buildHymnOfTheDay(StoreItem book, BuildContext context) {
+    final now = DateTime.now();
+    final seed = now.year * 10000 + now.month * 100 + now.day;
+    final hymnIndex = seed % 640; 
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(context, 'Hino do Dia'),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => BookReaderScreen(book: book, initialHymnIndex: hymnIndex)),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(child: Icon(Icons.music_note_rounded, color: Color(0xFFFFA726))),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('HARPA CRISTÃ • ${hymnIndex + 1}', style: GoogleFonts.outfit(color: const Color(0xFFF07994), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      const SizedBox(height: 4),
+                      Text('Hino de Adoração', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text('Um hino para sua devocional', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFA726),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(child: Icon(Icons.chevron_right_rounded, color: Colors.black87)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeHarpaCard extends ConsumerWidget {
+  final StoreItem? harpaPackage;
+  final bool isDownloaded;
+  final StoreItem harpaBook;
+  final VoidCallback onDismiss;
+
+  const _HomeHarpaCard({
+    required this.harpaPackage,
+    required this.isDownloaded,
+    required this.harpaBook,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     if (isDownloaded) {
       return _buildToolCard(
         title: 'Harpa Cristã',
@@ -848,6 +882,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         (s) => s.downloadProgress[harpaPackage?.filename ?? 'books/Harpa.bok.mybible'],
       ),
     );
+
     final isDownloading = downloadProgress != null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -865,8 +900,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           return;
         }
 
-        if (harpaPackage != null && (harpaPackage.downloadUrl?.isNotEmpty ?? false)) {
-          ref.read(storeProvider.notifier).downloadPackage(harpaPackage);
+        if (harpaPackage != null && (harpaPackage!.downloadUrl?.isNotEmpty ?? false)) {
+          ref.read(storeProvider.notifier).downloadPackage(harpaPackage!);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Iniciando download da Harpa Cristã...'),
@@ -1006,7 +1041,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     const SizedBox(width: 6),
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: _dismissHarpaCard,
+                      onTap: onDismiss,
                       child: Tooltip(
                         message: 'Ocultar da tela inicial',
                         child: Container(
@@ -1095,183 +1130,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ),
     );
   }
+}
 
-  Widget _buildHymnOfTheDay(StoreItem book, BuildContext context) {
-    final now = DateTime.now();
-    final seed = now.year * 10000 + now.month * 100 + now.day;
-    final hymnIndex = seed % 640; 
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader('Hino do Dia'),
-        const SizedBox(height: 12),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => BookReaderScreen(book: book, initialHymnIndex: hymnIndex)),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(child: Icon(Icons.music_note_rounded, color: Color(0xFFFFA726))),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('HARPA CRISTÃ • ${hymnIndex + 1}', style: GoogleFonts.outfit(color: const Color(0xFFF07994), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                      const SizedBox(height: 4),
-                      Text('Hino de Adoração', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 2),
-                      Text('Um hino para sua devocional', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 12)),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFA726),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(child: Icon(Icons.chevron_right_rounded, color: Colors.black87)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+class _HomeDevotional extends ConsumerWidget {
+  const _HomeDevotional();
 
-
-
-  Widget _buildBadge(
-    String text,
-    IconData? icon,
-    Color bgColor,
-    Color textColor,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, color: textColor, size: 10),
-            const SizedBox(width: 2),
-          ],
-          Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToolCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required List<Color> colors,
-    Widget? badge,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: colors,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: colors[0].withValues(alpha: 0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, color: Colors.white, size: 28),
-                if (badge != null) badge,
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12,
-                    height: 1.2,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDevotional() {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final devocionalAsync = ref.watch(devocionalDiarioProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Devocional do Dia'),
+        _buildSectionHeader(context, 'Devocional do Dia'),
         const SizedBox(height: 12),
         devocionalAsync.when(
           data: (devocional) {
@@ -1452,4 +1323,190 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ],
     );
   }
+}
+
+class _HomePrimeirosPassosBanner extends StatelessWidget {
+  const _HomePrimeirosPassosBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const GuideScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.menu_book_rounded,
+                  color: Color(0xFFFFB95F), // Dourado
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Primeiros passos',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Conheça todas as ferramentas',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Widget _buildSectionHeader(BuildContext context, String title) {
+  return Text(
+    title,
+    style: GoogleFonts.outfit(
+      color: Theme.of(context).colorScheme.onSurface,
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+      letterSpacing: -0.5,
+    ),
+  );
+}
+
+Widget _buildBadge(
+  String text,
+  IconData? icon,
+  Color bgColor,
+  Color textColor,
+) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    decoration: BoxDecoration(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, color: textColor, size: 10),
+          const SizedBox(width: 2),
+        ],
+        Text(
+          text,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildToolCard({
+  required String title,
+  required String subtitle,
+  required IconData icon,
+  required List<Color> colors,
+  Widget? badge,
+  VoidCallback? onTap,
+}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colors[0].withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: Colors.white, size: 28),
+              if (badge != null) badge,
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 12,
+                  height: 1.2,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }

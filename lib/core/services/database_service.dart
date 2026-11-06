@@ -19,6 +19,15 @@ class DatabaseService {
 
   final Map<String, Database> _databases = {};
 
+  // Trava de concorrência em voo para evitar cópias simultâneas de bancos
+  final Map<String, Future<Database>> _inFlightDatabases = {};
+  final Map<String, Future<Database?>> _inFlightCommentaries = {};
+  final Map<String, Future<Database>> _inFlightDictionaries = {};
+  final Map<String, Future<Database?>> _inFlightBooks = {};
+  Future<Database>? _inFlightStrongDb;
+  Future<Database>? _inFlightReferencesDb;
+  Future<Database>? _inFlightEstudosDb;
+
   // Cache em memória de caminhos de bancos resolvidos (0ms no acesso subsequente)
   final Map<String, String> _resolvedDbPaths = {};
 
@@ -37,6 +46,13 @@ class DatabaseService {
 
   // Cache de "a tabela de comentários tem a coluna marker?" (evita PRAGMA a cada chamada)
   final Map<String, bool> _commentaryHasMarker = {};
+
+  // Cache para capas de livros em comentários (evita 66 full-text scans simultâneos)
+  final Map<String, bool> _commentaryHasDataTable = {};
+  final Map<String, Uint8List?> _bookCoverCache = {};
+
+  // Cache para capítulos comentados por livro (evita consultas repetidas ao abrir seletor)
+  final Map<String, List<Map<String, dynamic>>> _commentedChaptersCache = {};
 
   void _ensureWebFactory() {
     // sqflite_sqlcipher não suporta Web.
@@ -115,30 +131,41 @@ class DatabaseService {
     }
   }
 
-  Future<Database> getDatabase(String version) async {
+  Future<Database> getDatabase(String version) {
     _ensureWebFactory();
     final key = version.toUpperCase();
 
-    if (_databases.containsKey(key)) return _databases[key]!;
+    if (_databases.containsKey(key)) return SynchronousFuture(_databases[key]!);
     if (_knownMissingVersions.contains(key)) {
-      throw Exception("Banco de dados da versão $version não encontrado localmente.");
+      return Future.error(Exception("Banco de dados da versão $version não encontrado localmente."));
     }
 
-    if (_resolvedDbPaths.containsKey(key)) {
-      final cachedPath = _resolvedDbPaths[key]!;
-      try {
-        final db = kIsWeb
-            ? await databaseFactoryFfiWeb.openDatabase(
-                cachedPath,
-                options: OpenDatabaseOptions(readOnly: true),
-              )
-            : await openDatabase(cachedPath, readOnly: true);
-        _databases[key] = db;
-        return db;
-      } catch (_) {
-        _resolvedDbPaths.remove(key);
-      }
+    if (_inFlightDatabases.containsKey(key)) {
+      return _inFlightDatabases[key]!;
     }
+
+    final future = _loadDatabaseInternal(key, version);
+    _inFlightDatabases[key] = future;
+    return future;
+  }
+
+  Future<Database> _loadDatabaseInternal(String key, String version) async {
+    try {
+      if (_resolvedDbPaths.containsKey(key)) {
+        final cachedPath = _resolvedDbPaths[key]!;
+        try {
+          final db = kIsWeb
+              ? await databaseFactoryFfiWeb.openDatabase(
+                  cachedPath,
+                  options: OpenDatabaseOptions(readOnly: true),
+                )
+              : await openDatabase(cachedPath, readOnly: true);
+          _databases[key] = db;
+          return db;
+        } catch (_) {
+          _resolvedDbPaths.remove(key);
+        }
+      }
 
     final dbPath = !kIsWeb
         ? await getDatabasesPath()
@@ -335,6 +362,41 @@ class DatabaseService {
       }
     }
 
+    // Garante índices de performance na base bíblica (executado uma única vez)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('db_indexed_$key') != true) {
+        final writableDb = kIsWeb
+            ? await databaseFactoryFfiWeb.openDatabase(path)
+            : await openDatabase(path);
+        final tables = (await writableDb.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table'",
+        )).map((t) => (t['name'] as String).toLowerCase()).toSet();
+
+        if (tables.contains('verses')) {
+          await writableDb.execute(
+            'CREATE INDEX IF NOT EXISTS idx_verses_book_chap ON verses (book_number, chapter);',
+          );
+        } else if (tables.contains('verse')) {
+          await writableDb.execute(
+            'CREATE INDEX IF NOT EXISTS idx_verse_book_chap ON verse (book_id, chapter);',
+          );
+        } else if (tables.contains('versiculos')) {
+          await writableDb.execute(
+            'CREATE INDEX IF NOT EXISTS idx_versiculos_liv_cap ON versiculos (ver_liv_id, ver_capitulo);',
+          );
+        } else if (tables.contains('bible')) {
+          await writableDb.execute(
+            'CREATE INDEX IF NOT EXISTS idx_bible_book_chap ON Bible (Book, Chapter);',
+          );
+        }
+        await writableDb.close();
+        await prefs.setBool('db_indexed_$key', true);
+      }
+    } catch (e) {
+      debugPrint('Aviso ao indexar Bíblia $key: $e');
+    }
+
     // Abre o banco de dados
     final db = kIsWeb
         ? await databaseFactoryFfiWeb.openDatabase(
@@ -346,6 +408,9 @@ class DatabaseService {
     _resolvedDbPaths[key] = path;
     _knownMissingVersions.remove(key);
     return db;
+    } finally {
+      _inFlightDatabases.remove(key);
+    }
   }
 
   /// Busca o texto de um versículo específico no banco local
@@ -458,10 +523,20 @@ class DatabaseService {
   }
 
   // Abre o banco de dados de comentários *.cmt.mybible
-  Future<Database?> getCommentaryDatabase(String filename) async {
+  Future<Database?> getCommentaryDatabase(String filename) {
     _ensureWebFactory();
-    if (_databases.containsKey(filename)) return _databases[filename]!;
+    if (_databases.containsKey(filename)) {
+      return SynchronousFuture(_databases[filename]!);
+    }
+    if (_inFlightCommentaries.containsKey(filename)) {
+      return _inFlightCommentaries[filename]!;
+    }
+    final future = _loadCommentaryDatabaseInternal(filename);
+    _inFlightCommentaries[filename] = future;
+    return future;
+  }
 
+  Future<Database?> _loadCommentaryDatabaseInternal(String filename) async {
     // 1. Tenta buscar no diretório do 'store' (onde a loja salva os downloads)
     String? storeBaseDir;
     List<String> possibleStorePaths = [];
@@ -579,6 +654,8 @@ class DatabaseService {
       return db;
     } catch (e) {
       return null;
+    } finally {
+      _inFlightCommentaries.remove(filename);
     }
   }
 
@@ -772,6 +849,11 @@ class DatabaseService {
     String filename,
     int bookId,
   ) async {
+    final cacheKey = '$filename:$bookId';
+    if (_commentedChaptersCache.containsKey(cacheKey)) {
+      return _commentedChaptersCache[cacheKey]!;
+    }
+
     try {
       final db = await getCommentaryDatabase(filename);
       if (db == null) return [];
@@ -790,7 +872,7 @@ class DatabaseService {
 
       final List<Map<String, dynamic>> rows = await db.rawQuery(sql, [bookId]);
 
-      return rows
+      final result = rows
           .map(
             (row) => {
               'chapter': (row['chapter'] as num).toInt(),
@@ -798,6 +880,9 @@ class DatabaseService {
             },
           )
           .toList();
+
+      _commentedChaptersCache[cacheKey] = result;
+      return result;
     } catch (e) {
       debugPrint("❌ Erro ao buscar capítulos detalhados: $e");
       return [];
@@ -842,12 +927,38 @@ class DatabaseService {
 
   /// Busca a imagem de capa de um livro específico dentro de um comentário
   Future<Uint8List?> getBookCoverImage(String filename, int bookId) async {
+    final cacheKey = '$filename:$bookId';
+    if (_bookCoverCache.containsKey(cacheKey)) {
+      return _bookCoverCache[cacheKey];
+    }
+
     try {
       final db = await getCommentaryDatabase(filename);
-      if (db == null) return null;
+      if (db == null) {
+        _bookCoverCache[cacheKey] = null;
+        return null;
+      }
+
+      // 1. Checa uma única vez por banco se a tabela 'data' (imagens embutidas) sequer existe.
+      // Quase todas as obras usam capas padrão do app e não possuem tabela 'data',
+      // evitando 66 varreduras pesadas com LIKE no texto de cada livro!
+      if (!_commentaryHasDataTable.containsKey(filename)) {
+        final tables = await db.rawQuery(
+          "SELECT 1 FROM sqlite_master WHERE type='table' AND name='data' LIMIT 1;",
+        );
+        _commentaryHasDataTable[filename] = tables.isNotEmpty;
+      }
+
+      if (_commentaryHasDataTable[filename] == false) {
+        _bookCoverCache[cacheKey] = null;
+        return null;
+      }
 
       final schema = await _getCommentarySchema(db, filename);
-      if (schema == null) return null;
+      if (schema == null) {
+        _bookCoverCache[cacheKey] = null;
+        return null;
+      }
 
       // Busca na tabela commentary uma linha deste livro com tag de imagem
       final rows = await db.query(
@@ -865,20 +976,17 @@ class DatabaseService {
         if (match != null) {
           final imgId = match.group(1);
           if (imgId != null && !imgId.startsWith('http') && !imgId.startsWith('data:')) {
-            final tables = await db.rawQuery(
-              "SELECT name FROM sqlite_master WHERE type='table' AND name='data';",
+            final imgRows = await db.query(
+              'data',
+              columns: ['content'],
+              where: 'id = ? OR filename = ?',
+              whereArgs: [imgId, imgId],
+              limit: 1,
             );
-            if (tables.isNotEmpty) {
-              final imgRows = await db.query(
-                'data',
-                columns: ['content'],
-                where: 'id = ? OR filename = ?',
-                whereArgs: [imgId, imgId],
-                limit: 1,
-              );
-              if (imgRows.isNotEmpty && imgRows.first['content'] != null) {
-                return imgRows.first['content'] as Uint8List;
-              }
+            if (imgRows.isNotEmpty && imgRows.first['content'] != null) {
+              final bytes = imgRows.first['content'] as Uint8List;
+              _bookCoverCache[cacheKey] = bytes;
+              return bytes;
             }
           }
         }
@@ -886,15 +994,27 @@ class DatabaseService {
     } catch (e) {
       debugPrint("❌ Erro ao buscar capa do livro $bookId em $filename: $e");
     }
+    _bookCoverCache[cacheKey] = null;
     return null;
   }
 
   // Abre o banco de dados de dicionários *.dct.mybible
-  Future<Database> getDictionaryDatabase(String filename) async {
+  Future<Database> getDictionaryDatabase(String filename) {
     _ensureWebFactory();
-    if (_databases.containsKey(filename)) return _databases[filename]!;
+    if (_databases.containsKey(filename)) {
+      return SynchronousFuture(_databases[filename]!);
+    }
+    if (_inFlightDictionaries.containsKey(filename)) {
+      return _inFlightDictionaries[filename]!;
+    }
+    final future = _loadDictionaryDatabaseInternal(filename);
+    _inFlightDictionaries[filename] = future;
+    return future;
+  }
 
-    // 1. Tenta buscar no diretório do 'store'
+  Future<Database> _loadDictionaryDatabaseInternal(String filename) async {
+    try {
+      // 1. Tenta buscar no diretório do 'store'
     String? storeBaseDir;
     List<String> possibleStorePaths = [];
 
@@ -973,6 +1093,9 @@ class DatabaseService {
         : await openDatabase(path, readOnly: true);
     _databases[filename] = db;
     return db;
+    } finally {
+      _inFlightDictionaries.remove(filename);
+    }
   }
 
   /// Busca o verbete num dicionário MySword
@@ -1217,10 +1340,20 @@ class DatabaseService {
   }
 
   // Abre o banco de dados de livros/estórias *.bok.mybible
-  Future<Database?> getBookDatabase(String filename) async {
+  Future<Database?> getBookDatabase(String filename) {
     _ensureWebFactory();
-    if (_databases.containsKey(filename)) return _databases[filename]!;
+    if (_databases.containsKey(filename)) {
+      return SynchronousFuture(_databases[filename]!);
+    }
+    if (_inFlightBooks.containsKey(filename)) {
+      return _inFlightBooks[filename]!;
+    }
+    final future = _loadBookDatabaseInternal(filename);
+    _inFlightBooks[filename] = future;
+    return future;
+  }
 
+  Future<Database?> _loadBookDatabaseInternal(String filename) async {
     String path = filename;
     bool exists = false;
 
@@ -1299,6 +1432,8 @@ class DatabaseService {
     } catch (e) {
       debugPrint('❌ Erro ao abrir banco de dados: $e');
       return null;
+    } finally {
+      _inFlightBooks.remove(filename);
     }
   }
 
@@ -1374,11 +1509,22 @@ class DatabaseService {
 
   /// Copia o banco `strongV2.db` do asset para o diretório de documentos
   /// (apenas na primeira vez) e o abre SEM senha.
-  Future<Database> getStrongDatabase() async {
+  Future<Database> getStrongDatabase() {
     _ensureWebFactory();
-    if (_databases.containsKey(_strongKey)) return _databases[_strongKey]!;
+    if (_databases.containsKey(_strongKey)) {
+      return SynchronousFuture(_databases[_strongKey]!);
+    }
+    if (_inFlightStrongDb != null) {
+      return _inFlightStrongDb!;
+    }
+    final future = _loadStrongDatabaseInternal();
+    _inFlightStrongDb = future;
+    return future;
+  }
 
-    String destPath;
+  Future<Database> _loadStrongDatabaseInternal() async {
+    try {
+      String destPath;
     if (!kIsWeb) {
       final appDocDir = await getApplicationDocumentsDirectory();
       destPath = join(appDocDir.path, _strongFilename);
@@ -1438,6 +1584,23 @@ class DatabaseService {
       }
     }
 
+    // Garante índices de busca rápida em TRADUCAO e PALAVRA_ORIGINAL (executa uma única vez)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const int strongDbVer = 2;
+      if (prefs.getInt('strong_db_indexed_version') != strongDbVer) {
+        final writableDb = !kIsWeb
+            ? await openDatabase(destPath)
+            : await databaseFactoryFfiWeb.openDatabase(destPath);
+        await writableDb.execute('CREATE INDEX IF NOT EXISTS idx_strong_trad ON STRONG(TRADUCAO);');
+        await writableDb.execute('CREATE INDEX IF NOT EXISTS idx_strong_orig ON STRONG(PALAVRA_ORIGINAL);');
+        await writableDb.close();
+        await prefs.setInt('strong_db_indexed_version', strongDbVer);
+      }
+    } catch (e) {
+      debugPrint('Aviso ao indexar strongV2.db: $e');
+    }
+
     Database db;
     if (!kIsWeb) {
       db = await openDatabase(destPath, readOnly: true);
@@ -1450,8 +1613,10 @@ class DatabaseService {
 
     _databases[_strongKey] = db;
 
-
     return db;
+    } finally {
+      _inFlightStrongDb = null;
+    }
   }
 
   /// Busca um verbete pelo número Strong (ex.: 'G3056' ou 'H430').
@@ -1488,11 +1653,22 @@ class DatabaseService {
   static const _referencesFilename = 'referencias.db';
 
   /// Abre ou copia o banco `referencias.db` dos assets (344k referências cruzadas + Thompson).
-  Future<Database> getReferencesDatabase() async {
+  Future<Database> getReferencesDatabase() {
     _ensureWebFactory();
-    if (_databases.containsKey(_referencesKey)) return _databases[_referencesKey]!;
+    if (_databases.containsKey(_referencesKey)) {
+      return SynchronousFuture(_databases[_referencesKey]!);
+    }
+    if (_inFlightReferencesDb != null) {
+      return _inFlightReferencesDb!;
+    }
+    final future = _loadReferencesDatabaseInternal();
+    _inFlightReferencesDb = future;
+    return future;
+  }
 
-    String destPath;
+  Future<Database> _loadReferencesDatabaseInternal() async {
+    try {
+      String destPath;
     if (!kIsWeb) {
       final appDocDir = await getApplicationDocumentsDirectory();
       destPath = join(appDocDir.path, _referencesFilename);
@@ -1572,6 +1748,9 @@ class DatabaseService {
 
     _databases[_referencesKey] = db;
     return db;
+    } finally {
+      _inFlightReferencesDb = null;
+    }
   }
 
   /// Busca referências cruzadas para um versículo (ordenadas por relevância / votos).
@@ -1628,99 +1807,113 @@ class DatabaseService {
   static const _estudosVersion = 2;
 
   /// Abre ou copia o banco `estudos.db` dos assets (605 estudos + 66 categorias).
-  Future<Database> getEstudosDatabase() async {
+  Future<Database> getEstudosDatabase() {
     _ensureWebFactory();
-    if (_databases.containsKey(_estudosKey)) return _databases[_estudosKey]!;
-
-    String destPath;
-    if (!kIsWeb) {
-      final appDocDir = await getApplicationDocumentsDirectory();
-      destPath = join(appDocDir.path, _estudosFilename);
-    } else {
-      final dbPath = await databaseFactoryFfiWeb.getDatabasesPath();
-      destPath = join(dbPath, _estudosFilename);
+    if (_databases.containsKey(_estudosKey)) {
+      return SynchronousFuture(_databases[_estudosKey]!);
     }
+    if (_inFlightEstudosDb != null) {
+      return _inFlightEstudosDb!;
+    }
+    final future = _loadEstudosDatabaseInternal();
+    _inFlightEstudosDb = future;
+    return future;
+  }
 
-    final prefs = await SharedPreferences.getInstance();
-    final savedVersion = prefs.getInt('estudos_db_version') ?? 1;
+  Future<Database> _loadEstudosDatabaseInternal() async {
+    try {
+      String destPath;
+      if (!kIsWeb) {
+        final appDocDir = await getApplicationDocumentsDirectory();
+        destPath = join(appDocDir.path, _estudosFilename);
+      } else {
+        final dbPath = await databaseFactoryFfiWeb.getDatabasesPath();
+        destPath = join(dbPath, _estudosFilename);
+      }
 
-    bool exists = false;
-    if (!kIsWeb) {
-      exists = await io.File(destPath).exists();
-      if (exists && savedVersion < _estudosVersion) {
-        try {
-          await io.File(destPath).delete();
-        } catch (_) {}
-        exists = false;
-      } else if (exists) {
-        final length = await io.File(destPath).length();
-        if (length < 1024 * 1024) { // Menos de 1MB significa arquivo incompleto
+      final prefs = await SharedPreferences.getInstance();
+      final savedVersion = prefs.getInt('estudos_db_version') ?? 1;
+
+      bool exists = false;
+      if (!kIsWeb) {
+        exists = await io.File(destPath).exists();
+        if (exists && savedVersion < _estudosVersion) {
           try {
             await io.File(destPath).delete();
           } catch (_) {}
           exists = false;
-        }
-      }
-    } else {
-      try {
-        if (savedVersion < _estudosVersion) {
-          exists = false;
-        } else if (prefs.getBool('web_db_ready_estudos_v2') == true) {
-          exists = true;
-        } else {
-          final factory = databaseFactoryFfiWeb;
-          final candidates = [
-            _estudosFilename,
-            destPath,
-            _estudosFilename.startsWith('/') ? _estudosFilename.substring(1) : '/$_estudosFilename',
-          ];
-          for (final c in candidates) {
-            if (await factory.databaseExists(c)) {
-              exists = true;
-              break;
-            }
+        } else if (exists) {
+          final length = await io.File(destPath).length();
+          if (length < 1024 * 1024) { // Menos de 1MB significa arquivo incompleto
+            try {
+              await io.File(destPath).delete();
+            } catch (_) {}
+            exists = false;
           }
         }
-      } catch (_) {
-        exists = false;
-      }
-    }
-
-    if (!exists) {
-      debugPrint('📦 Copiando $_estudosFilename dos assets (v$_estudosVersion)...');
-      try {
-        final data = await rootBundle.load(_estudosAsset);
-        final bytes = data.buffer.asUint8List(
-          data.offsetInBytes,
-          data.lengthInBytes,
-        );
-
-        if (!kIsWeb) {
-          await io.File(destPath).writeAsBytes(bytes, flush: true);
-        } else {
-          final factory = databaseFactoryFfiWeb;
-          await factory.writeDatabaseBytes(destPath, Uint8List.fromList(bytes));
-          await prefs.setBool('web_db_ready_estudos_v2', true);
+      } else {
+        try {
+          if (savedVersion < _estudosVersion) {
+            exists = false;
+          } else if (prefs.getBool('web_db_ready_estudos_v2') == true) {
+            exists = true;
+          } else {
+            final factory = databaseFactoryFfiWeb;
+            final candidates = [
+              _estudosFilename,
+              destPath,
+              _estudosFilename.startsWith('/') ? _estudosFilename.substring(1) : '/$_estudosFilename',
+            ];
+            for (final c in candidates) {
+              if (await factory.databaseExists(c)) {
+                exists = true;
+                break;
+              }
+            }
+          }
+        } catch (_) {
+          exists = false;
         }
-        await prefs.setInt('estudos_db_version', _estudosVersion);
-        debugPrint('✅ $_estudosFilename copiado para $destPath (v$_estudosVersion)');
-      } catch (e) {
-        debugPrint('Erro ao copiar estudos db: $e');
       }
-    }
 
-    Database db;
-    if (!kIsWeb) {
-      db = await openDatabase(destPath, readOnly: true);
-    } else {
-      db = await databaseFactoryFfiWeb.openDatabase(
-        destPath,
-        options: OpenDatabaseOptions(readOnly: true),
-      );
-    }
+      if (!exists) {
+        debugPrint('📦 Copiando $_estudosFilename dos assets (v$_estudosVersion)...');
+        try {
+          final data = await rootBundle.load(_estudosAsset);
+          final bytes = data.buffer.asUint8List(
+            data.offsetInBytes,
+            data.lengthInBytes,
+          );
 
-    _databases[_estudosKey] = db;
-    return db;
+          if (!kIsWeb) {
+            await io.File(destPath).writeAsBytes(bytes, flush: true);
+          } else {
+            final factory = databaseFactoryFfiWeb;
+            await factory.writeDatabaseBytes(destPath, Uint8List.fromList(bytes));
+            await prefs.setBool('web_db_ready_estudos_v2', true);
+          }
+          await prefs.setInt('estudos_db_version', _estudosVersion);
+          debugPrint('✅ $_estudosFilename copiado para $destPath (v$_estudosVersion)');
+        } catch (e) {
+          debugPrint('Erro ao copiar estudos db: $e');
+        }
+      }
+
+      Database db;
+      if (!kIsWeb) {
+        db = await openDatabase(destPath, readOnly: true);
+      } else {
+        db = await databaseFactoryFfiWeb.openDatabase(
+          destPath,
+          options: OpenDatabaseOptions(readOnly: true),
+        );
+      }
+
+      _databases[_estudosKey] = db;
+      return db;
+    } finally {
+      _inFlightEstudosDb = null;
+    }
   }
 
   /// Retorna o conteúdo de um estudo por id diretamente do banco de dados SQLite.
@@ -1754,6 +1947,9 @@ class DatabaseService {
     _commentarySchemas.clear();
     _verseSchemas.clear();
     _commentaryHasMarker.clear();
+    _commentaryHasDataTable.clear();
+    _bookCoverCache.clear();
+    _commentedChaptersCache.clear();
     _resolvedDbPaths.clear();
     _knownMissingVersions.clear();
   }

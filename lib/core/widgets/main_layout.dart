@@ -25,6 +25,14 @@ class MainLayout extends ConsumerStatefulWidget {
 
 class _MainLayoutState extends ConsumerState<MainLayout> {
   double? _dragStartX;
+  final Set<int> _loadedTabs = <int>{};
+
+  @override
+  void initState() {
+    super.initState();
+    // Registra a aba inicial como ativa para carregamento sob demanda
+    _loadedTabs.add(ref.read(navigationProvider));
+  }
 
   String _getTitle(int index) {
     return 'KeryxApp';
@@ -34,11 +42,41 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     return true;
   }
 
+  Widget _buildTab(int index) {
+    // Se a aba ainda não foi acessada nesta sessão, não a instancia
+    // Evita inicializar conexões ao Firestore/SQLite de telas não visitadas
+    if (!_loadedTabs.contains(index)) {
+      return SizedBox.shrink(key: ValueKey('tab_placeholder_$index'));
+    }
+
+    switch (index) {
+      case 0:
+        return const HomeScreen();
+      case 1:
+        return const BookSelectionScreen();
+      case 2:
+        return const CommentarySelectionScreen();
+      case 3:
+        return const AnnotationsScreen();
+      case 4:
+        return const FavoritesScreen(showTopBar: false);
+      case 5:
+        return const StoreScreen();
+      case 6:
+        return const CommunityFeedScreen(isEmbedded: true);
+      default:
+        return SizedBox.shrink(key: ValueKey('tab_placeholder_$index'));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var currentIndex = ref.watch(navigationProvider);
     final canPop = ref.watch(navigationProvider.notifier).canPop;
     final isTablet = MediaQuery.of(context).size.width >= 720;
+
+    // Registra a aba atual como visitada para montar o widget sob demanda
+    _loadedTabs.add(currentIndex);
 
     ref.listen<int>(navigationProvider, (previous, next) {
       if (next == 5 && previous != 5) {
@@ -48,15 +86,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       }
     });
 
-    final screens = [
-      const HomeScreen(), // 0
-      const BookSelectionScreen(), // 1
-      const CommentarySelectionScreen(), // 2
-      const AnnotationsScreen(), // 3
-      const FavoritesScreen(showTopBar: false), // 4
-      const StoreScreen(), // 5
-      const CommunityFeedScreen(isEmbedded: true), // 6
-    ];
+    final tabChildren = List.generate(7, _buildTab);
 
     return PopScope(
       canPop: canPop,
@@ -80,7 +110,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                 children: [
                   IndexedStack(
                     index: currentIndex,
-                    children: screens,
+                    children: tabChildren,
                   ),
                   const CookieConsentBanner(),
                 ],
@@ -128,7 +158,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                   children: [
                     IndexedStack(
                       index: currentIndex,
-                      children: screens,
+                      children: tabChildren,
                     ),
                     Positioned(
                       left: 0,

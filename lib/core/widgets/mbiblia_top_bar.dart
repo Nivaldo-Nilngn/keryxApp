@@ -58,8 +58,9 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final topPadding = MediaQuery.paddingOf(context).top;
     return Container(
-      height: preferredSize.height,
+      height: preferredSize.height + topPadding,
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(

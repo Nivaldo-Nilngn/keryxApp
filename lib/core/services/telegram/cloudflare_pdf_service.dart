@@ -1,8 +1,8 @@
-import 'dart:convert';
-import 'dart:io';
+import 'dart:io' as io;
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,36 +18,47 @@ class CloudflarePdfService {
     }
 
     try {
-      if (kIsWeb) {
-        debugPrint('🌐 Lendo banco_telegram.json dos assets para web...');
-        final String jsonStr = await rootBundle.loadString('assets/data/banco_telegram.json');
-        final result = await compute(_decodeAndMapPdfs, jsonStr);
-        _cachedPdfs = result;
-        return result;
-      }
-
-      final databasesPath = await getDatabasesPath();
-      final path = join(databasesPath, 'banco_telegram.db');
-      
       final prefs = await SharedPreferences.getInstance();
-      const int currentDbVersion = 2; // Incremente isso toda vez que atualizar o banco nos assets
+      const int currentDbVersion = 3; // v3: banco_telegram com índices em titulo e categoria e remoção do json duplicado
       final installedDbVersion = prefs.getInt('banco_telegram_version') ?? 0;
       
-      bool overwrite = kDebugMode || installedDbVersion < currentDbVersion;
-      
-      if (overwrite || !await File(path).exists()) {
-        debugPrint("Copiando banco_telegram.db dos assets (Versão $currentDbVersion)...");
-        try {
-          await Directory(dirname(path)).create(recursive: true);
-        } catch (_) {}
-          
-        ByteData data = await rootBundle.load('assets/data/banco_telegram.db');
-        List<int> bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-        await File(path).writeAsBytes(bytes, flush: true);
-        await prefs.setInt('banco_telegram_version', currentDbVersion);
+      bool overwrite = installedDbVersion < currentDbVersion;
+
+      Database db;
+      if (kIsWeb) {
+        final factory = databaseFactoryFfiWeb;
+        final dbPath = await factory.getDatabasesPath();
+        final path = join(dbPath, 'banco_telegram.db');
+        final exists = await factory.databaseExists(path);
+        if (overwrite || !exists) {
+          debugPrint("🌐 Copiando banco_telegram.db dos assets para IndexedDB...");
+          ByteData data = await rootBundle.load('assets/data/banco_telegram.db');
+          Uint8List bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+          await factory.writeDatabaseBytes(path, bytes);
+          await prefs.setInt('banco_telegram_version', currentDbVersion);
+        }
+        db = await factory.openDatabase(
+          path,
+          options: OpenDatabaseOptions(readOnly: true),
+        );
+      } else {
+        final databasesPath = await getDatabasesPath();
+        final path = join(databasesPath, 'banco_telegram.db');
+        
+        if (overwrite || !await io.File(path).exists()) {
+          debugPrint("Copiando banco_telegram.db dos assets (Versão $currentDbVersion)...");
+          try {
+            await io.Directory(dirname(path)).create(recursive: true);
+          } catch (_) {}
+            
+          ByteData data = await rootBundle.load('assets/data/banco_telegram.db');
+          List<int> bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+          await io.File(path).writeAsBytes(bytes, flush: true);
+          await prefs.setInt('banco_telegram_version', currentDbVersion);
+        }
+        
+        db = await openDatabase(path, readOnly: true);
       }
-      
-      final db = await openDatabase(path);
       
       // Busca todos os livros
       final List<Map<String, dynamic>> livrosData = await db.query('livros');
@@ -60,13 +71,6 @@ class CloudflarePdfService {
       debugPrint('Erro SQLite Telegram: $e');
       throw Exception('Falha ao ler banco_telegram.db local');
     }
-  }
-
-  // Função para decodificar e processar a lista no background para a Web
-  static List<Map<String, dynamic>> _decodeAndMapPdfs(String jsonStr) {
-    final List<dynamic> jsonList = jsonDecode(jsonStr);
-    final List<Map<String, dynamic>> livrosData = jsonList.cast<Map<String, dynamic>>();
-    return _mapPdfs(livrosData);
   }
 
   // Função isolada que roda no fundo sem travar a tela

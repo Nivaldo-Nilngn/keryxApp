@@ -21,6 +21,7 @@ import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/view/book_reader_screen.dart';
 import 'package:keryx_app/features/store/view/html_book_reader_screen.dart';
+import 'package:keryx_app/features/pdf/view/pdf_viewer_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 String cleanPdfName(String raw) {
@@ -71,29 +72,6 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     (name: 'Outros', icon: Icons.folder_open_rounded),
   ];
 
-  static const List<({IconData icon, String title})> _readerFeatures = [
-    (
-      icon: Icons.wifi_off_rounded,
-      title: '100% Offline após baixar',
-    ),
-    (
-      icon: Icons.splitscreen_rounded,
-      title: 'Modo 2 Colunas em Tablets',
-    ),
-    (
-      icon: Icons.translate_rounded,
-      title: 'Dicionário Strong Integrado',
-    ),
-    (
-      icon: Icons.dark_mode_rounded,
-      title: 'Temas Escuro, Claro e Sépia',
-    ),
-    (
-      icon: Icons.format_size_rounded,
-      title: 'Ajuste de Tipografia & Zoom',
-    ),
-  ];
-
   int get _totalDownloadedEbooks {
     final storeState = ref.watch(downloadedStorePackagesProvider);
     return storeState.availablePackages
@@ -114,7 +92,31 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     }).length + cloudCount;
   }
 
-  int _libraryAreaIndex = 0; // 0 = E-books, 1 = PDFs
+  int get _totalDownloadedAll => _totalDownloadedEbooks + _totalDownloadedPdfs;
+
+  int _libraryAreaIndex = 0; // 0 = Todos, 1 = PDFs & Docs, 2 = E-books
+
+  String? _lastReadPdfTitle;
+  String? _lastReadPdfPath;
+  int? _lastReadPdfPage;
+  int? _lastReadPdfTotal;
+  String? _lastReadPdfBookId;
+
+  Future<void> _loadLastReadPdf() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final title = prefs.getString('last_read_pdf_title');
+      if (title != null && mounted) {
+        setState(() {
+          _lastReadPdfTitle = title;
+          _lastReadPdfPath = prefs.getString('last_read_pdf_path');
+          _lastReadPdfPage = prefs.getInt('last_read_pdf_page');
+          _lastReadPdfTotal = prefs.getInt('last_read_pdf_total');
+          _lastReadPdfBookId = prefs.getString('last_read_pdf_book_id');
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -131,6 +133,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     });
     _loadLocalBooks();
     _loadTelegram();
+    _loadLastReadPdf();
   }
 
   Future<void> _deleteReadingProgress(String bookName) async {
@@ -229,257 +232,320 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     return false;
   }
 
+  Widget _buildSegmentSelectorWidget() {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isSmallMobile = screenWidth < 400;
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Container(
+          height: 46,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildSegmentOption(
+                  title: 'Todos',
+                  icon: Icons.collections_bookmark_rounded,
+                  count: _totalDownloadedAll,
+                  isSelected: _libraryAreaIndex == 0,
+                  onTap: () => setState(() => _libraryAreaIndex = 0),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: _buildSegmentOption(
+                  title: isSmallMobile ? 'PDFs' : 'PDFs & Docs',
+                  icon: Icons.picture_as_pdf_rounded,
+                  count: _totalDownloadedPdfs,
+                  isSelected: _libraryAreaIndex == 1,
+                  onTap: () => setState(() => _libraryAreaIndex = 1),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: _buildSegmentOption(
+                  title: 'E-books',
+                  icon: Icons.auto_stories_rounded,
+                  count: _totalDownloadedEbooks,
+                  isSelected: _libraryAreaIndex == 2,
+                  onTap: () => setState(() => _libraryAreaIndex = 2),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBarWidget({String hintText = 'Pesquisar por título, autor ou palavra-chave...'}) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _searchController,
+            style: GoogleFonts.outfit(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 14,
+            ),
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: GoogleFonts.outfit(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                fontSize: 14,
+              ),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                size: 22,
+              ),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.cancel_rounded,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                      onPressed: () {
+                        _searchController.clear();
+                      },
+                    )
+                  : null,
+              filled: false,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChipsWidget() {
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+
+    Widget buildChip(({String name, IconData icon}) item) {
+      final isSelected = _selectedCategory == item.name;
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              _selectedCategory = item.name;
+            });
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: isSelected
+                  ? LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.85),
+                      ],
+                    )
+                  : null,
+              color: isSelected
+                  ? null
+                  : Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                width: isSelected ? 1.2 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  item.icon,
+                  size: 15,
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  item.name,
+                  style: GoogleFonts.outfit(
+                    color: isSelected
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (isTablet) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: _categoryItemList.map(buildChip).toList(),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 38,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: _categoryItemList.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) => buildChip(_categoryItemList[index]),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.sizeOf(context).width >= 720;
 
     final Widget content = Stack(
+      children: [
+        TabBarView(
+          controller: _tabController,
           children: [
-            Column(
+            _buildBibliotecaTab(), 
+            _buildTelegramTab(),
+          ],
+        ),
+        
+        // Floating Navbar
+        if (!isTablet)
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CustomBottomNav(
+              currentIndex: 2,
+              onBack: () => Navigator.pop(context),
+              onTap: (index) {
+                ref.read(navigationProvider.notifier).setIndex(index);
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              },
+            ),
+          ),
+      ],
+    );
+
+    final tabBarWidget = Container(
+      height: 48,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: AppTheme.kPrimaryGold,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelColor: Colors.black,
+        unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+        labelStyle: GoogleFonts.outfit(fontSize: 13.5, fontWeight: FontWeight.bold),
+        unselectedLabelStyle: GoogleFonts.outfit(fontSize: 13.5, fontWeight: FontWeight.w500),
+        tabs: const [
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Header Banner
-                AnimatedBuilder(
-                  animation: _tabController,
-                  builder: (context, _) {
-                    final isLibrary = _tabController.index == 0;
-                    if (!isLibrary) {
-                      return const SizedBox.shrink();
-                    } else {
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 480),
-                            child: Container(
-                              height: 48,
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceContainer,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildSegmentOption(
-                                      title: 'E-books',
-                                      icon: Icons.auto_stories_rounded,
-                                      count: _totalDownloadedEbooks,
-                                      isSelected: _libraryAreaIndex == 0,
-                                      onTap: () => setState(() => _libraryAreaIndex = 0),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: _buildSegmentOption(
-                                      title: 'PDFs & Docs',
-                                      icon: Icons.picture_as_pdf_rounded,
-                                      count: _totalDownloadedPdfs,
-                                      isSelected: _libraryAreaIndex == 1,
-                                      onTap: () => setState(() => _libraryAreaIndex = 1),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          style: GoogleFonts.outfit(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 14,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Pesquisar por título, autor ou palavra-chave...',
-                            hintStyle: GoogleFonts.outfit(
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
-                              fontSize: 14,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
-                              size: 22,
-                            ),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: Icon(Icons.cancel_rounded,
-                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                    },
-                                  )
-                                : null,
-                            filled: false,
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // CATEGORY CHIPS
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 38,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 900),
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _categoryItemList.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final item = _categoryItemList[index];
-                          final isSelected = _selectedCategory == item.name;
-                          return Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _selectedCategory = item.name;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(20),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(
-                                  gradient: isSelected
-                                      ? LinearGradient(
-                                          colors: [
-                                            Theme.of(context).colorScheme.primary,
-                                            Theme.of(context).colorScheme.primary.withValues(alpha: 0.85),
-                                          ],
-                                        )
-                                      : null,
-                                  color: isSelected
-                                      ? null
-                                      : Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.7),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-                                    width: isSelected ? 1.2 : 1,
-                                  ),
-                                  boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      item.icon,
-                                      size: 15,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      item.name,
-                                      style: GoogleFonts.outfit(
-                                        color: isSelected
-                                            ? Colors.white
-                                            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildBibliotecaTab(), 
-                      _buildTelegramTab(),
-                    ],
-                  ),
-                ),
+                Icon(Icons.folder_shared_rounded, size: 16),
+                SizedBox(width: 8),
+                Text('Biblioteca'),
               ],
             ),
-            
-            // Floating Navbar
-            if (!isTablet)
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: CustomBottomNav(
-                  currentIndex: 2,
-                  onBack: () => Navigator.pop(context),
-                  onTap: (index) {
-                    ref.read(navigationProvider.notifier).setIndex(index);
-                    if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                  },
-                ),
-              ),
-          ],
-        );
-
-    final tabBarWidget = TabBar(
-      controller: _tabController,
-      indicatorColor: Theme.of(context).colorScheme.primary,
-      labelColor: Theme.of(context).colorScheme.primary,
-      unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
-      indicatorWeight: 3,
-      tabs: const [
-        Tab(text: 'Biblioteca', icon: Icon(Icons.folder_shared_rounded)),
-        Tab(text: 'Acervo Online', icon: Icon(Icons.cloud_download_rounded)),
-      ],
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.cloud_download_rounded, size: 16),
+                SizedBox(width: 8),
+                Text('Acervo Online'),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
 
     final topBar = MBibliaTopBar(
@@ -487,37 +553,40 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       showLogo: true,
       showBackButton: false,
       isScrolled: true,
-      bottom: tabBarWidget,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: tabBarWidget,
+        ),
+      ),
     );
 
     final Widget innerScaffold = Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: isTablet ? null : topBar,
-      body: isTablet
-          ? Column(
-              children: [
-                Container(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 600),
-                      child: tabBarWidget,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: isTablet
+            ? Column(
+                children: [
+                  Container(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    padding: const EdgeInsets.only(top: 14, bottom: 10),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 520),
+                        child: tabBarWidget,
+                      ),
                     ),
                   ),
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.08),
-                ),
-                Expanded(child: content),
-              ],
-            )
-          : content,
+                  Expanded(child: content),
+                ],
+              )
+            : content,
+      ),
     );
 
     if (isTablet) {
@@ -556,12 +625,10 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       return _matchCategory(normName);
     }).toList();
 
-    if (filtered.isEmpty) {
-      if (_searchQuery.isNotEmpty) {
-        return _buildEmptyState('Sem resultados', 'Nenhum arquivo encontrado nas novidades.', Icons.search_off);
-      }
-      return _buildEmptyState('Sem novidades', 'Nenhum arquivo adicionado recentemente.', Icons.new_releases_outlined);
-    }
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalPad = screenWidth > 1100
+        ? (screenWidth - 1100) / 2 + 20
+        : 20.0;
 
     return RefreshIndicator(
       color: Theme.of(context).colorScheme.primary,
@@ -573,16 +640,49 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
         await _loadTelegram();
       },
       child: CustomScrollView(
-      slivers: [
-        
-        if (_selectedCategory == 'Para Você' && _searchQuery.isEmpty)
-          SliverToBoxAdapter(
-            child: _buildDestaquesPDF(),
-          )
-        else
+        slivers: [
           SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          sliver: SliverGrid(
+            padding: EdgeInsets.only(left: horizontalPad, right: horizontalPad, top: 16, bottom: 8),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_searchQuery.isEmpty && _selectedCategory == 'Para Você') ...[
+                    _buildAcervoHeroCard(),
+                    const SizedBox(height: 18),
+                    _buildLibraryCarousel(),
+                    const SizedBox(height: 18),
+                  ],
+                  _buildSearchBarWidget(hintText: 'Pesquisar no Acervo Online (22.500+ obras)...'),
+                  const SizedBox(height: 12),
+                  _buildCategoryChipsWidget(),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+          if (filtered.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _buildEmptyState(
+                _searchQuery.isNotEmpty ? 'Sem resultados' : 'Sem novidades',
+                _searchQuery.isNotEmpty
+                    ? 'Nenhum arquivo encontrado nas novidades.'
+                    : 'Nenhum arquivo adicionado recentemente.',
+                _searchQuery.isNotEmpty ? Icons.search_off : Icons.new_releases_outlined,
+              ),
+            )
+          else if (_selectedCategory == 'Para Você' && _searchQuery.isEmpty)
+            SliverPadding(
+              padding: EdgeInsets.only(left: horizontalPad, right: horizontalPad),
+              sliver: SliverToBoxAdapter(
+                child: _buildDestaquesPDF(),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.only(left: horizontalPad, right: horizontalPad, top: 16, bottom: 100),
+              sliver: SliverGrid(
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 200,
               mainAxisSpacing: 20,
@@ -678,6 +778,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
   }
 
   Widget _buildCategoryGridPDF() {
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
     final categoriesList = [
       {'label': 'Bíblias', 'icon': Icons.menu_book_rounded, 'color': const Color(0xFFE2B93B)},
       {'label': 'Livros', 'icon': Icons.collections_bookmark_rounded, 'color': const Color(0xFFF39C12)},
@@ -687,6 +788,63 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       {'label': 'Outros', 'icon': Icons.extension_rounded, 'color': const Color(0xFF95A5A6)},
     ];
 
+    Widget buildCatItem(Map<String, Object> cat) {
+      final label = cat['label'] as String;
+      final icon = cat['icon'] as IconData;
+      final color = cat['color'] as Color;
+
+      return GestureDetector(
+        onTap: () => setState(() => _selectedCategory = label),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  style: GoogleFonts.outfit(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (isTablet) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: categoriesList.map((cat) {
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: buildCatItem(cat),
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 56,
       child: ListView.builder(
@@ -694,42 +852,9 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: categoriesList.length,
         itemBuilder: (context, index) {
-          final cat = categoriesList[index];
-          final label = cat['label'] as String;
-          final icon = cat['icon'] as IconData;
-          final color = cat['color'] as Color;
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedCategory = label),
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: color, size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: GoogleFonts.outfit(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: buildCatItem(categoriesList[index]),
           );
         },
       ),
@@ -772,67 +897,60 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                   ),
                 ),
                 if (onTap != null)
-                  Icon(Icons.arrow_forward_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Ver todas',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, color: Theme.of(context).colorScheme.primary, size: 16),
+                    ],
+                  ),
               ],
             ),
           ),
         ),
-        SizedBox(
-          height: 280,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final b = items[index];
-              final alreadyDownloaded = _localBooks.any((l) => l['name'] == b['name']);
-              final localBook = alreadyDownloaded 
-                  ? _localBooks.firstWhere((l) => l['name'] == b['name']) 
-                  : null;
-
-              return Container(
-                width: 170,
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                child: _BookCard(
-                  key: ValueKey(b['id']),
+        _HorizontalBookListWithControls(
+          items: items,
+          localBooks: _localBooks,
+          onTapBook: (b, metadata) {
+            final alreadyDownloaded = _localBooks.any((l) => l['name'] == b['name']);
+            final localBook = alreadyDownloaded 
+                ? _localBooks.firstWhere((l) => l['name'] == b['name']) 
+                : null;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PdfDetailsScreen(
                   name: b['name'],
+                  cleanName: cleanPdfName(b['name']),
                   isLocal: false,
                   alreadyDownloaded: alreadyDownloaded,
-                  path: localBook?['path'],
+                  localPath: localBook?['path'],
+                  metadata: metadata,
+                  bookId: 'tg:${b['id']}',
                   bookSize: b['size'],
-                  onTap: (metadata) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PdfDetailsScreen(
-                          name: b['name'],
-                          cleanName: cleanPdfName(b['name']),
-                          isLocal: false,
-                          alreadyDownloaded: alreadyDownloaded,
-                          localPath: localBook?['path'],
-                          metadata: metadata,
-                          bookId: 'tg:${b['id']}',
-                          bookSize: b['size'],
-                          onDownloadCompleted: () => _loadLocalBooks(),
-                          onDeletedFromDrive: () {
-                            setState(() {
-                              _telegramBooks.removeWhere((item) => item['id'] == b['id']);
-                            });
-                            _loadLocalBooks();
-                          },
-                        ),
-                      ),
-                    ).then((_) => _loadLocalBooks());
+                  onDownloadCompleted: () => _loadLocalBooks(),
+                  onDeletedFromDrive: () {
+                    setState(() {
+                      _telegramBooks.removeWhere((item) => item['id'] == b['id']);
+                    });
+                    _loadLocalBooks();
                   },
                 ),
-              );
-            },
-          ),
+              ),
+            ).then((_) => _loadLocalBooks());
+          },
         ),
       ],
     );
   }
-
 
   Widget _buildBibliotecaTab() {
     final normQuery = SearchHelper.normalize(_searchQuery);
@@ -868,27 +986,21 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       }
     }
 
-    // Filtrar livros baixados pela busca e categoria selecionada
+    // Filtrar livros baixados pela busca e área selecionada (0 = Todos, 1 = PDFs, 2 = E-books)
     final filteredDownloaded = downloadedBooks.where((b) {
       final isEbook = b['path']?.startsWith('store_book:') ?? false;
       
-      // Filtra pela aba selecionada (0 = E-books, 1 = PDFs)
-      if (_libraryAreaIndex == 0 && !isEbook) return false;
       if (_libraryAreaIndex == 1 && isEbook) return false;
+      if (_libraryAreaIndex == 2 && !isEbook) return false;
       
       final normName = SearchHelper.normalize(b['name']!);
       if (_searchQuery.isNotEmpty && !normName.contains(normQuery)) return false;
-      return _matchCategory(normName);
+      return true;
     }).toList();
 
-    // Se a busca estiver ativa e nada for encontrado
-    if (_searchQuery.isNotEmpty && filteredDownloaded.isEmpty) {
-      return _buildEmptySearchResults();
-    }
-
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final horizontalPad = screenWidth > 960
-        ? (screenWidth - 960) / 2 + 20
+    final horizontalPad = screenWidth > 1100
+        ? (screenWidth - 1100) / 2 + 20
         : 20.0;
 
     final missingCloudCount = filteredDownloaded.where((b) {
@@ -900,6 +1012,8 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       return false;
     }).length;
 
+    final isSearchingWithNoResults = _searchQuery.isNotEmpty && filteredDownloaded.isEmpty;
+
     return CustomScrollView(
       slivers: [
         SliverPadding(
@@ -908,6 +1022,25 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── HERO CARD DA SUA ESTANTE (FOCO EM LEITURAS SALVAS) ───────
+                if (_searchQuery.isEmpty) ...[
+                  _buildLibraryHeroCard(
+                    totalCount: downloadedBooks.length,
+                    pdfCount: _totalDownloadedPdfs,
+                    ebookCount: _totalDownloadedEbooks,
+                  ),
+                  const SizedBox(height: 18),
+                  if (_lastReadPdfTitle != null && _lastReadPdfTitle!.isNotEmpty) ...[
+                    _buildContinueReadingSection(),
+                    const SizedBox(height: 4),
+                  ],
+                ],
+                // ── SELETOR DE ÁREA (Todos / PDFs & Docs / E-books) ──────────
+                _buildSegmentSelectorWidget(),
+                const SizedBox(height: 14),
+                // ── BARRA DE BUSCA NA ESTANTE ───────────────────────────────
+                _buildSearchBarWidget(hintText: 'Buscar nos seus livros e documentos baixados...'),
+                const SizedBox(height: 18),
                 if (missingCloudCount > 0)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 14),
@@ -940,24 +1073,39 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _libraryAreaIndex == 0 ? Icons.auto_stories_rounded : Icons.picture_as_pdf_rounded,
-                            size: 18,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _libraryAreaIndex == 0 ? 'Seus E-books' : 'Seus Documentos PDF',
-                            style: GoogleFonts.outfit(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(
+                              _libraryAreaIndex == 1
+                                  ? Icons.picture_as_pdf_rounded
+                                  : (_libraryAreaIndex == 2
+                                      ? Icons.auto_stories_rounded
+                                      : Icons.collections_bookmark_rounded),
+                              size: 18,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _libraryAreaIndex == 1
+                                    ? 'Seus Documentos PDF'
+                                    : (_libraryAreaIndex == 2
+                                        ? 'Seus E-books'
+                                        : 'Suas Leituras Salvas'),
+                                style: GoogleFonts.outfit(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -966,7 +1114,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                           border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
                         ),
                         child: Text(
-                          '${filteredDownloaded.length} ${filteredDownloaded.length == 1 ? 'livro' : 'livros'}',
+                          '${filteredDownloaded.length} ${filteredDownloaded.length == 1 ? 'leitura' : 'leituras'}',
                           style: GoogleFonts.outfit(
                             color: Theme.of(context).colorScheme.primary,
                             fontSize: 11,
@@ -977,8 +1125,10 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                     ],
                   ),
                   const SizedBox(height: 14),
+                ] else if (isSearchingWithNoResults) ...[
+                  _buildEmptySearchResults(),
                 ] else ...[
-                  _buildEmptyLibraryHub(isEbooks: _libraryAreaIndex == 0),
+                  _buildEmptyShelfCard(),
                 ],
               ],
             ),
@@ -1119,449 +1269,761 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
               : null,
         ),
         alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: GoogleFonts.outfit(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-            if (count > 0) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 15,
                   color: isSelected
-                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)
-                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
-                child: Text(
-                  '$count',
+                const SizedBox(width: 5),
+                Text(
+                  title,
                   style: GoogleFonts.outfit(
                     color: isSelected
                         ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                    fontSize: 10,
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 12.5,
+                  ),
+                ),
+                if (count > 0) ...[
+                  const SizedBox(width: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)
+                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: GoogleFonts.outfit(
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── SEÇÃO: CONTINUAR LEITURA (ESTILO HOME) ──────────────────────────────────
+  Widget _buildContinueReadingSection() {
+    // Se temos um PDF salvo como última leitura
+    final title = _lastReadPdfTitle;
+    if (title == null || title.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final page = _lastReadPdfPage ?? 1;
+    final total = _lastReadPdfTotal;
+    final progressText = total != null && total > 0
+        ? 'Página $page de $total (${((page / total) * 100).toInt()}%)'
+        : 'Página $page';
+
+    return _buildContinueReadingCard(
+      title: cleanPdfName(title),
+      subtitle: progressText,
+      badgeText: 'Última Leitura',
+      icon: Icons.auto_stories_rounded,
+      iconGradient: const [Color(0xFF0284C7), Color(0xFF38BDF8)],
+      onTap: () {
+        if (_lastReadPdfPath != null && _lastReadPdfPath!.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PdfViewerScreen(
+                title: title,
+                pdfUrl: _lastReadPdfPath!,
+                pdfId: _lastReadPdfBookId,
+              ),
+            ),
+          ).then((_) {
+            _loadLocalBooks();
+            _loadLastReadPdf();
+          });
+        } else {
+          _tabController.animateTo(1);
+        }
+      },
+    );
+  }
+
+  Widget _buildContinueReadingCard({
+    required String title,
+    required String subtitle,
+    required String badgeText,
+    required IconData icon,
+    required List<Color> iconGradient,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.history_rounded, size: 16, color: AppTheme.kPrimaryGold),
+                  const SizedBox(width: 8),
+                  Text(
+                    'CONTINUAR LEITURA',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                      color: AppTheme.kPrimaryGold,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badgeText,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
+                    color: AppTheme.kPrimaryGold,
                   ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: iconGradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: iconGradient.first.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12.5,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── CARROSSEL DE CARDS DE DESTAQUE (ESTILO HOME) ───────────────────────────
+  Widget _buildLibraryCarousel() {
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+
+    final cards = [
+      _buildFeatureCard(
+        title: 'Acervo Online',
+        subtitle: 'Mais de 22.500 livros, comentários e teologia.',
+        badgeText: '22.500+ Obras',
+        badgeIcon: Icons.cloud_download_rounded,
+        badgeColor: const Color(0xFF0284C7),
+        actionIcon: Icons.explore_rounded,
+        onTap: () => _tabController.animateTo(1),
+      ),
+      _buildFeatureCard(
+        title: 'Bíblias & Textos',
+        subtitle: 'Almeida, NVI, King James, Strong e notas.',
+        badgeText: 'Estudo Bíblico',
+        badgeIcon: Icons.menu_book_rounded,
+        badgeColor: const Color(0xFF7C3AED),
+        actionIcon: Icons.auto_stories_rounded,
+        onTap: () {
+          setState(() => _selectedCategory = 'Bíblias');
+          _tabController.animateTo(1);
+        },
+      ),
+      _buildFeatureCard(
+        title: 'Comentários de Peso',
+        subtitle: 'Moody, Shedd, Spurgeon e Matthew Henry.',
+        badgeText: 'Exegese',
+        badgeIcon: Icons.mode_comment_rounded,
+        badgeColor: const Color(0xFFD97706),
+        actionIcon: Icons.school_rounded,
+        onTap: () {
+          setState(() => _selectedCategory = 'Comentários');
+          _tabController.animateTo(1);
+        },
+      ),
+      _buildFeatureCard(
+        title: 'Teologia Sistemática',
+        subtitle: 'Doutrina, teologia reformada e história.',
+        badgeText: 'Clássicos',
+        badgeIcon: Icons.stars_rounded,
+        badgeColor: const Color(0xFF10B981),
+        actionIcon: Icons.workspace_premium_rounded,
+        onTap: () {
+          setState(() => _selectedCategory = 'Teologia');
+          _tabController.animateTo(1);
+        },
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.kPrimaryGold),
+              const SizedBox(width: 8),
+              Text(
+                'DESTAQUES & ACERVO',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                  color: AppTheme.kPrimaryGold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (isTablet)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: cards[0]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[1]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[2]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[3]),
+              ],
+            ),
+          )
+        else
+          SizedBox(
+            height: 142,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              physics: const BouncingScrollPhysics(),
+              itemCount: cards.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, index) => SizedBox(width: 256, child: cards[index]),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFeatureCard({
+    required String title,
+    required String subtitle,
+    required String badgeText,
+    IconData? badgeIcon,
+    required Color badgeColor,
+    required IconData actionIcon,
+    VoidCallback? onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: badgeColor.withValues(alpha: 0.3), width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (badgeIcon != null) ...[
+                        Icon(badgeIcon, color: badgeColor, size: 12),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        badgeText,
+                        style: GoogleFonts.outfit(
+                          color: badgeColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  actionIcon,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  size: 18,
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.outfit(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildEmptyLibraryHub({required bool isEbooks}) {
-    final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
+  Widget _buildLibraryHeroCard({
+    required int totalCount,
+    required int pdfCount,
+    required int ebookCount,
+  }) {
     final isMobile = MediaQuery.sizeOf(context).width < 600;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 1. Hero Card
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.cardColor,
-                theme.colorScheme.surfaceContainer,
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: primaryColor.withValues(alpha: 0.3),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: primaryColor.withValues(alpha: 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 18 : 22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1E1B4B).withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
-          child: Stack(
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -10,
+            bottom: -15,
+            child: Icon(
+              Icons.collections_bookmark_rounded,
+              size: isMobile ? 85 : 110,
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Decorative background glow
-              Positioned(
-                right: -20,
-                bottom: -20,
-                child: Icon(
-                  isEbooks ? Icons.auto_stories_rounded : Icons.picture_as_pdf_rounded,
-                  size: isMobile ? 110 : 140,
-                  color: primaryColor.withValues(alpha: 0.05),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.offline_pin_rounded, size: 14, color: AppTheme.kPrimaryGold),
+                    const SizedBox(width: 6),
+                    Text(
+                      'ESTANTE PESSOAL OFFLINE',
+                      style: GoogleFonts.outfit(
+                        color: AppTheme.kPrimaryGold,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Padding(
-                padding: EdgeInsets.all(isMobile ? 16 : 22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              const SizedBox(height: 10),
+              Text(
+                'Sua Estante de Leituras',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: isMobile ? 20 : 23,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Seus livros, comentários e documentos salvos no aparelho para leitura rápida e offline.',
+                style: GoogleFonts.outfit(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: isMobile ? 12.5 : 13.5,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: primaryColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.stars_rounded, size: 14, color: primaryColor),
-                              const SizedBox(width: 5),
-                              Text(
-                                'BIBLIOTECA CRISTÃ KERYX',
-                                style: GoogleFonts.outfit(
-                                  color: primaryColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ],
+                        const Icon(Icons.bookmark_added_rounded, size: 13, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Text(
+                          '$totalCount ${totalCount == 1 ? 'leitura salva' : 'leituras salvas'}',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      isEbooks
-                          ? 'Sua Estante de E-books Interativos'
-                          : 'Sua Coleção de Documentos & PDFs',
-                      style: GoogleFonts.outfit(
-                        color: theme.colorScheme.onSurface,
-                        fontSize: isMobile ? 18 : 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      isEbooks
-                          ? 'Baixe Bíblias de estudo, comentários versículo por versículo, teologia e dicionários bíblicos. Obras completas com numeração Strong para leitura offline.'
-                          : 'Adicione documentos em PDF ou baixe materiais de estudo teológicos para leitura com marcações e anotações.',
-                      style: GoogleFonts.outfit(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                        fontSize: isMobile ? 12 : 13,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    ElevatedButton.icon(
-                      onPressed: () => _tabController.animateTo(1),
-                      icon: const Icon(Icons.cloud_download_rounded, size: 18, color: Colors.white),
-                      label: Text(
-                        'Explorar Acervo Online',
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                        elevation: 2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // 2. Coleções em Destaque
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.explore_rounded, size: 16, color: primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  'COLEÇÕES DISPONÍVEIS NO ACERVO',
-                  style: GoogleFonts.outfit(
-                    color: primaryColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
                   ),
-                ),
-              ],
-            ),
-            InkWell(
-              onTap: () => _tabController.animateTo(1),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Ver todas',
-                      style: GoogleFonts.outfit(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 10,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 10),
-
-        // 4 Discovery Cards
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 600;
-            return GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: isWide ? 4 : 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: isWide ? 1.3 : 1.35,
-              children: [
-                _buildDiscoveryCategoryCard(
-                  title: 'Bíblias & Textos',
-                  subtitle: 'Almeida, NVI, King James e Strong.',
-                  icon: Icons.auto_stories_rounded,
-                  category: 'Bíblias',
-                ),
-                _buildDiscoveryCategoryCard(
-                  title: 'Comentários',
-                  subtitle: 'Moody, Shedd, Matthew Henry.',
-                  icon: Icons.mode_comment_outlined,
-                  category: 'Comentários',
-                ),
-                _buildDiscoveryCategoryCard(
-                  title: 'Teologia',
-                  subtitle: 'Sistemática, história e doutrina.',
-                  icon: Icons.school_rounded,
-                  category: 'Teologia',
-                ),
-                _buildDiscoveryCategoryCard(
-                  title: 'Dicionários',
-                  subtitle: 'Termos bíblicos, léxicos e mapas.',
-                  icon: Icons.spellcheck_rounded,
-                  category: 'Dicionários',
-                ),
-              ],
-            );
-          },
-        ),
-
-        const SizedBox(height: 22),
-
-        // 3. Recursos do Leitor Keryx (Card Centralizado de Canto a Canto em Formato de Lista)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.25 : 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.auto_stories_rounded, size: 18, color: primaryColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Recursos do Leitor Keryx',
-                    style: GoogleFonts.outfit(
-                      color: theme.colorScheme.onSurface,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 650;
-
-                  Widget buildPill(({IconData icon, String title}) item) {
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  InkWell(
+                    onTap: () => _tabController.animateTo(1),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                       decoration: BoxDecoration(
-                        color: theme.brightness == Brightness.dark
-                            ? theme.colorScheme.surfaceContainerLow
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
-                          width: 1,
-                        ),
+                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.kPrimaryGold.withValues(alpha: 0.35)),
                       ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(item.icon, size: 17, color: primaryColor),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              item.title,
-                              style: GoogleFonts.outfit(
-                                color: theme.colorScheme.onSurface,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          const Icon(Icons.cloud_download_rounded, size: 13, color: AppTheme.kPrimaryGold),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Explorar Acervo Online (22.500+) →',
+                            style: GoogleFonts.outfit(
+                              color: AppTheme.kPrimaryGold,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
-                    );
-                  }
-
-                  if (isWide) {
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisExtent: 44,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemCount: _readerFeatures.length,
-                      itemBuilder: (context, index) => buildPill(_readerFeatures[index]),
-                    );
-                  } else {
-                    return Column(
-                      children: _readerFeatures.map((item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: buildPill(item),
-                      )).toList(),
-                    );
-                  }
-                },
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ),
-
-        const SizedBox(height: 40),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildDiscoveryCategoryCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required String category,
-  }) {
-    final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
+  Widget _buildAcervoHeroCard() {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedCategory = category;
-          });
-          _tabController.animateTo(1);
-        },
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 18 : 24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF3B82F6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -15,
+            bottom: -20,
+            child: Icon(
+              Icons.cloud_download_rounded,
+              size: isMobile ? 95 : 120,
+              color: Colors.white.withValues(alpha: 0.15),
             ),
           ),
-          child: Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: 18, color: primaryColor),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.stars_rounded, size: 14, color: Colors.white),
+                    const SizedBox(width: 5),
+                    Text(
+                      'ACERVO ONLINE KERYX',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                'Mais de 22.500 Obras Gratuitas',
                 style: GoogleFonts.outfit(
-                  color: theme.colorScheme.onSurface,
-                  fontSize: 12,
+                  color: Colors.white,
+                  fontSize: isMobile ? 18 : 22,
                   fontWeight: FontWeight.bold,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 6),
               Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                'Baixe Bíblias de estudo, comentários, teologia e dicionários bíblicos completos para leitura offline na sua estante.',
                 style: GoogleFonts.outfit(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
-                  fontSize: 10,
-                  height: 1.2,
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: isMobile ? 12 : 13.5,
+                  height: 1.4,
                 ),
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyShelfCard() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 8, bottom: 40),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.auto_stories_outlined,
+                size: 48,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Sua estante está vazia',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Text(
+                _libraryAreaIndex == 1
+                    ? 'Você ainda não possui documentos ou PDFs salvos offline. Acesse o Acervo Online para baixar livros e estudos.'
+                    : (_libraryAreaIndex == 2
+                        ? 'Você ainda não possui E-books baixados da Loja. Acesse o Acervo Online ou a Loja para baixar suas obras.'
+                        : 'Você ainda não possui livros ou PDFs salvos no aparelho. Acesse o Acervo Online com mais de 22.500 títulos gratuitos para download.'),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 13.5,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  height: 1.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _tabController.animateTo(1),
+              icon: const Icon(Icons.cloud_download_rounded, size: 18),
+              label: Text(
+                'Explorar Acervo Online (22.500+ Obras)',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 2,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1674,6 +2136,192 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
 // ─────────────────────────────────────────────────────────────────────────────
 // Widgets de Suporte
 // ─────────────────────────────────────────────────────────────────────────────
+
+class _HorizontalBookListWithControls extends StatefulWidget {
+  final List<Map<String, dynamic>> items;
+  final List<Map<String, String>> localBooks;
+  final void Function(Map<String, dynamic> book, BookMetadata? metadata) onTapBook;
+
+  const _HorizontalBookListWithControls({
+    required this.items,
+    required this.localBooks,
+    required this.onTapBook,
+  });
+
+  @override
+  State<_HorizontalBookListWithControls> createState() => _HorizontalBookListWithControlsState();
+}
+
+class _HorizontalBookListWithControlsState extends State<_HorizontalBookListWithControls> {
+  final ScrollController _scrollController = ScrollController();
+  bool _canScrollLeft = false;
+  bool _canScrollRight = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_updateScrollButtons);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateScrollButtons());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_updateScrollButtons);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateScrollButtons() {
+    if (!_scrollController.hasClients) return;
+    final max = _scrollController.position.maxScrollExtent;
+    final offset = _scrollController.offset;
+    final canLeft = offset > 10;
+    final canRight = offset < max - 10;
+    if (canLeft != _canScrollLeft || canRight != _canScrollRight) {
+      if (mounted) {
+        setState(() {
+          _canScrollLeft = canLeft;
+          _canScrollRight = canRight;
+        });
+      }
+    }
+  }
+
+  void _scroll(double delta) {
+    if (!_scrollController.hasClients) return;
+    final target = (_scrollController.offset + delta).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+
+    return SizedBox(
+      height: 280,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ListView.builder(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            itemExtent: 186.0,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: widget.items.length,
+            physics: const BouncingScrollPhysics(),
+            itemBuilder: (context, index) {
+              final b = widget.items[index];
+              final alreadyDownloaded = widget.localBooks.any((l) => l['name'] == b['name']);
+              final localBook = alreadyDownloaded
+                  ? widget.localBooks.firstWhere((l) => l['name'] == b['name'])
+                  : null;
+
+              return Container(
+                width: 170,
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                child: _BookCard(
+                  key: ValueKey(b['id']),
+                  name: b['name'],
+                  isLocal: false,
+                  alreadyDownloaded: alreadyDownloaded,
+                  path: localBook?['path'],
+                  bookSize: b['size'],
+                  onTap: (metadata) => widget.onTapBook(b, metadata),
+                ),
+              );
+            },
+          ),
+          // Seta de navegação para a Esquerda
+          if (isTablet && _canScrollLeft)
+            Positioned(
+              left: 4,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _scroll(-380),
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface.withValues(alpha: 0.92),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.chevron_left_rounded,
+                        color: theme.colorScheme.primary,
+                        size: 30,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // Seta de navegação para a Direita
+          if (isTablet && _canScrollRight)
+            Positioned(
+              right: 4,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _scroll(380),
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface.withValues(alpha: 0.92),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        color: theme.colorScheme.primary,
+                        size: 30,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 class _BookCard extends StatefulWidget {
   final String name;
@@ -2013,6 +2661,7 @@ class _BookCardState extends State<_BookCard> {
         return Image.file(
           File(_metadata!.coverUrl!.replaceFirst('file://', '')),
           fit: BoxFit.cover,
+          cacheWidth: 340,
           errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
         );
       } else if (_metadata!.coverUrl!.startsWith('data:image')) {
@@ -2020,6 +2669,7 @@ class _BookCardState extends State<_BookCard> {
           return Image.memory(
             _cachedBase64Bytes!,
             fit: BoxFit.cover,
+            cacheWidth: 340,
             errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
           );
         }
@@ -2028,6 +2678,7 @@ class _BookCardState extends State<_BookCard> {
         return Image.network(
           _metadata!.coverUrl!,
           fit: BoxFit.cover,
+          cacheWidth: 340,
           errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
         );
       }

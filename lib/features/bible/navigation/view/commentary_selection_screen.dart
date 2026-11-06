@@ -10,6 +10,7 @@ import 'package:keryx_app/features/store/view/store_screen.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
+import 'package:keryx_app/core/theme/app_theme.dart';
 
 class CommentarySelectionScreen extends ConsumerWidget {
   const CommentarySelectionScreen({super.key});
@@ -28,52 +29,74 @@ class CommentarySelectionScreen extends ConsumerWidget {
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.fromLTRB(24, isTablet ? 24 : 8, 24, 150),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Escolha uma Obra',
-                  style: GoogleFonts.outfit(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    letterSpacing: -1,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Associe o conhecimento teológico aos textos sagrados.',
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.5),
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-                const SizedBox(height: 32),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── HERO CARD COM NOME DA PÁGINA (ESTILO HOME) ────────────
+                    _buildCommentaryHeroCard(context),
+                    const SizedBox(height: 20),
 
-                _buildLastReadCard(ref, context),
+                    // ── CARDS NO PADRÃO HOME: Obras em Destaque ─────────────────
+                    _buildCommentaryTopCards(context, ref),
 
-                // Seletor de Versão de Comentário
-                _buildSectionLabel(context, 'FONTE DE COMENTÁRIO'),
-                const SizedBox(height: 8),
-                _CommentaryVersionDropdown(),
+                    _buildLastReadCard(ref, context),
 
-                const SizedBox(height: 32),
-                // Pesquisa de Livros
-                _buildSectionLabel(context, 'FILTRAR LIVROS'),
-                const SizedBox(height: 8),
-                _buildBookSearch(context, ref),
-                const SizedBox(height: 32),
+                    // Seletor de Versão de Comentário e Pesquisa Lado a Lado no Tablet / Web
+                    isTablet
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 5,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionLabel(context, 'FONTE DE COMENTÁRIO'),
+                                    const SizedBox(height: 8),
+                                    _CommentaryVersionDropdown(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                flex: 5,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionLabel(context, 'FILTRAR LIVROS'),
+                                    const SizedBox(height: 8),
+                                    _buildBookSearch(context, ref),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionLabel(context, 'FONTE DE COMENTÁRIO'),
+                              const SizedBox(height: 8),
+                              _CommentaryVersionDropdown(),
+                              const SizedBox(height: 24),
+                              _buildSectionLabel(context, 'FILTRAR LIVROS'),
+                              const SizedBox(height: 8),
+                              _buildBookSearch(context, ref),
+                            ],
+                          ),
+                    const SizedBox(height: 28),
 
-                // Lista de Livros (Estilo Bíblia)
-                booksAsync.when(
-                  data: (books) {
-                    final selectedMeta = ref.watch(
-                      selectedCommentaryVersionProvider,
-                    );
-                    if (selectedMeta == null) return const SizedBox.shrink();
+                    // Lista de Livros (Estilo Bíblia)
+                    booksAsync.when(
+                      data: (books) {
+                        final selectedMeta = ref.watch(
+                          selectedCommentaryVersionProvider,
+                        );
+                        if (selectedMeta == null) {
+                          return _buildDiscoveryCommentarySection(context, ref);
+                        }
 
                     final commentedBooksAsync = ref.watch(
                       commentedBooksProvider(selectedMeta.filename),
@@ -95,7 +118,7 @@ class CommentarySelectionScreen extends ConsumerWidget {
                         }).toList();
 
                         if (filteredBooks.isEmpty && searchQuery.isEmpty) {
-                          return _buildEmptyState(context, ref);
+                          return _buildDiscoveryCommentarySection(context, ref);
                         }
 
                         // Agrupamento igual à Bíblia
@@ -134,68 +157,527 @@ class CommentarySelectionScreen extends ConsumerWidget {
               ],
             ),
           ),
+        ),
+      ),
+    ],
+  ),
+);
+  }
+
+  Widget _buildCommentaryHeroCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E1B4B), const Color(0xFF312E81)]
+              : [const Color(0xFF4F46E5), const Color(0xFF3B82F6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -10,
+            bottom: -20,
+            child: Icon(
+              Icons.auto_stories_rounded,
+              color: Colors.white.withValues(alpha: 0.15),
+              size: 110,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.auto_awesome_rounded, size: 13, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      'EXEGESE & TEOLOGIA',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Escolha uma Obra',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Associe o conhecimento teológico aos textos sagrados com exegese versículo por versículo.',
+                style: GoogleFonts.outfit(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontSize: 13.5,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 64),
-          Icon(
-            Icons.auto_stories_rounded,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.05),
-            size: 120,
+  Widget _buildCommentaryTopCards(BuildContext context, WidgetRef ref) {
+    final available = ref.watch(
+      availableCommentariesProvider((
+        abbrev: 'Gn',
+        bookId: 1,
+        bookName: 'Gênesis',
+      )),
+    );
+
+    final isTablet = MediaQuery.of(context).size.width >= 720;
+
+    final cards = [
+      _buildCommentaryNavCard(
+        context,
+        title: 'Comentário Moody',
+        subtitle: 'Exegese clássica de cada versículo bíblico.',
+        badgeText: 'Exegese',
+        badgeColor: const Color(0xFF4F46E5),
+        icon: Icons.menu_book_rounded,
+        onTap: () {
+          final moody = available.where(
+            (m) => m.name.toLowerCase().contains('moody') || m.id.toLowerCase().contains('moody'),
+          ).firstOrNull;
+          if (moody != null) {
+            ref.read(selectedCommentaryVersionProvider.notifier).state = moody;
+          } else {
+            ref.read(isLibraryModeProvider.notifier).state = false;
+            ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries;
+            ref.read(navigationProvider.notifier).setIndex(5);
+          }
+        },
+      ),
+      _buildCommentaryNavCard(
+        context,
+        title: 'Matthew Henry',
+        subtitle: 'Profunda aplicação pastoral e devocional.',
+        badgeText: 'Devocional',
+        badgeColor: const Color(0xFF0284C7),
+        icon: Icons.auto_stories_rounded,
+        onTap: () {
+          final henry = available.where(
+            (m) => m.name.toLowerCase().contains('henry') || m.id.toLowerCase().contains('henry'),
+          ).firstOrNull;
+          if (henry != null) {
+            ref.read(selectedCommentaryVersionProvider.notifier).state = henry;
+          } else {
+            ref.read(isLibraryModeProvider.notifier).state = false;
+            ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries;
+            ref.read(navigationProvider.notifier).setIndex(5);
+          }
+        },
+      ),
+      _buildCommentaryNavCard(
+        context,
+        title: 'Russell Shedd',
+        subtitle: 'Notas teológicas e contextuais profundas.',
+        badgeText: 'Teologia',
+        badgeColor: const Color(0xFF059669),
+        icon: Icons.school_rounded,
+        onTap: () {
+          final shedd = available.where(
+            (m) => m.name.toLowerCase().contains('shedd'),
+          ).firstOrNull;
+          if (shedd != null) {
+            ref.read(selectedCommentaryVersionProvider.notifier).state = shedd;
+          } else {
+            ref.read(isLibraryModeProvider.notifier).state = false;
+            ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries;
+            ref.read(navigationProvider.notifier).setIndex(5);
+          }
+        },
+      ),
+      _buildCommentaryNavCard(
+        context,
+        title: 'Catálogo da Loja',
+        subtitle: 'Mais de 50 obras completas para baixar grátis.',
+        badgeText: '50+ Obras',
+        badgeColor: const Color(0xFFD97706),
+        icon: Icons.storefront_rounded,
+        onTap: () {
+          ref.read(isLibraryModeProvider.notifier).state = false;
+          ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries;
+          ref.read(navigationProvider.notifier).setIndex(5);
+        },
+      ),
+    ];
+
+    if (isTablet) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[1]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[2]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[3]),
+            ],
           ),
-          const SizedBox(height: 32),
-          Text(
-            'Sua estante está vazia',
-            style: GoogleFonts.outfit(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 136,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            physics: const BouncingScrollPhysics(),
+            itemCount: cards.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, index) => SizedBox(width: 255, child: cards[index]),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Baixe comentários e obras de estudo na Loja Premium para começar sua jornada.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.38),
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 48),
-          ElevatedButton.icon(
-            onPressed: () {
-              ref.read(isLibraryModeProvider.notifier).state = false;
-              ref.read(selectedCategoryProvider.notifier).state = null;
-              ref.read(searchQueryProvider.notifier).state = '';
-              ref.read(navigationProvider.notifier).setIndex(5);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            icon: const Icon(Icons.store_rounded),
-            label: Text(
-              'Explorar Loja Premium',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-            ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildCommentaryNavCard(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required String badgeText,
+    required Color badgeColor,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: GoogleFonts.outfit(
+                          color: badgeColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      icon,
+                      size: 20,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        fontSize: 11.5,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiscoveryCommentarySection(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final storeState = ref.watch(downloadedStorePackagesProvider);
+    final commentaries = storeState.availablePackages.where(
+      (p) => p.category == StoreCategory.commentaries || p.category == StoreCategory.expository,
+    ).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_awesome_rounded, color: AppTheme.kPrimaryGold, size: 18),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Comentários Recomendados',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () {
+                ref.read(isLibraryModeProvider.notifier).state = false;
+                ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries;
+                ref.read(navigationProvider.notifier).setIndex(5);
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Ver na Loja',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.kPrimaryGold,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_rounded, size: 15, color: AppTheme.kPrimaryGold),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (commentaries.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: theme.colorScheme.onSurface.withValues(alpha: 0.08)),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  const Icon(Icons.cloud_download_rounded, size: 40, color: Colors.grey),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Carregando obras da Loja...',
+                    style: GoogleFonts.outfit(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: commentaries.length,
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 440,
+              mainAxisExtent: 100,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+            ),
+            itemBuilder: (context, idx) {
+              final pkg = commentaries[idx];
+              final progress = storeState.downloadProgress[pkg.filename];
+              final isDownloading = progress != null;
+
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            pkg.name,
+                            style: GoogleFonts.outfit(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${pkg.categoryDisplayName} • Versículo por versículo',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (isDownloading)
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          value: progress > 0 ? progress : null,
+                          strokeWidth: 2.5,
+                          color: theme.colorScheme.primary,
+                        ),
+                      )
+                    else
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () async {
+                          try {
+                            await ref.read(storeProvider.notifier).downloadPackage(pkg);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Erro ao baixar: $e')),
+                              );
+                            }
+                          }
+                        },
+                        child: Text(
+                          'Baixar',
+                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 
@@ -496,25 +978,45 @@ class CommentarySelectionScreen extends ConsumerWidget {
   }
 
   Widget _buildBookSearch(BuildContext context, WidgetRef ref) {
-    return TextField(
-      onChanged: (v) => ref.read(bookSearchQueryProvider.notifier).state = v,
-      style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface),
-      decoration: InputDecoration(
-        hintText: 'Digite o nome do livro...',
-        hintStyle: GoogleFonts.outfit(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      height: 54,
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
         ),
-        prefixIcon: Icon(
-          Icons.search,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-        ),
-        filled: true,
-        fillColor: Theme.of(
-          context,
-        ).colorScheme.onSurface.withValues(alpha: 0.05),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Center(
+        child: TextField(
+          onChanged: (v) => ref.read(bookSearchQueryProvider.notifier).state = v,
+          style: GoogleFonts.outfit(color: theme.colorScheme.onSurface),
+          textAlignVertical: TextAlignVertical.center,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: 'Digite o nome do livro (ex: João, Gênesis)...',
+            hintStyle: GoogleFonts.outfit(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+              fontSize: 13.5,
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              size: 20,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
         ),
       ),
     );
@@ -547,6 +1049,9 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
       });
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     if (available.isEmpty) {
       final storeState = ref.watch(downloadedStorePackagesProvider);
       final missingCommentaries = storeState.missingCloudPackages.where(
@@ -555,109 +1060,67 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
       final hasCloud = missingCommentaries.isNotEmpty;
 
       return Container(
-        padding: const EdgeInsets.all(16),
+        height: 54,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.05),
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+            color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                hasCloud ? Icons.cloud_sync_rounded : Icons.cloud_download_rounded,
-                color: Theme.of(context).colorScheme.primary,
-                size: 24,
-              ),
+            Icon(
+              hasCloud ? Icons.cloud_sync_rounded : Icons.cloud_download_rounded,
+              color: theme.colorScheme.primary,
+              size: 20,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    hasCloud ? '${missingCommentaries.length} obra(s) na sua nuvem' : 'Nenhuma obra baixada',
-                    style: GoogleFonts.outfit(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    hasCloud
-                        ? 'Sincronize da sua conta para ler neste dispositivo.'
-                        : 'Vá até a Loja para baixar comentários.',
-                    style: GoogleFonts.outfit(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.5),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+              child: Text(
+                hasCloud ? '${missingCommentaries.length} obra(s) na nuvem' : 'Nenhuma obra baixada',
+                style: GoogleFonts.outfit(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13.5,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (hasCloud)
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                ),
-                onPressed: () async {
-                  for (final item in missingCommentaries) {
-                    await ref.read(storeProvider.notifier).downloadPackage(item);
-                  }
-                },
-                icon: const Icon(Icons.download_rounded, size: 14),
-                label: Text(
-                  'Baixar Todas',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              )
-            else
-              TextButton(
-                style: TextButton.styleFrom(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onPressed: () {
-                  ref.read(isLibraryModeProvider.notifier).state = false;
-                  ref.read(selectedCategoryProvider.notifier).state = null;
-                  ref.read(searchQueryProvider.notifier).state = '';
-                  ref
-                      .read(navigationProvider.notifier)
-                      .setIndex(5); // Vai pra Loja
-                },
-                child: Text(
-                  'Ir para Loja',
-                  style: GoogleFonts.outfit(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
+            const SizedBox(width: 8),
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
+                foregroundColor: theme.colorScheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
+              onPressed: () {
+                ref.read(isLibraryModeProvider.notifier).state = false;
+                ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries;
+                ref.read(searchQueryProvider.notifier).state = '';
+                ref.read(navigationProvider.notifier).setIndex(5);
+              },
+              child: Text(
+                'Ir para Loja',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           ],
         ),
       );
@@ -670,17 +1133,21 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        height: 54,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: Theme.of(
-            context,
-          ).colorScheme.onSurface.withValues(alpha: 0.05),
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.1),
+            color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -689,16 +1156,16 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
                   ? Icons.stars
                   : Icons.auto_stories,
               size: 18,
-              color: Theme.of(context).colorScheme.primary,
+              color: theme.colorScheme.primary,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 value?.name ?? 'Selecione um comentário',
                 style: GoogleFonts.outfit(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.bold,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -706,9 +1173,7 @@ class _CommentaryVersionDropdown extends ConsumerWidget {
             ),
             Icon(
               Icons.expand_more_rounded,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
           ],
         ),

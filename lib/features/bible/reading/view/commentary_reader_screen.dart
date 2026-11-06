@@ -454,115 +454,129 @@ class _CommentaryReaderScreenState
     )));
 
     final showHeroCover = _currentChapter == 0;
+    final int headerCount = showHeroCover ? 1 : 0;
 
-    return SingleChildScrollView(
+    return ListView.builder(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Apresentação da Capa Centralizada (quando for introdução ou capítulo 0)
-          if (showHeroCover) ...[
-            Center(
-              child: coverAsync.when(
-                data: (coverBytes) {
-                  if (coverBytes != null && coverBytes.isNotEmpty) {
-                    return Container(
-                      margin: const EdgeInsets.only(top: 8, bottom: 20),
-                      constraints: const BoxConstraints(
-                        maxWidth: 240,
-                        maxHeight: 340,
+      itemCount: blocks.length + headerCount,
+      itemBuilder: (context, index) {
+        if (showHeroCover && index == 0) {
+          return _buildHeroCoverHeader(meta, bookId, coverAsync);
+        }
+        final blockIndex = showHeroCover ? index - 1 : index;
+        return _buildContinuousBlock(
+          meta,
+          bookId,
+          blocks[blockIndex],
+          blockIndex == 0,
+        );
+      },
+    );
+  }
+
+  Widget _buildHeroCoverHeader(
+    CommentaryMetadata meta,
+    int bookId,
+    AsyncValue<Uint8List?> coverAsync,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Apresentação da Capa Centralizada (quando for introdução ou capítulo 0)
+        Center(
+          child: coverAsync.when(
+            data: (coverBytes) {
+              if (coverBytes != null && coverBytes.isNotEmpty) {
+                return Container(
+                  margin: const EdgeInsets.only(top: 8, bottom: 20),
+                  constraints: const BoxConstraints(
+                    maxWidth: 240,
+                    maxHeight: 340,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: _isDarkTheme ? 0.6 : 0.25,
+                        ),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
                       ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: _isDarkTheme ? 0.6 : 0.25,
-                            ),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(
-                          children: [
-                            Image.memory(
-                              coverBytes,
-                              fit: BoxFit.contain,
-                            ),
-                            // Lombada 3D
-                            Positioned(
-                              top: 0,
-                              bottom: 0,
-                              left: 0,
-                              width: 16,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                    colors: [
-                                      Colors.black.withValues(alpha: 0.45),
-                                      Colors.transparent,
-                                    ],
-                                  ),
-                                ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      children: [
+                        Image.memory(
+                          coverBytes,
+                          fit: BoxFit.contain,
+                        ),
+                        // Lombada 3D
+                        Positioned(
+                          top: 0,
+                          bottom: 0,
+                          left: 0,
+                          width: 16,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.45),
+                                  Colors.transparent,
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-                loading: () => const SizedBox(
-                  height: 100,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+            loading: () => const SizedBox(
+              height: 100,
+              child: Center(child: CircularProgressIndicator()),
             ),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+        ),
 
-            // Título elegante no início do livro
-            Text(
-              _currentBook.name.toUpperCase(),
-              style: GoogleFonts.outfit(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: _textColor,
-                letterSpacing: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              meta.name,
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                color: _accentGold,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            Divider(
-              color: _mutedColor.withValues(alpha: 0.2),
-              thickness: 1,
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Fluxo Contínuo de Textos de Comentário
-          for (int i = 0; i < blocks.length; i++) ...[
-            _buildContinuousBlock(meta, bookId, blocks[i], i == 0),
-          ],
-        ],
-      ),
+        // Título elegante no início do livro
+        Text(
+          _currentBook.name.toUpperCase(),
+          style: GoogleFonts.outfit(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            color: _textColor,
+            letterSpacing: 1.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          meta.name,
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            color: _accentGold,
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 20),
+        Divider(
+          color: _mutedColor.withValues(alpha: 0.2),
+          thickness: 1,
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 

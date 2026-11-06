@@ -40,6 +40,11 @@
   <title>Keryx - Estudo Bíblico</title>
   <meta name="google-signin-client_id" content="809342545607-mdbs8b13gdo81et56rf4k9rf75ibkdcs.apps.googleusercontent.com">
 
+  <!-- Preconnect to Google Fonts and CDNs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com">
+
   <!-- Firebase JS SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
@@ -48,10 +53,19 @@
   <!-- Google Sign-In Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- Forçar renderizador HTML para evitar crashes de memória no CanvasKit/WASM -->
-  <meta name="flutter-web-renderer" content="html">
-
   <style>
+    /* Ocultar barra de rolagem visual mantendo a funcionalidade de scroll */
+    *::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      background: transparent !important;
+    }
+    * {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+
     body {
       background-color: #111223;
       margin: 0;

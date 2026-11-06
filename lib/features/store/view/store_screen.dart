@@ -13,6 +13,7 @@ import 'package:keryx_app/features/store/view/store_item_details_screen.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/core/widgets/keryx_top_bar.dart';
+import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/store/widgets/store_item_cover_art.dart';
 import 'package:keryx_app/features/store/widgets/category_illustration_card.dart';
 
@@ -212,6 +213,10 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final searchQuery = ref.watch(searchQueryProvider);
     final isTablet = MediaQuery.of(context).size.width >= 720;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPad = screenWidth > 1100
+        ? (screenWidth - 1100) / 2 + 20
+        : (isTablet ? 24.0 : 16.0);
     
     // Filtrar itens para a biblioteca (inclui baixados e itens salvos na nuvem da conta)
     final libraryItems = state.availablePackages.where((item) {
@@ -264,9 +269,21 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Search Bar Premium
+              // ── 1. CARD DA LOJA SEMPRE NO TOPO (ACIMA DOS OUTROS DOIS ITENS) ───
+              if (searchQuery.isEmpty && selectedCategory == null)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(horizontalPad, isTablet ? 16 : 10, horizontalPad, 10),
+                  child: _buildStoreHeroBanner(context, ref),
+                ),
+
+              // ── 2. SEARCH BAR PREMIUM ──────────────────────────────────────
               Padding(
-                padding: EdgeInsets.fromLTRB(20, isTablet ? 20 : 16, 20, 8),
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPad,
+                  (searchQuery.isNotEmpty || selectedCategory != null) ? (isTablet ? 16 : 12) : 0,
+                  horizontalPad,
+                  8,
+                ),
                 child: GlassCard(
                   borderRadius: 24,
                   padding: EdgeInsets.zero,
@@ -301,7 +318,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
               
               if (_isSelectionMode)
                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                    padding: EdgeInsets.fromLTRB(horizontalPad, 8, horizontalPad, 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -337,29 +354,50 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     ),
                   ),
               
-              // TabBar Estilo Google Play
+              // ── 3. TABBAR ESTILO CÁPSULA MODERNA (PADRÃO HOME / ESTUDOS) ───
               if (searchQuery.isEmpty && selectedCategory == null)
-                TabBar(
-                  isScrollable: true,
-                  indicatorColor: Theme.of(context).colorScheme.primary,
-                  indicatorWeight: 3,
-                  labelColor: Theme.of(context).colorScheme.primary,
-                  unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                  labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
-                  unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16),
-                  dividerColor: Colors.transparent,
-                  tabAlignment: TabAlignment.start,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  tabs: const [
-                    Tab(text: 'Para Você'),
-                    Tab(text: 'Categorias'),
-                    Tab(text: 'Minha Biblioteca'),
-                  ],
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: 4),
+                  child: Container(
+                    height: 44,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: TabBar(
+                      indicator: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        color: AppTheme.kPrimaryGold,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      labelColor: Colors.black,
+                      unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                      labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5),
+                      unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13.5),
+                      tabs: const [
+                        Tab(text: 'Para Você'),
+                        Tab(text: 'Categorias'),
+                        Tab(text: 'Minha Biblioteca'),
+                      ],
+                    ),
+                  ),
                 ),
                 
               if (selectedCategory != null && searchQuery.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  padding: EdgeInsets.fromLTRB(horizontalPad, 4, horizontalPad, 8),
                   child: Row(
                     children: [
                       GestureDetector(
@@ -442,72 +480,339 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     
     // Lógica Inteligente para criar coleções baseada em prefixos comuns ou categorias
     
-    // 1. Lançamentos (Top 10 Bíblias ou Livros Aleatórios/Recentes)
-    final lancamentos = state.availablePackages.take(8).toList();
+    // 1. Lançamentos (Top 12 Bíblias ou Livros Aleatórios/Recentes)
+    final lancamentos = state.availablePackages.take(12).toList();
     
     // 2. Dicionários Populares
-    final dicionarios = state.availablePackages.where((i) => i.category == StoreCategory.dictionaries).take(10).toList();
+    final dicionarios = state.availablePackages.where((i) => i.category == StoreCategory.dictionaries).take(16).toList();
     
     // 3. Comentários
-    final comentarios = state.availablePackages.where((i) => i.category == StoreCategory.commentaries).take(10).toList();
+    final comentarios = state.availablePackages.where((i) => i.category == StoreCategory.commentaries).take(16).toList();
     
     // 4. Bíblias
-    final biblias = state.availablePackages.where((i) => i.category == StoreCategory.bibles).take(10).toList();
+    final biblias = state.availablePackages.where((i) => i.category == StoreCategory.bibles).take(16).toList();
+    final downloadedCount = state.availablePackages.where((i) => state.isDownloaded(i.filename)).length;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPad = screenWidth > 1100
+        ? (screenWidth - 1100) / 2 + 16
+        : 16.0;
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 120),
       children: [
-        _buildHorizontalCollection('Lançamentos Premium', lancamentos, state, ref, onTap: null),
-        _buildHorizontalCollection('Bíblias Essenciais', biblias, state, ref, 
-            onTap: () => ref.read(selectedCategoryProvider.notifier).state = StoreCategory.bibles),
-        _buildHorizontalCollection('Dicionários Completos', dicionarios, state, ref, 
-            onTap: () => ref.read(selectedCategoryProvider.notifier).state = StoreCategory.dictionaries),
-        _buildHorizontalCollection('Comentários de Peso', comentarios, state, ref, 
-            onTap: () => ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries),
+        // ── TOP CARDS NO PADRÃO HOME ──────────────────────────
+        Padding(
+          padding: EdgeInsets.fromLTRB(horizontalPad, 10, horizontalPad, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildStoreTopCards(context, ref, state, biblias.length, downloadedCount),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPad > 16 ? horizontalPad - 16 : 0),
+          child: Column(
+            children: [
+              _buildHorizontalCollection('Lançamentos Premium', lancamentos, state, ref, onTap: null),
+              _buildHorizontalCollection('Bíblias Essenciais', biblias, state, ref, 
+                  onTap: () => ref.read(selectedCategoryProvider.notifier).state = StoreCategory.bibles),
+              _buildHorizontalCollection('Dicionários Completos', dicionarios, state, ref, 
+                  onTap: () => ref.read(selectedCategoryProvider.notifier).state = StoreCategory.dictionaries),
+              _buildHorizontalCollection('Comentários de Peso', comentarios, state, ref, 
+                  onTap: () => ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildHorizontalCollection(String title, List<StoreItem> items, StoreState state, WidgetRef ref, {VoidCallback? onTap}) {
-    if (items.isEmpty) return const SizedBox.shrink();
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildStoreHeroBanner(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20, vertical: isMobile ? 14 : 18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E1B4B), const Color(0xFF312E81)]
+              : [const Color(0xFF4F46E5), const Color(0xFF6366F1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded, size: 12, color: Colors.white),
+                      const SizedBox(width: 5),
+                      Text(
+                        'LOJA KERYX • CATÁLOGO TEOLÓGICO',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (onTap != null)
-                  Icon(Icons.arrow_forward_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
+                SizedBox(height: isMobile ? 6 : 10),
+                Text(
+                  'Explore Recursos Premium',
+                  style: GoogleFonts.outfit(
+                    fontSize: isMobile ? 18 : 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Baixe Bíblias de estudo, comentários, dicionários e livros cristãos completos para leitura offline.',
+                  style: GoogleFonts.outfit(
+                    fontSize: isMobile ? 11.5 : 12.5,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Icon(
+            Icons.storefront_rounded,
+            size: isMobile ? 48 : 64,
+            color: Colors.white.withValues(alpha: 0.15),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreTopCards(
+    BuildContext context,
+    WidgetRef ref,
+    StoreState state,
+    int bibleCount,
+    int downloadedCount,
+  ) {
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+
+    final cards = [
+      _buildStoreNavCard(
+        context,
+        title: 'Bíblias de Estudo',
+        subtitle: 'Almeida Corrigida, NVI, King James e versões Strong.',
+        badgeText: '$bibleCount Versões',
+        badgeColor: const Color(0xFF4F46E5),
+        icon: Icons.menu_book_rounded,
+        onTap: () {
+          ref.read(selectedCategoryProvider.notifier).state = StoreCategory.bibles;
+        },
+      ),
+      _buildStoreNavCard(
+        context,
+        title: 'Comentários de Peso',
+        subtitle: 'Moody, Matthew Henry, Shedd e expositivos.',
+        badgeText: 'Exegese',
+        badgeColor: const Color(0xFF0284C7),
+        icon: Icons.auto_stories_rounded,
+        onTap: () {
+          ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries;
+        },
+      ),
+      _buildStoreNavCard(
+        context,
+        title: 'Dicionários & Léxicos',
+        subtitle: 'Hebraico, Grego, Strong e dicionários bíblicos.',
+        badgeText: 'Léxicos',
+        badgeColor: const Color(0xFF059669),
+        icon: Icons.translate_rounded,
+        onTap: () {
+          ref.read(selectedCategoryProvider.notifier).state = StoreCategory.dictionaries;
+        },
+      ),
+      _buildStoreNavCard(
+        context,
+        title: 'Minha Biblioteca',
+        subtitle: 'Acesse e gerencie todos os itens baixados offline.',
+        badgeText: '$downloadedCount Salvos',
+        badgeColor: const Color(0xFFD97706),
+        icon: Icons.folder_special_rounded,
+        onTap: () {
+          ref.read(isLibraryModeProvider.notifier).state = true;
+        },
+      ),
+    ];
+
+    if (isTablet) {
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: cards[0]),
+            const SizedBox(width: 12),
+            Expanded(child: cards[1]),
+            const SizedBox(width: 12),
+            Expanded(child: cards[2]),
+            const SizedBox(width: 12),
+            Expanded(child: cards[3]),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 136,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        physics: const BouncingScrollPhysics(),
+        itemCount: cards.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, index) => SizedBox(width: 255, child: cards[index]),
+      ),
+    );
+  }
+
+  Widget _buildStoreNavCard(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required String badgeText,
+    required Color badgeColor,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: GoogleFonts.outfit(
+                          color: badgeColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      icon,
+                      size: 20,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        fontSize: 11.5,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ),
-        SizedBox(
-          height: 245,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: items.length > 10 ? 10 : items.length,
-            itemBuilder: (context, index) {
-              return _buildAppCard(items[index], state, ref);
-            },
-          ),
-        ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildHorizontalCollection(
+    String title,
+    List<StoreItem> items,
+    StoreState state,
+    WidgetRef ref, {
+    VoidCallback? onTap,
+  }) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return _HorizontalStoreCollectionWithControls(
+      title: title,
+      items: items,
+      itemBuilder: (context, item) => _buildAppCard(item, state, ref),
+      onTap: onTap,
     );
   }
 
@@ -653,6 +958,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
       ),
     );
   }
+
   Widget _buildActiveDownloadsIndicator(BuildContext context, StoreState state, WidgetRef ref) {
     if (state.downloadProgress.isEmpty) return const SizedBox.shrink();
 
@@ -768,6 +1074,12 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
   }
 
   Widget _buildCategoryGrid(BuildContext context, WidgetRef ref, StoreState state, bool isLibraryMode) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 720;
+    final horizontalPad = screenWidth > 1100
+        ? (screenWidth - 1100) / 2 + 20
+        : (isTablet ? 24.0 : 16.0);
+
     // Pré-filtrar categorias para não deixar buracos na GridView
     final activeCategories = StoreCategory.values.where((cat) {
       final items = state.availablePackages.where((item) => item.category == cat);
@@ -777,64 +1089,32 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
       return count > 0;
     }).toList();
 
-    return Column(
-      children: [
-        _buildSearchField(context, ref, ''),
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 220,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.9,
-            ),
-            itemCount: activeCategories.length,
-            itemBuilder: (context, index) {
-              final cat = activeCategories[index];
-              final label = _getCategoryLabel(cat);
-              final items = state.availablePackages.where((item) => item.category == cat);
-              final itemCount = isLibraryMode 
-                  ? items.where((item) => state.isDownloaded(item.filename)).length
-                  : items.where((item) => !state.isDownloaded(item.filename)).length;
-              
-              return CategoryIllustrationCard(
-                category: cat,
-                label: label,
-                itemCount: itemCount,
-                iconData: _getCategoryIcon(cat),
-                baseColor: _getCategoryColor(cat),
-                onTap: () => ref.read(selectedCategoryProvider.notifier).state = cat,
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchField(BuildContext context, WidgetRef ref, String searchQuery) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      child: GlassCard(
-        borderRadius: 16,
-        padding: EdgeInsets.zero,
-        child: TextField(
-          onChanged: (val) => ref.read(searchQueryProvider.notifier).state = val,
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-          decoration: InputDecoration(
-            hintText: 'O que você está procurando?',
-            hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)),
-            prefixIcon: Icon(Icons.search_rounded, color: Theme.of(context).colorScheme.primary),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 15),
-            suffixIcon: searchQuery.isNotEmpty ? IconButton(
-              icon: Icon(Icons.close_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), size: 20),
-              onPressed: () => ref.read(searchQueryProvider.notifier).state = '',
-            ) : null,
-          ),
-        ),
+    return GridView.builder(
+      padding: EdgeInsets.fromLTRB(horizontalPad, 12, horizontalPad, 120),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 220,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.9,
       ),
+      itemCount: activeCategories.length,
+      itemBuilder: (context, index) {
+        final cat = activeCategories[index];
+        final label = _getCategoryLabel(cat);
+        final items = state.availablePackages.where((item) => item.category == cat);
+        final itemCount = isLibraryMode 
+            ? items.where((item) => state.isDownloaded(item.filename)).length
+            : items.where((item) => !state.isDownloaded(item.filename)).length;
+        
+        return CategoryIllustrationCard(
+          category: cat,
+          label: label,
+          itemCount: itemCount,
+          iconData: _getCategoryIcon(cat),
+          baseColor: _getCategoryColor(cat),
+          onTap: () => ref.read(selectedCategoryProvider.notifier).state = cat,
+        );
+      },
     );
   }
 
@@ -1764,3 +2044,273 @@ class _AnimatedCategoryCardState extends State<_AnimatedCategoryCard> with Singl
     );
   }
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// COLEÇÃO HORIZONTAL COM SUPORTE A ROLAGEM WEB / TABLET
+// ──────────────────────────────────────────────────────────────────────────────
+class _HorizontalStoreCollectionWithControls extends StatefulWidget {
+  final String title;
+  final List<StoreItem> items;
+  final Widget Function(BuildContext, StoreItem) itemBuilder;
+  final VoidCallback? onTap;
+
+  const _HorizontalStoreCollectionWithControls({
+    required this.title,
+    required this.items,
+    required this.itemBuilder,
+    this.onTap,
+  });
+
+  @override
+  State<_HorizontalStoreCollectionWithControls> createState() =>
+      _HorizontalStoreCollectionWithControlsState();
+}
+
+class _HorizontalStoreCollectionWithControlsState
+    extends State<_HorizontalStoreCollectionWithControls> {
+  final ScrollController _scrollController = ScrollController();
+  bool _canScrollLeft = false;
+  bool _canScrollRight = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_updateScrollButtons);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateScrollButtons());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_updateScrollButtons);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateScrollButtons() {
+    if (!_scrollController.hasClients) return;
+    final max = _scrollController.position.maxScrollExtent;
+    final offset = _scrollController.offset;
+    final canLeft = offset > 10;
+    final canRight = offset < max - 10;
+    if (canLeft != _canScrollLeft || canRight != _canScrollRight) {
+      if (mounted) {
+        setState(() {
+          _canScrollLeft = canLeft;
+          _canScrollRight = canRight;
+        });
+      }
+    }
+  }
+
+  void _scroll(double delta) {
+    if (!_scrollController.hasClients) return;
+    final target = (_scrollController.offset + delta).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isTablet) ...[
+                      // Botões compactos de navegação no cabeçalho
+                      InkWell(
+                        onTap: _canScrollLeft ? () => _scroll(-340) : null,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: _canScrollLeft
+                                ? theme.colorScheme.onSurface.withValues(alpha: 0.08)
+                                : Colors.transparent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.chevron_left_rounded,
+                            size: 20,
+                            color: _canScrollLeft
+                                ? theme.colorScheme.onSurface
+                                : theme.colorScheme.onSurface.withValues(alpha: 0.25),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: _canScrollRight ? () => _scroll(340) : null,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: _canScrollRight
+                                ? theme.colorScheme.onSurface.withValues(alpha: 0.08)
+                                : Colors.transparent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: _canScrollRight
+                                ? theme.colorScheme.onSurface
+                                : theme.colorScheme.onSurface.withValues(alpha: 0.25),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (widget.onTap != null)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Ver todos',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            color: theme.colorScheme.primary,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 245,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              ListView.builder(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                physics: const BouncingScrollPhysics(),
+                itemCount: widget.items.length,
+                itemBuilder: (context, index) {
+                  return widget.itemBuilder(context, widget.items[index]);
+                },
+              ),
+              // Botão flutuante para rolagem à esquerda
+              if (isTablet && _canScrollLeft)
+                Positioned(
+                  left: 6,
+                  top: 0,
+                  bottom: 30,
+                  child: Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _scroll(-350),
+                        borderRadius: BorderRadius.circular(22),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withValues(alpha: 0.92),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.chevron_left_rounded,
+                            size: 26,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              // Botão flutuante para rolagem à direita
+              if (isTablet && _canScrollRight)
+                Positioned(
+                  right: 6,
+                  top: 0,
+                  bottom: 30,
+                  child: Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _scroll(350),
+                        borderRadius: BorderRadius.circular(22),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withValues(alpha: 0.92),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.chevron_right_rounded,
+                            size: 26,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+

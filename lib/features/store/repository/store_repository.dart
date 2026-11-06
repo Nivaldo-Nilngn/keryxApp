@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/store/repository/b2_service.dart';
-import 'dart:convert';
 import 'package:archive/archive_io.dart';
 import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -135,28 +134,16 @@ class StoreRepository {
     try {
       final items = <StoreItem>[];
       
-      if (kIsWeb) {
-        final String jsonStr = await rootBundle.loadString('assets/data/loja_keryx.json');
-        final List<dynamic> jsonList = jsonDecode(jsonStr);
-        for (var row in jsonList) {
-          try {
-            items.add(StoreItem.fromJson(row));
-          } catch (e) {
-            debugPrint('⚠️ Erro ao parsear item da loja (json): $e');
-          }
-        }
-      } else {
-        // Abre (e copia se necessário) o banco da loja
-        final dbLoja = await _initAssetDatabase('loja_keryx.db');
-        
-        // 1. Puxa os dados da Loja (Bíblias, Comentários, Dicionários, etc)
-        final List<Map<String, dynamic>> lojaData = await dbLoja.query('loja');
-        for (var row in lojaData) {
-          try {
-            items.add(StoreItem.fromJson(row));
-          } catch (e) {
-            debugPrint('⚠️ Erro ao parsear item da loja: $e');
-          }
+      // Abre (e copia se necessário) o banco da loja via SQLite (unificado para Mobile e Web)
+      final dbLoja = await _initAssetDatabase('loja_keryx.db');
+      
+      // 1. Puxa os dados da Loja (Bíblias, Comentários, Dicionários, etc)
+      final List<Map<String, dynamic>> lojaData = await dbLoja.query('loja');
+      for (var row in lojaData) {
+        try {
+          items.add(StoreItem.fromJson(row));
+        } catch (e) {
+          debugPrint('⚠️ Erro ao parsear item da loja: $e');
         }
       }
       
@@ -170,25 +157,37 @@ class StoreRepository {
       _cachedPackages = items;
       return items;
     } catch (e) {
-      debugPrint('❌ Erro ao ler SQLite/JSON da loja: $e');
+      debugPrint('❌ Erro ao ler SQLite da loja: $e');
       return [];
     }
   }
 
-  // Função mágica que copia o banco dos assets pro celular se ele não existir
+  // Função mágica que copia o banco dos assets pro dispositivo/navegador se ele não existir
   Future<Database> _initAssetDatabase(String dbName) async {
-    // Requer: import 'package:sqflite/sqflite.dart';
-    // O flutter precisa copiar o asset pro diretório interno pra ler via sqflite
-    final databasesPath = await getDatabasesPath();
-    final path = join(databasesPath, dbName);
-    
     final prefs = await SharedPreferences.getInstance();
     const int currentStoreDbVersion = 3;
     final installedStoreDbVersion = prefs.getInt('loja_keryx_version') ?? 0;
+    bool overwrite = installedStoreDbVersion < currentStoreDbVersion; 
+
+    if (kIsWeb) {
+      final factory = databaseFactoryFfiWeb;
+      final dbPath = await factory.getDatabasesPath();
+      final path = join(dbPath, dbName);
+      final exists = await factory.databaseExists(path);
+      if (overwrite || !exists) {
+        debugPrint("🌐 Copiando $dbName dos assets para IndexedDB (Versão $currentStoreDbVersion)...");
+        ByteData data = await rootBundle.load('assets/data/$dbName');
+        Uint8List bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+        await factory.writeDatabaseBytes(path, bytes);
+        await prefs.setInt('loja_keryx_version', currentStoreDbVersion);
+      }
+      return await factory.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
+    }
+
+    final databasesPath = await getDatabasesPath();
+    final path = join(databasesPath, dbName);
     
     // MUDADO: só sobrepõe o banco se o app estiver em modo de desenvolvimento (Debug) ou atualizar versão
-    bool overwrite = kDebugMode || installedStoreDbVersion < currentStoreDbVersion; 
-    
     if (overwrite || !await File(path).exists()) {
       debugPrint("Copiando $dbName dos assets para o sistema (Versão $currentStoreDbVersion)...");
       try {
@@ -201,7 +200,7 @@ class StoreRepository {
       await prefs.setInt('loja_keryx_version', currentStoreDbVersion);
     }
     
-    return await openDatabase(path);
+    return await openDatabase(path, readOnly: true);
   }
   
   String _getFolderForCategory(StoreCategory category) {

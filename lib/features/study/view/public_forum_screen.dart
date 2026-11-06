@@ -243,7 +243,11 @@ class _PublicForumScreenState extends ConsumerState<PublicForumScreen> {
                   color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.bold)),
         ),
       ),
-      body: bodyContent,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: bodyContent,
+      ),
     );
 
     if (isTablet) {

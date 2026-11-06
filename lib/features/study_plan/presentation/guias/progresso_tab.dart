@@ -171,7 +171,7 @@ class ProgressoTab extends ConsumerWidget {
             left: isTablet ? 32.0 : 16.0,
             right: isTablet ? 32.0 : 16.0,
             top: 20.0,
-            bottom: isTablet ? 32.0 : 120.0, // Espaço para a CustomBottomNav flutuante apenas no mobile
+            bottom: isTablet ? 32.0 : 155.0, // Espaço para a CustomBottomNav flutuante apenas no mobile
           ),
           child: isTablet
               ? Row(

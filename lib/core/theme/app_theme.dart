@@ -11,10 +11,18 @@ class AppTheme {
     color: kBackgroundDark,
   );
 
+  static const ScrollbarThemeData _hiddenScrollbarTheme = ScrollbarThemeData(
+    thumbVisibility: WidgetStatePropertyAll(false),
+    trackVisibility: WidgetStatePropertyAll(false),
+    thickness: WidgetStatePropertyAll(0.0),
+    interactive: false,
+  );
+
   // ── Tema Claro ─────────────────────────────────────────
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    scrollbarTheme: _hiddenScrollbarTheme,
     colorScheme: ColorScheme.fromSeed(
       seedColor: const Color(0xFF4F46E5),
       brightness: Brightness.light,
@@ -44,6 +52,7 @@ class AppTheme {
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    scrollbarTheme: _hiddenScrollbarTheme,
     colorScheme: const ColorScheme.dark(
       primary: kPrimaryGold,
       surface: kBackgroundDark,
@@ -80,6 +89,7 @@ class AppTheme {
   static final ThemeData sepiaTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    scrollbarTheme: _hiddenScrollbarTheme,
     colorScheme: ColorScheme.fromSeed(
       seedColor: kPrimaryGold,
       brightness: Brightness.light,
@@ -109,6 +119,7 @@ class AppTheme {
   static final ThemeData paperTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    scrollbarTheme: _hiddenScrollbarTheme,
     colorScheme: ColorScheme.fromSeed(
       seedColor: const Color(0xFFB45309),
       brightness: Brightness.light,

@@ -98,7 +98,7 @@ class HojeTab extends ConsumerWidget {
             left: isTablet ? 32.0 : 16.0,
             right: isTablet ? 32.0 : 16.0,
             top: 16.0,
-            bottom: isTablet ? 32.0 : 150.0, // Espaço seguro para CustomBottomNav flutuante no mobile
+            bottom: isTablet ? 32.0 : 155.0, // Espaço seguro para CustomBottomNav flutuante no mobile
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -150,7 +150,7 @@ class HojeTab extends ConsumerWidget {
     );
   }
 
-  // ── SELETOR DE PLANOS ATIVOS (MODERNO E ELEGANTE) ─────────────────────────
+  // ── SELETOR DE PLANOS ATIVOS (MODERNO, COMPACTO E RESPONSIVO) ─────────────
   Widget _buildPlanSwitcher(
     BuildContext context,
     WidgetRef ref,
@@ -158,129 +158,368 @@ class HojeTab extends ConsumerWidget {
     String currentPlanId,
     bool isDark,
   ) {
+    final info = PlanRepository.getPlanInfo(currentPlanId);
+    final theme = Theme.of(context);
+    final goldColor = isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        child: Row(
-          children: [
-            ...activePlanIds.map((id) {
-              final isSelected = id == currentPlanId;
-              final info = PlanRepository.getPlanInfo(id);
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(22),
-                    onTap: () {
-                      ref.read(currentPlanIdProvider.notifier).selectPlan(id);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706))
-                            : Theme.of(context).colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: isSelected
-                              ? Colors.transparent
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.12),
-                          width: 1,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706))
-                                      .withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            info.icon,
-                            size: 16,
-                            color: isSelected
-                                ? (isDark ? const Color(0xFF111223) : Colors.white)
-                                : (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706)),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            info.title,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12.5,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                              color: isSelected
-                                  ? (isDark ? const Color(0xFF111223) : Colors.white)
-                                  : Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Lado esquerdo: Plano Ativo com ícone, títulos e chevron de troca
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _showSwitchPlanBottomSheet(
+                context,
+                ref,
+                activePlanIds,
+                currentPlanId,
+                isDark,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: goldColor.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      info.icon,
+                      size: 18,
+                      color: goldColor,
                     ),
                   ),
-                ),
-              );
-            }),
-            if (activePlanIds.length < 5)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(22),
-                    onTap: () =>
-                        _showAddPlanCatalogDialog(context, ref, activePlanIds),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: isDark
-                              ? AppTheme.kPrimaryGold.withValues(alpha: 0.4)
-                              : const Color(0xFFD97706).withValues(alpha: 0.4),
-                          width: 1,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'PLANO ATIVO',
+                              style: GoogleFonts.outfit(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.0,
+                                color: goldColor,
+                              ),
+                            ),
+                            if (activePlanIds.length > 1) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${activePlanIds.length} ativos',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          info.title,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Divisor discreto
+          Container(
+            width: 1,
+            height: 28,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+          ),
+          const SizedBox(width: 10),
+          // Lado direito: Botão de adicionar novo plano
+          if (activePlanIds.length < 5)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () =>
+                    _showAddPlanCatalogDialog(context, ref, activePlanIds),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: goldColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: goldColor.withValues(alpha: 0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.add_rounded,
+                        size: 16,
+                        color: goldColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Novo',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: goldColor,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.add_rounded,
-                            size: 16,
-                            color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Adicionar (${activePlanIds.length}/5)',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
+    );
+  }
+
+  // ── BOTTOM SHEET PARA SELEÇÃO E TROCA DE PLANOS ATIVOS ────────────────────
+  void _showSwitchPlanBottomSheet(
+    BuildContext context,
+    WidgetRef ref,
+    List<String> activePlanIds,
+    String currentPlanId,
+    bool isDark,
+  ) {
+    final goldColor = isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Planos de Leitura',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        '${activePlanIds.length} de 5 planos em andamento',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: Theme.of(ctx)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (activePlanIds.length < 5)
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        backgroundColor: goldColor.withValues(alpha: 0.12),
+                        foregroundColor: goldColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showAddPlanCatalogDialog(context, ref, activePlanIds);
+                      },
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: Text(
+                        'Novo Plano',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Divider(
+                color: Theme.of(ctx)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.08),
+                height: 1,
+              ),
+              const SizedBox(height: 8),
+              ...activePlanIds.map((id) {
+                final isSelected = id == currentPlanId;
+                final planInfo = PlanRepository.getPlanInfo(id);
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? goldColor.withValues(alpha: 0.1)
+                        : Theme.of(ctx)
+                            .colorScheme
+                            .surfaceContainer
+                            .withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected
+                          ? goldColor.withValues(alpha: 0.4)
+                          : Theme.of(ctx)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.06),
+                      width: isSelected ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: goldColor.withValues(
+                            alpha: isSelected ? 0.2 : 0.08,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          planInfo.icon,
+                          color: goldColor,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        planInfo.title,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w600,
+                          fontSize: 14,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${planInfo.totalDays} dias • ${planInfo.tag}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          color: Theme.of(ctx)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.5),
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              color: goldColor,
+                              size: 22,
+                            )
+                          : const Icon(
+                              Icons.radio_button_unchecked_rounded,
+                              size: 20,
+                              color: Colors.grey,
+                            ),
+                      onTap: () {
+                        ref.read(currentPlanIdProvider.notifier).selectPlan(id);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -645,6 +884,7 @@ class HojeTab extends ConsumerWidget {
     required List<String> activePlanIds,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
     final cardBg = Theme.of(context).colorScheme.surfaceContainer;
     final cardBorder = isCompleted
         ? const Color(0xFF10B981)
@@ -683,75 +923,79 @@ class HojeTab extends ConsumerWidget {
         children: [
           // Linha Superior: Semana / Dia, Status e Menu de Opções Discreto
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: badgeBorder,
-                      ),
-                    ),
-                    child: Text(
-                      'SEMANA ${todayInfo.week} • DIA ${todayInfo.dayOfWeek}',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: badgeText,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isCompleted
-                          ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                          : (progress.isStarted
-                              ? (isDark ? AppTheme.kPrimaryGold.withValues(alpha: 0.15) : const Color(0xFFFEF3C7))
-                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isCompleted
-                            ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                            : (progress.isStarted
-                                ? (isDark ? AppTheme.kPrimaryGold.withValues(alpha: 0.4) : const Color(0xFFFDE68A))
-                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isCompleted) ...[
-                          const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 12),
-                          const SizedBox(width: 4),
-                        ],
-                        Text(
-                          isCompleted
-                              ? 'Concluído'
-                              : (progress.isStarted ? 'Em andamento' : 'Não iniciado'),
-                          style: GoogleFonts.plusJakartaSans(
-                            color: isCompleted
-                                ? const Color(0xFF10B981)
-                                : (progress.isStarted
-                                    ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309))
-                                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                          ),
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: badgeBorder,
                         ),
-                      ],
+                      ),
+                      child: Text(
+                        'SEMANA ${todayInfo.week} • DIA ${todayInfo.dayOfWeek}',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: badgeText,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                            : (progress.isStarted
+                                ? (isDark ? AppTheme.kPrimaryGold.withValues(alpha: 0.15) : const Color(0xFFFEF3C7))
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isCompleted
+                              ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                              : (progress.isStarted
+                                  ? (isDark ? AppTheme.kPrimaryGold.withValues(alpha: 0.4) : const Color(0xFFFDE68A))
+                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isCompleted) ...[
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 12),
+                            const SizedBox(width: 4),
+                          ],
+                          Text(
+                            isCompleted
+                                ? 'Concluído'
+                                : (progress.isStarted ? 'Em andamento' : 'Não iniciado'),
+                            style: GoogleFonts.plusJakartaSans(
+                              color: isCompleted
+                                  ? const Color(0xFF10B981)
+                                  : (progress.isStarted
+                                      ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309))
+                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1120,6 +1364,7 @@ class HojeTab extends ConsumerWidget {
     required String? todayNote,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1154,7 +1399,7 @@ class HojeTab extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Minha Reflexão de Hoje',
+                        isTablet ? 'Minha Reflexão' : 'Minha Reflexão de Hoje',
                         style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
@@ -1355,21 +1600,18 @@ class HojeTab extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Flexible(
-                child: Text(
-                  '$completedCount de $totalDays lidos • $remainingDays restantes',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                '$completedCount de $totalDays lidos • $remainingDays restantes',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
-              const SizedBox(width: 6),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -212,6 +213,7 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
     }
 
     return MaterialApp(
+      scrollBehavior: const AppCustomScrollBehavior(),
       scaffoldMessengerKey: ref.watch(scaffoldMessengerKeyProvider),
       navigatorObservers: [if (_navbarObserver != null) _navbarObserver!],
       builder: (context, child) {
@@ -385,5 +387,27 @@ class AuthWrapper extends ConsumerWidget {
       error: (e, stack) => const LoginScreen(),
     );
   }
+}
+
+class AppCustomScrollBehavior extends MaterialScrollBehavior {
+  const AppCustomScrollBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Retorna o conteúdo diretamente, removendo a barra visual de rolagem em todas as páginas
+    return child;
+  }
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
 }
 

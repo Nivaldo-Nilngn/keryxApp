@@ -255,7 +255,11 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
               showLogo: true,
               showBackButton: false,
             ),
-      body: bodyContent,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: bodyContent,
+      ),
     );
 
     if (isTablet) {

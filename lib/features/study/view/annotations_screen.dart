@@ -84,24 +84,25 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
     final biblicalStudies = sorted.where((n) => n.verses.isNotEmpty || n.title.toLowerCase().contains('estudo') || n.title.toLowerCase().contains('sermão')).toList();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTablet = MediaQuery.of(context).size.width >= 720;
 
     return AuthGuard(
       featureName: 'Documentos e Anotações',
       featureIcon: Icons.edit_document,
       child: Scaffold(
         backgroundColor: isDark ? const Color(0xFF141417) : const Color(0xFFF9FAFB),
-        appBar: _buildWordAppBar(allNotes.length),
+        appBar: _buildWordAppBar(allNotes.length, isTablet),
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Barra de busca expansível
-            if (_isSearching) _buildSearchBar(),
+            if (_isSearching) _buildSearchBar(isTablet),
 
             // Carrossel de Modelos do Word Mobile (em branco, sermão, estudo, devocional)
-            _buildTemplatesSection(),
+            _buildTemplatesSection(isTablet),
 
             // Abas de Categoria (Recentes, Compartilhados, Bíblicos)
-            _buildTabBar(personalNotes.length, sharedNotes.length, biblicalStudies.length),
+            _buildTabBar(personalNotes.length, sharedNotes.length, biblicalStudies.length, isTablet),
 
             // Lista de Documentos estilo Word Mobile
             Expanded(
@@ -117,6 +118,7 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
                     onDuplicate: _duplicate,
                     onRename: _rename,
                     onTogglePublic: _togglePublic,
+                    isTablet: isTablet,
                   ),
                   _WordDocumentListView(
                     notes: sharedNotes,
@@ -127,6 +129,7 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
                     onDuplicate: _duplicate,
                     onRename: _rename,
                     onTogglePublic: _togglePublic,
+                    isTablet: isTablet,
                   ),
                   _WordDocumentListView(
                     notes: biblicalStudies,
@@ -137,6 +140,7 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
                     onDuplicate: _duplicate,
                     onRename: _rename,
                     onTogglePublic: _togglePublic,
+                    isTablet: isTablet,
                   ),
                 ],
               ),
@@ -144,7 +148,10 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
           ],
         ),
         floatingActionButton: Padding(
-          padding: const EdgeInsets.only(bottom: 90),
+          padding: EdgeInsets.only(
+            bottom: isTablet ? 24 : 90,
+            right: isTablet ? 16 : 0,
+          ),
           child: FloatingActionButton.extended(
             heroTag: 'fab_word_new',
             backgroundColor: WordMobileTheme.primaryBlue,
@@ -163,12 +170,18 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
   }
 
   /// AppBar oficial do Microsoft Word Mobile (Azul #185ABD)
-  PreferredSizeWidget _buildWordAppBar(int totalDocs) {
+  PreferredSizeWidget _buildWordAppBar(int totalDocs, bool isTablet) {
     return AppBar(
       backgroundColor: WordMobileTheme.primaryBlue,
       elevation: 1,
+      leadingWidth: isTablet ? 104 : 56,
       leading: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: EdgeInsets.only(
+          left: isTablet ? 54 : 10,
+          top: 10,
+          bottom: 10,
+          right: 10,
+        ),
         child: CircleAvatar(
           backgroundColor: Colors.white.withValues(alpha: 0.2),
           child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
@@ -208,24 +221,25 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
             });
           },
         ),
-          IconButton(
-            icon: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-            tooltip: 'Novo documento',
-            onPressed: _showTemplatePickerBottomSheet,
-          ),
-        ],
-      );
+        IconButton(
+          icon: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+          tooltip: 'Novo documento',
+          onPressed: _showTemplatePickerBottomSheet,
+        ),
+        if (isTablet) const SizedBox(width: 16),
+      ],
+    );
   }
 
   /// Seção com os modelos rápidos do Word Mobile
-  Widget _buildTemplatesSection() {
+  Widget _buildTemplatesSection(bool isTablet) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: isTablet ? 32 : 16, vertical: 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -258,7 +272,7 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: EdgeInsets.symmetric(horizontal: isTablet ? 28 : 12),
               itemCount: WordDocumentTemplate.defaultTemplates.length,
               itemBuilder: (ctx, i) {
                 final template = WordDocumentTemplate.defaultTemplates[i];
@@ -275,9 +289,9 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
   }
 
   /// Barra de Busca rápida
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(bool isTablet) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: EdgeInsets.fromLTRB(isTablet ? 32 : 16, 8, isTablet ? 32 : 16, 4),
       child: TextField(
         controller: _searchCtrl,
         autofocus: true,
@@ -318,7 +332,7 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
   }
 
   /// Abas de Categoria
-  Widget _buildTabBar(int recCount, int sharedCount, int bibleCount) {
+  Widget _buildTabBar(int recCount, int sharedCount, int bibleCount, bool isTablet) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -336,7 +350,7 @@ class _AnnotationsScreenState extends ConsumerState<AnnotationsScreen>
         indicatorWeight: 3,
         labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
         unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w500, fontSize: 13),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 8),
         tabs: [
           Tab(
             child: FittedBox(
@@ -669,6 +683,7 @@ class _WordDocumentListView extends StatelessWidget {
   final Function(NoteCard) onDuplicate;
   final Function(NoteCard) onRename;
   final Function(String) onTogglePublic;
+  final bool isTablet;
 
   const _WordDocumentListView({
     required this.notes,
@@ -679,6 +694,7 @@ class _WordDocumentListView extends StatelessWidget {
     required this.onDuplicate,
     required this.onRename,
     required this.onTogglePublic,
+    this.isTablet = false,
   });
 
   @override
@@ -703,11 +719,13 @@ class _WordDocumentListView extends StatelessWidget {
       );
     }
 
+    final horizontalPad = isTablet ? 32.0 : 16.0;
+
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      padding: EdgeInsets.fromLTRB(horizontalPad, 12, horizontalPad, isTablet ? 40 : 100),
       physics: const BouncingScrollPhysics(),
       itemCount: notes.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, indent: 64),
+      separatorBuilder: (_, __) => Divider(height: 1, indent: isTablet ? 72 : 64),
       itemBuilder: (ctx, i) {
         final note = notes[i];
         return _WordDocumentTile(
@@ -891,7 +909,7 @@ class _WordDocumentTile extends StatelessWidget {
                       ),
                       if (note.verses.isNotEmpty) ...[
                         const SizedBox(width: 10),
-                        Icon(Icons.auto_stories_rounded, size: 12, color: WordMobileTheme.primaryBlue),
+                        const Icon(Icons.auto_stories_rounded, size: 12, color: WordMobileTheme.primaryBlue),
                         const SizedBox(width: 4),
                         Text(
                           '${note.verses.length} ${note.verses.length == 1 ? 'versículo' : 'versículos'}',

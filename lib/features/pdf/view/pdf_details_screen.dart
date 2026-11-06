@@ -75,17 +75,20 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
     _currentLocalPath = widget.localPath;
     _currentMetadata = widget.metadata;
 
-    if (_currentLocalPath != null) {
-      if (!kIsWeb && !_currentLocalPath!.startsWith('data:')) {
-        _loadRealPdfMetadata(_currentLocalPath!);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_currentLocalPath != null) {
+        if (!kIsWeb && !_currentLocalPath!.startsWith('data:')) {
+          _loadRealPdfMetadata(_currentLocalPath!);
+        }
       }
-    }
 
-    // Verifica o disco real ou cache web para refletir downloads anteriores 
-    // que a loja pode não ter registrado ainda
-    if (!_isDownloaded && !_isBundledAsset) {
-      _checkIfAlreadyDownloaded();
-    }
+      // Verifica o disco real ou cache web para refletir downloads anteriores 
+      // que a loja pode não ter registrado ainda
+      if (!_isDownloaded && !_isBundledAsset) {
+        _checkIfAlreadyDownloaded();
+      }
+    });
 
     if (_downloadManager.isDownloading(widget.name)) {
       _isDownloading = true;
@@ -889,15 +892,18 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
             );
           }
           
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Sub-header (Back button)
-              Container(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
+          return SafeArea(
+            top: true,
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Sub-header (Back button)
+                Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
                     InkWell(
                       onTap: () => Navigator.pop(context),
                       borderRadius: BorderRadius.circular(20),
@@ -952,9 +958,10 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
               ),
               Expanded(child: bodyContent),
             ],
-          );
-        },
-      );
+          ),
+        );
+      },
+    );
 
     final Widget innerScaffold = Scaffold(
       extendBody: true,

@@ -498,6 +498,19 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   Future<void> _saveProgress() async {
     if (!mounted || _currentPage <= 0) return;
 
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_read_pdf_title', widget.title);
+      await prefs.setString('last_read_pdf_path', widget.pdfUrl);
+      await prefs.setInt('last_read_pdf_page', _currentPage);
+      if (_totalPages > 0) {
+        await prefs.setInt('last_read_pdf_total', _totalPages);
+      }
+      if (widget.pdfId != null) {
+        await prefs.setString('last_read_pdf_book_id', widget.pdfId!);
+      }
+    } catch (_) {}
+
     if (_uid != null) {
       try {
         await _db
