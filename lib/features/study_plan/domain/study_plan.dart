@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'passage.dart';
 import 'plan_day.dart';
 import 'plan_week.dart';
 
@@ -41,13 +42,40 @@ class StudyPlan {
   }
 
   factory StudyPlan.fromJson(Map<String, dynamic> json) {
+    int runningGlobalDay = 1;
+    final rawWeeks = json['weeks'] as List<dynamic>;
+    final List<PlanWeek> parsedWeeks = [];
+
+    for (final w in rawWeeks) {
+      final wMap = w as Map<String, dynamic>;
+      final weekNum = wMap['week'] as int;
+      final rawDays = wMap['days'] as List<dynamic>;
+      final List<PlanDay> parsedDays = [];
+      for (final d in rawDays) {
+        final dMap = d as Map<String, dynamic>;
+        int dayNum = dMap['day'] as int;
+        // Garante numeração estritamente contínua global para cada dia do plano
+        if (dayNum < runningGlobalDay) {
+          dayNum = runningGlobalDay;
+        } else {
+          runningGlobalDay = dayNum;
+        }
+        runningGlobalDay++;
+        parsedDays.add(PlanDay(
+          day: dayNum,
+          passages: (dMap['passages'] as List<dynamic>)
+              .map((p) => Passage.fromJson(p as Map<String, dynamic>))
+              .toList(growable: false),
+        ));
+      }
+      parsedWeeks.add(PlanWeek(week: weekNum, days: parsedDays));
+    }
+
     return StudyPlan(
       id: json['id'] as String,
       title: json['title'] as String,
       description: json['description'] as String?,
-      weeks: (json['weeks'] as List<dynamic>)
-          .map((w) => PlanWeek.fromJson(w as Map<String, dynamic>))
-          .toList(growable: false),
+      weeks: parsedWeeks,
     );
   }
 

@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import '../data/plan_repository.dart';
 import '../domain/domain.dart';
@@ -167,48 +169,63 @@ final chronologicalPlanProvider = currentStudyPlanProvider;
 final chronologicalIndexProvider = currentPlanIndexProvider;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTIFIER DE PROGRESSO DO PLANO SELECIONADO
+// NOTIFIER DE PROGRESSO DO PLANO SELECIONADO (COM SUPORTE MULTI-USUÁRIO E FIRESTORE)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class StudyPlanNotifier extends StateNotifier<PlanProgress> {
   final SharedPreferences? _prefs;
   final String planId;
+  final String? uid;
 
-  StudyPlanNotifier(this._prefs, {required this.planId})
+  StudyPlanNotifier(this._prefs, {required this.planId, this.uid})
       : super(PlanProgress.initial(planId)) {
     _loadFromStorage();
   }
 
-  String get _keyStartDate => 'study_plan_start_date_$planId';
-  String get _keyCompletedDays => 'study_plan_completed_days_$planId';
-  String get _keyStreak => 'study_plan_streak_$planId';
-  String get _keyLastDate => 'study_plan_last_date_$planId';
-  String get _keyNotes => 'study_plan_notes_$planId';
-  String get _keyIsStarted => 'study_plan_is_started_$planId';
+  String get _prefix =>
+      (uid != null && uid!.isNotEmpty) ? 'study_plan_${uid}_' : 'study_plan_';
+
+  String get _keyStartDate => '${_prefix}start_date_$planId';
+  String get _keyCompletedDays => '${_prefix}completed_days_$planId';
+  String get _keyCurrentDay => '${_prefix}current_day_$planId';
+  String get _keyStreak => '${_prefix}streak_$planId';
+  String get _keyLastDate => '${_prefix}last_date_$planId';
+  String get _keyNotes => '${_prefix}notes_$planId';
+  String get _keyIsStarted => '${_prefix}is_started_$planId';
 
   PlanProgress get currentProgress => state;
 
   void _loadFromStorage() {
     if (_prefs == null) return;
 
-    final startStr = _prefs.getString(_keyStartDate);
+    final startStr = _prefs.getString(_keyStartDate) ??
+        _prefs.getString('study_plan_start_date_$planId');
     final startDate = startStr != null
         ? DateTime.tryParse(startStr) ?? DateTime.now()
         : DateTime.now();
 
-    final completedList = _prefs.getStringList(_keyCompletedDays) ?? [];
+    final completedList = _prefs.getStringList(_keyCompletedDays) ??
+        (uid != null ? _prefs.getStringList('study_plan_completed_days_$planId') : null) ??
+        [];
     final completedDays = completedList
         .map((s) => int.tryParse(s))
         .whereType<int>()
         .toSet();
 
-    final streak = _prefs.getInt(_keyStreak) ?? 0;
+    final currentDay = _prefs.getInt(_keyCurrentDay) ??
+        (uid != null ? _prefs.getInt('study_plan_current_day_$planId') : null);
 
-    final lastStr = _prefs.getString(_keyLastDate);
+    final streak = _prefs.getInt(_keyStreak) ??
+        (uid != null ? _prefs.getInt('study_plan_streak_$planId') : null) ??
+        0;
+
+    final lastStr = _prefs.getString(_keyLastDate) ??
+        (uid != null ? _prefs.getString('study_plan_last_date_$planId') : null);
     final lastCompletedDate =
         lastStr != null ? DateTime.tryParse(lastStr) : null;
 
-    final notesStr = _prefs.getString(_keyNotes);
+    final notesStr = _prefs.getString(_keyNotes) ??
+        (uid != null ? _prefs.getString('study_plan_notes_$planId') : null);
     Map<int, String> notes = {};
     if (notesStr != null) {
       try {
@@ -217,28 +234,136 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
       } catch (_) {}
     }
 
-    final isStarted = _prefs.getBool(_keyIsStarted) ?? (completedDays.isNotEmpty);
+    final isStarted = _prefs.getBool(_keyIsStarted) ??
+        (uid != null ? _prefs.getBool('study_plan_is_started_$planId') : null) ??
+        completedDays.isNotEmpty;
 
     state = PlanProgress(
       planId: planId,
       startDate: startDate,
       completedDays: completedDays,
+      currentDay: currentDay,
       streak: streak,
       lastCompletedDate: lastCompletedDate,
       notes: notes,
       isStarted: isStarted,
     );
+
+    // Sincroniza em segundo plano com o Firebase Firestore se o usuário estiver logado
+    if (uid != null && uid!.isNotEmpty) {
+      _syncFromFirestore();
+    }
+  }
+
+  Future<void> _syncFromFirestore() async {
+    if (uid == null || uid!.isEmpty) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('study_plan_progress')
+          .doc(planId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        final firestoreCompleted =
+            ((data['completedDays'] as List<dynamic>?) ?? [])
+                .map((d) => d as int)
+                .toSet();
+        final firestoreCurrentDay = data['currentDay'] as int?;
+        final firestoreStreak = (data['streak'] as int?) ?? state.streak;
+        final firestoreIsStarted =
+            (data['isStarted'] as bool?) ?? state.isStarted;
+        final startStr = data['startDate'] as String?;
+        final firestoreStart =
+            startStr != null ? DateTime.tryParse(startStr) : null;
+        final lastStr = data['lastCompletedDate'] as String?;
+        final firestoreLastDate =
+            lastStr != null ? DateTime.tryParse(lastStr) : null;
+
+        // União dos dias concluídos para não perder marcações
+        final mergedCompleted = {...state.completedDays, ...firestoreCompleted};
+        final mergedCurrentDay = firestoreCurrentDay ?? state.currentDay;
+
+        state = state.copyWith(
+          completedDays: mergedCompleted,
+          currentDay: mergedCurrentDay,
+          streak: firestoreStreak > state.streak ? firestoreStreak : state.streak,
+          isStarted: firestoreIsStarted || state.isStarted,
+          startDate: firestoreStart ?? state.startDate,
+          lastCompletedDate: firestoreLastDate ?? state.lastCompletedDate,
+        );
+
+        if (_prefs != null) {
+          await _prefs.setStringList(
+            _keyCompletedDays,
+            mergedCompleted.map((e) => e.toString()).toList(),
+          );
+          if (mergedCurrentDay != null) {
+            await _prefs.setInt(_keyCurrentDay, mergedCurrentDay);
+          }
+          await _prefs.setInt(_keyStreak, state.streak);
+          await _prefs.setBool(_keyIsStarted, state.isStarted);
+        }
+      } else {
+        // Envia o estado atual para inicializar no Firestore
+        _saveToFirestore();
+      }
+    } catch (e) {
+      debugPrint('Firestore study plan syncFromFirestore error: $e');
+    }
+  }
+
+  void _saveToFirestore() {
+    if (uid == null || uid!.isEmpty) return;
+    try {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('study_plan_progress')
+          .doc(planId)
+          .set({
+        'planId': planId,
+        'startDate': state.startDate.toIso8601String(),
+        'completedDays': state.completedDays.toList()..sort(),
+        if (state.currentDay != null) 'currentDay': state.currentDay,
+        'streak': state.streak,
+        'isStarted': state.isStarted,
+        if (state.lastCompletedDate != null)
+          'lastCompletedDate': state.lastCompletedDate!.toIso8601String(),
+        if (state.notes.isNotEmpty)
+          'notes': state.notes.map((k, v) => MapEntry(k.toString(), v)),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)).catchError((e) {
+        debugPrint('Firestore save study plan error: $e');
+      });
+    } catch (e) {
+      debugPrint('Firestore study plan save error: $e');
+    }
+  }
+
+  /// Define o dia atual onde o usuário escolheu ler
+  Future<void> setCurrentDay(int dayNumber) async {
+    state = state.copyWith(currentDay: dayNumber, isStarted: true);
+    if (_prefs != null) {
+      await _prefs.setInt(_keyCurrentDay, dayNumber);
+      await _prefs.setBool(_keyIsStarted, true);
+    }
+    _saveToFirestore();
   }
 
   /// Marca que o usuário iniciou a leitura deste plano
-  Future<void> startPlan() async {
-    if (state.isStarted) return;
+  Future<void> startPlan({int? startingDay}) async {
     final now = DateTime.now();
-    state = state.copyWith(isStarted: true, startDate: now);
+    final day = startingDay ?? state.currentDay ?? 1;
+    state = state.copyWith(isStarted: true, startDate: now, currentDay: day);
     if (_prefs != null) {
       await _prefs.setBool(_keyIsStarted, true);
       await _prefs.setString(_keyStartDate, now.toIso8601String());
+      await _prefs.setInt(_keyCurrentDay, day);
     }
+    _saveToFirestore();
   }
 
   /// Define a data de início do plano
@@ -248,6 +373,7 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
       await _prefs.setString(_keyStartDate, date.toIso8601String());
       await _prefs.setBool(_keyIsStarted, true);
     }
+    _saveToFirestore();
   }
 
   /// Salva ou remove uma anotação/reflexão de um dia específico
@@ -265,6 +391,7 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
         jsonEncode(updatedNotes.map((k, v) => MapEntry(k.toString(), v))),
       );
     }
+    _saveToFirestore();
   }
 
   /// Exporta o progresso completo em formato JSON para backup
@@ -287,6 +414,9 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
           _keyCompletedDays,
           imported.completedDays.map((e) => e.toString()).toList(),
         );
+        if (imported.currentDay != null) {
+          await _prefs.setInt(_keyCurrentDay, imported.currentDay!);
+        }
         await _prefs.setInt(_keyStreak, imported.streak);
         await _prefs.setBool(_keyIsStarted, imported.isStarted);
         if (imported.lastCompletedDate != null) {
@@ -302,31 +432,37 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
           jsonEncode(imported.notes.map((k, v) => MapEntry(k.toString(), v))),
         );
       }
+      _saveToFirestore();
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  /// Alterna o estado de conclusão de um dia
-  Future<void> toggleDay(int dayNumber, {DateTime? now}) async {
+  /// Alterna o estado de conclusão de um dia e avança para o próximo dia na sequência
+  Future<void> toggleDay(int dayNumber,
+      {DateTime? now, int totalDays = 364}) async {
     final currentCompleted = Set<int>.from(state.completedDays);
     final currentTime = now ?? DateTime.now();
     int newStreak = state.streak;
     DateTime? newLastDate = state.lastCompletedDate;
+    int? newCurrentDay = state.currentDay;
 
     if (currentCompleted.contains(dayNumber)) {
-      // Desmarcar
+      // Desmarcar apenas este dia
       currentCompleted.remove(dayNumber);
+      newCurrentDay = dayNumber;
     } else {
-      // Marcar como concluído e marcar plano como iniciado
+      // Marcar como concluído
       currentCompleted.add(dayNumber);
 
       if (newLastDate == null) {
         newStreak = 1;
       } else {
-        final todayNorm = DateTime(currentTime.year, currentTime.month, currentTime.day);
-        final lastNorm = DateTime(newLastDate.year, newLastDate.month, newLastDate.day);
+        final todayNorm =
+            DateTime(currentTime.year, currentTime.month, currentTime.day);
+        final lastNorm =
+            DateTime(newLastDate.year, newLastDate.month, newLastDate.day);
         final diffDays = todayNorm.difference(lastNorm).inDays;
 
         if (diffDays == 1) {
@@ -338,10 +474,20 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
         }
       }
       newLastDate = currentTime;
+
+      // Avança automaticamente para o próximo dia pendente na sequência
+      int nextPending = dayNumber + 1;
+      while (currentCompleted.contains(nextPending) && nextPending < totalDays) {
+        nextPending++;
+      }
+      if (nextPending <= totalDays) {
+        newCurrentDay = nextPending;
+      }
     }
 
     state = state.copyWith(
       completedDays: currentCompleted,
+      currentDay: newCurrentDay,
       streak: newStreak,
       lastCompletedDate: newLastDate,
       isStarted: true,
@@ -352,26 +498,44 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
         _keyCompletedDays,
         currentCompleted.map((e) => e.toString()).toList(),
       );
+      if (newCurrentDay != null) {
+        await _prefs.setInt(_keyCurrentDay, newCurrentDay);
+      }
       await _prefs.setInt(_keyStreak, newStreak);
       await _prefs.setBool(_keyIsStarted, true);
       if (newLastDate != null) {
         await _prefs.setString(_keyLastDate, newLastDate.toIso8601String());
       }
     }
+
+    _saveToFirestore();
   }
 
   /// Reinicia todo o progresso do plano atual
   Future<void> reset() async {
     final now = DateTime.now();
-    state = PlanProgress.initial(planId).copyWith(startDate: now);
+    state = PlanProgress.initial(planId)
+        .copyWith(startDate: now, currentDay: 1, isStarted: false);
 
     if (_prefs != null) {
       await _prefs.remove(_keyStartDate);
       await _prefs.remove(_keyCompletedDays);
+      await _prefs.remove(_keyCurrentDay);
       await _prefs.remove(_keyStreak);
       await _prefs.remove(_keyLastDate);
       await _prefs.remove(_keyNotes);
       await _prefs.remove(_keyIsStarted);
+    }
+
+    if (uid != null && uid!.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('study_plan_progress')
+            .doc(planId)
+            .delete();
+      } catch (_) {}
     }
   }
 }
@@ -380,11 +544,13 @@ class StudyPlanNotifier extends StateNotifier<PlanProgress> {
 final studyPlanProgressProvider =
     StateNotifierProvider<StudyPlanNotifier, PlanProgress>((ref) {
   final planId = ref.watch(currentPlanIdProvider);
+  final authUser = ref.watch(authStateProvider).valueOrNull;
+  final uid = authUser?.uid;
   SharedPreferences? prefs;
   try {
     prefs = ref.watch(sharedPreferencesProvider);
   } catch (_) {}
-  return StudyPlanNotifier(prefs, planId: planId);
+  return StudyPlanNotifier(prefs, planId: planId, uid: uid);
 });
 
 /// Provider para consultar progresso de qualquer plano (usado em listas de planos)
@@ -394,37 +560,63 @@ final planProgressFamilyProvider =
   if (current == planId) {
     return ref.watch(studyPlanProgressProvider);
   }
+  final authUser = ref.watch(authStateProvider).valueOrNull;
+  final uid = authUser?.uid;
   SharedPreferences? prefs;
   try {
     prefs = ref.watch(sharedPreferencesProvider);
   } catch (_) {}
-  return StudyPlanNotifier(prefs, planId: planId).currentProgress;
+  return StudyPlanNotifier(prefs, planId: planId, uid: uid).currentProgress;
 });
 
-/// Calcula dinamicamente o dia de leitura correspondente a hoje
+/// Calcula dinamicamente o dia de leitura correspondente a hoje / próximo dia a realizar
 final todayPlanDayProvider = Provider<TodayPlanInfo>((ref) {
   final progress = ref.watch(studyPlanProgressProvider);
   final planIndexAsync = ref.watch(currentPlanIndexProvider);
   final totalDays = planIndexAsync.value?.totalDays ?? 364;
-  return calculateTodayPlanInfo(progress.startDate, progress.completedDays, totalDays: totalDays);
+  return calculateTodayPlanInfo(
+    progress.startDate,
+    progress.completedDays,
+    currentDay: progress.currentDay,
+    totalDays: totalDays,
+  );
 });
 
-/// Helper puro testável para cálculo da data/dia de hoje
+/// Helper puro testável para cálculo da data/dia de hoje ou próximo dia sequencial
+TodayPlanInfo calculateProgressTodayPlanInfo(
+  PlanProgress progress, [
+  int totalDays = 364,
+]) {
+  return calculateTodayPlanInfo(
+    progress.startDate,
+    progress.completedDays,
+    currentDay: progress.currentDay,
+    totalDays: totalDays,
+  );
+}
+
 TodayPlanInfo calculateTodayPlanInfo(
   DateTime startDate,
   Set<int> completedDays, {
+  int? currentDay,
   DateTime? currentDate,
   int totalDays = 364,
 }) {
-  final now = currentDate ?? DateTime.now();
-
-  final startNorm = DateTime(startDate.year, startDate.month, startDate.day);
-  final todayNorm = DateTime(now.year, now.month, now.day);
-
-  final diffDays = todayNorm.difference(startNorm).inDays;
-
   final effectiveTotal = totalDays > 0 ? totalDays : 1;
-  final dayNumber = (diffDays + 1).clamp(1, effectiveTotal);
+
+  // 1. Se o usuário tiver um dia ativo definido, respeita exatamente o dia onde ele está
+  int dayNumber;
+  if (currentDay != null && currentDay >= 1 && currentDay <= effectiveTotal) {
+    dayNumber = currentDay;
+  } else {
+    // 2. Caso contrário, encontra o primeiro dia pendente na sequência contínua
+    int firstPending = 1;
+    while (completedDays.contains(firstPending) && firstPending < effectiveTotal) {
+      firstPending++;
+    }
+    dayNumber = firstPending;
+  }
+
   final weekNumber = PlanIndex.weekOf(dayNumber);
   final dayOfWeek = PlanIndex.dayOfWeek(dayNumber);
   final isCompleted = completedDays.contains(dayNumber);

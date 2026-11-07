@@ -5,6 +5,7 @@ class PlanProgress {
   final String planId;
   final DateTime startDate;
   final Set<int>? _completedDays; // Conjunto de dias concluídos (1..364)
+  final int? currentDay; // Dia ativo atual onde o usuário está (1..N)
   final int streak; // Sequência atual de dias seguidos lidos
   final DateTime? lastCompletedDate; // Data da última leitura realizada
   final Map<int, String>? _notes; // Anotações e reflexões por dia (dia -> texto)
@@ -17,6 +18,7 @@ class PlanProgress {
     required this.planId,
     required this.startDate,
     Set<int>? completedDays,
+    this.currentDay,
     this.streak = 0,
     this.lastCompletedDate,
     Map<int, String>? notes,
@@ -30,6 +32,7 @@ class PlanProgress {
       planId: planId,
       startDate: DateTime.now(),
       completedDays: const {},
+      currentDay: 1,
       streak: 0,
       notes: const {},
       isStarted: false,
@@ -51,16 +54,33 @@ class PlanProgress {
   /// Total de dias já concluídos
   int get totalCompleted => completedDays.length;
 
+  /// Retorna o conjunto de dias concluídos válidos para o limite do plano atual
+  Set<int> getValidCompletedDays(int totalDays) {
+    if (totalDays <= 0) return const {};
+    return completedDays.where((d) => d >= 1 && d <= totalDays).toSet();
+  }
+
+  /// Total de dias já concluídos (filtrando opcionalmente até o limite do plano)
+  int getCompletedCount([int? totalDays]) {
+    if (totalDays == null || totalDays <= 0) return completedDays.length;
+    return completedDays.where((d) => d >= 1 && d <= totalDays).length;
+  }
+
   /// Percentual de conclusão baseado no total de dias do plano
+  /// Filtra estritamente apenas dias válidos (<= totalDays) para evitar inconsistência
+  /// caso o usuário alterne entre planos de durações diferentes.
   double getPercentage(int totalDays) {
     if (totalDays <= 0) return 0.0;
-    return (completedDays.length / totalDays).clamp(0.0, 1.0);
+    final validCount =
+        completedDays.where((d) => d >= 1 && d <= totalDays).length;
+    return (validCount / totalDays).clamp(0.0, 1.0);
   }
 
   PlanProgress copyWith({
     String? planId,
     DateTime? startDate,
     Set<int>? completedDays,
+    int? currentDay,
     int? streak,
     DateTime? lastCompletedDate,
     Map<int, String>? notes,
@@ -70,6 +90,7 @@ class PlanProgress {
       planId: planId ?? this.planId,
       startDate: startDate ?? this.startDate,
       completedDays: completedDays ?? this.completedDays,
+      currentDay: currentDay ?? this.currentDay,
       streak: streak ?? this.streak,
       lastCompletedDate: lastCompletedDate ?? this.lastCompletedDate,
       notes: notes ?? this.notes,
@@ -97,6 +118,7 @@ class PlanProgress {
       planId: json['planId'] as String,
       startDate: DateTime.parse(json['startDate'] as String),
       completedDays: completed,
+      currentDay: json['currentDay'] as int?,
       streak: (json['streak'] as int?) ?? 0,
       lastCompletedDate: json['lastCompletedDate'] != null
           ? DateTime.tryParse(json['lastCompletedDate'] as String)
@@ -110,6 +132,7 @@ class PlanProgress {
     'planId': planId,
     'startDate': startDate.toIso8601String(),
     'completedDays': completedDays.toList()..sort(),
+    if (currentDay != null) 'currentDay': currentDay,
     'streak': streak,
     'isStarted': isStarted,
     if (lastCompletedDate != null)
@@ -126,6 +149,7 @@ class PlanProgress {
           planId == other.planId &&
           startDate == other.startDate &&
           setEquals(completedDays, other.completedDays) &&
+          currentDay == other.currentDay &&
           streak == other.streak &&
           lastCompletedDate == other.lastCompletedDate &&
           mapEquals(notes, other.notes);
@@ -135,6 +159,7 @@ class PlanProgress {
         planId,
         startDate,
         Object.hashAll(completedDays),
+        currentDay,
         streak,
         lastCompletedDate,
         Object.hashAll(notes.entries),
@@ -142,5 +167,5 @@ class PlanProgress {
 
   @override
   String toString() =>
-      'PlanProgress(planId: $planId, completed: ${completedDays.length}, streak: $streak, notes: ${notes.length})';
+      'PlanProgress(planId: $planId, completed: ${completedDays.length}, currentDay: $currentDay, streak: $streak, notes: ${notes.length})';
 }

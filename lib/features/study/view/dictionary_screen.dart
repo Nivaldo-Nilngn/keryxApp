@@ -209,12 +209,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
         }
       },
       child: Padding(
-        padding: const EdgeInsets.only(
-          top: 16,
-          bottom: 16,
-          left: 16,
-          right: 16,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
@@ -530,58 +525,56 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   Widget _buildWebHeader() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      padding: const EdgeInsets.all(32),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
           colors: [Color(0xFF4F46E5), Color(0xFF3B82F6)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 15,
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
+          Positioned(
+            right: -20,
+            bottom: -30,
+            child: Icon(
+              Icons.translate_rounded,
+              color: Colors.white.withValues(alpha: 0.2),
+              size: 120,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.book, size: 16, color: Colors.white.withValues(alpha: 0.8)),
-              const SizedBox(width: 8),
-              Text(
-                'DICIONÁRIO BÍBLICO',
-                style: GoogleFonts.outfit(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 12,
+              const Text(
+                'Termos e Definições',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Consulte milhares de termos com definições completas sobre conceitos bíblicos.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 14,
+                  height: 1.4,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Termos e Definições',
-            style: GoogleFonts.outfit(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              height: 1.1,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Consulte milhares de termos com definições completas sobre conceitos bíblicos',
-            style: GoogleFonts.outfit(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 14,
-            ),
           ),
         ],
       ),
@@ -662,7 +655,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 142,
+            height: 140,
             child: ListView(
               scrollDirection: Axis.horizontal,
               clipBehavior: Clip.none,
@@ -742,7 +735,6 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     VoidCallback? onTap,
   }) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: onTap,
@@ -751,13 +743,10 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: theme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
-          ),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -773,9 +762,8 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.18),
+                    color: badgeColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: badgeColor.withValues(alpha: 0.3), width: 0.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -786,7 +774,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                       ],
                       Text(
                         badgeText,
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           color: badgeColor,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -807,9 +795,9 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     color: theme.colorScheme.onSurface,
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -818,7 +806,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 12,
                     height: 1.3,
@@ -975,19 +963,19 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   Widget _buildLetterHeader(String dictId) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      padding: const EdgeInsets.all(32),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF4F46E5), Color(0xFF3B82F6)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 15,
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],

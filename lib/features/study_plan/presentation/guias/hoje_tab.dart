@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import '../../application/study_plan_providers.dart';
 import '../../data/plan_repository.dart';
+import '../../data/study_plan_bible_service.dart';
 import '../../domain/domain.dart';
 import '../study_plan_reader_screen.dart';
+import '../widgets/study_plan_celebration.dart';
 
 class HojeTab extends ConsumerWidget {
   final VoidCallback? onOpenReader;
@@ -50,6 +52,12 @@ class HojeTab extends ConsumerWidget {
         ),
       ),
       data: (planIndex) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref
+              .read(studyPlanBibleServiceProvider)
+              .prefetchUpcomingDays(planIndex, todayInfo.day, daysAhead: 3);
+        });
+
         final planDay = planIndex.dayAt(todayInfo.day);
         final isCompleted = todayInfo.isCompleted;
         final hasTodayNote = progress.hasNote(todayInfo.day);
@@ -933,7 +941,7 @@ class HojeTab extends ConsumerWidget {
                   children: [
                     Container(
                       padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
                         color: badgeBg,
                         borderRadius: BorderRadius.circular(10),
@@ -941,15 +949,122 @@ class HojeTab extends ConsumerWidget {
                           color: badgeBorder,
                         ),
                       ),
-                      child: Text(
-                        'SEMANA ${todayInfo.week} • DIA ${todayInfo.dayOfWeek}',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: badgeText,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (todayInfo.day > 1)
+                            InkWell(
+                              borderRadius: BorderRadius.circular(6),
+                              onTap: () {
+                                ref
+                                    .read(studyPlanProgressProvider.notifier)
+                                    .setCurrentDay(todayInfo.day - 1);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 2),
+                                child: Icon(
+                                  Icons.chevron_left_rounded,
+                                  size: 16,
+                                  color: badgeText,
+                                ),
+                              ),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            child: Text(
+                              'SEMANA ${todayInfo.week} • DIA ${todayInfo.dayOfWeek}',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: badgeText,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          if (todayInfo.day < planIndex.totalDays)
+                            InkWell(
+                              borderRadius: BorderRadius.circular(6),
+                              onTap: () {
+                                ref
+                                    .read(studyPlanProgressProvider.notifier)
+                                    .setCurrentDay(todayInfo.day + 1);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 2),
+                                child: Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 16,
+                                  color: badgeText,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
+                    ),
+                    Builder(
+                      builder: (context) {
+                        int firstPending = 1;
+                        while (firstPending <= planIndex.totalDays &&
+                            progress.completedDays.contains(firstPending)) {
+                          firstPending++;
+                        }
+                        if (firstPending > planIndex.totalDays) {
+                          firstPending = planIndex.totalDays;
+                        }
+                        if (todayInfo.day != firstPending &&
+                            firstPending <= planIndex.totalDays) {
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () {
+                              ref
+                                  .read(studyPlanProgressProvider.notifier)
+                                  .setCurrentDay(firstPending);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppTheme.kPrimaryGold.withValues(alpha: 0.15)
+                                    : const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isDark
+                                      ? AppTheme.kPrimaryGold.withValues(alpha: 0.4)
+                                      : const Color(0xFFFDE68A),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.my_location_rounded,
+                                    size: 12,
+                                    color: isDark
+                                        ? AppTheme.kPrimaryGold
+                                        : const Color(0xFFB45309),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Ir para Dia $firstPending',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? AppTheme.kPrimaryGold
+                                          : const Color(0xFFB45309),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1282,12 +1397,22 @@ class HojeTab extends ConsumerWidget {
           // Botão Secundário: Marcar / Alternar Concluído
           Consumer(
             builder: (context, ref, _) {
-              if (isCompleted) {
+              final currentProgress = ref.watch(studyPlanProgressProvider);
+              final isCurrentDayDone =
+                  currentProgress.completedDays.contains(todayInfo.day);
+
+              if (isCurrentDayDone) {
                 return OutlinedButton.icon(
                   onPressed: () {
                     ref
                         .read(studyPlanProgressProvider.notifier)
-                        .toggleDay(todayInfo.day);
+                        .toggleDay(todayInfo.day,
+                            totalDays: planIndex.totalDays);
+                    showStudyPlanCelebrationSnackbar(
+                      context: context,
+                      dayNumber: todayInfo.day,
+                      wasCompleted: true,
+                    );
                   },
                   icon: const Icon(
                     Icons.check_circle_rounded,
@@ -1303,7 +1428,8 @@ class HojeTab extends ConsumerWidget {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    backgroundColor:
+                        const Color(0xFF10B981).withValues(alpha: 0.1),
                     side: const BorderSide(
                       color: Color(0xFF10B981),
                       width: 1.2,
@@ -1318,14 +1444,25 @@ class HojeTab extends ConsumerWidget {
 
               return OutlinedButton.icon(
                 onPressed: () {
+                  final nextDay = todayInfo.day < planIndex.totalDays
+                      ? todayInfo.day + 1
+                      : null;
                   ref
                       .read(studyPlanProgressProvider.notifier)
-                      .toggleDay(todayInfo.day);
+                      .toggleDay(todayInfo.day,
+                          totalDays: planIndex.totalDays);
+                  showStudyPlanCelebrationSnackbar(
+                    context: context,
+                    dayNumber: todayInfo.day,
+                    wasCompleted: false,
+                    nextDay: nextDay,
+                  );
                 },
                 icon: Icon(
                   Icons.radio_button_unchecked_rounded,
                   size: 20,
-                  color: isDark ? Colors.white70 : textColor.withValues(alpha: 0.6),
+                  color:
+                      isDark ? Colors.white70 : textColor.withValues(alpha: 0.6),
                 ),
                 label: Text(
                   'Marcar como Concluído',
@@ -1339,7 +1476,10 @@ class HojeTab extends ConsumerWidget {
                   side: BorderSide(
                     color: isDark
                         ? Colors.white.withValues(alpha: 0.25)
-                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.2),
                   ),
                   minimumSize: Size.fromHeight(isTablet ? 48 : 46),
                   shape: RoundedRectangleBorder(

@@ -628,7 +628,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     final screenWidth = MediaQuery.sizeOf(context).width;
     final horizontalPad = screenWidth > 1100
         ? (screenWidth - 1100) / 2 + 20
-        : 20.0;
+        : (screenWidth < 600 ? 16.0 : 20.0);
 
     return RefreshIndicator(
       color: Theme.of(context).colorScheme.primary,
@@ -1001,7 +1001,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     final screenWidth = MediaQuery.sizeOf(context).width;
     final horizontalPad = screenWidth > 1100
         ? (screenWidth - 1100) / 2 + 20
-        : 20.0;
+        : (screenWidth < 600 ? 16.0 : 20.0);
 
     final missingCloudCount = filteredDownloaded.where((b) {
       final p = b['path'] ?? '';
@@ -1510,8 +1510,6 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
 
   // ── CARROSSEL DE CARDS DE DESTAQUE (ESTILO HOME) ───────────────────────────
   Widget _buildLibraryCarousel() {
-    final isTablet = MediaQuery.sizeOf(context).width >= 720;
-
     final cards = [
       _buildFeatureCard(
         title: 'Acervo Online',
@@ -1581,33 +1579,17 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
             ],
           ),
         ),
-        if (isTablet)
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: cards[0]),
-                const SizedBox(width: 12),
-                Expanded(child: cards[1]),
-                const SizedBox(width: 12),
-                Expanded(child: cards[2]),
-                const SizedBox(width: 12),
-                Expanded(child: cards[3]),
-              ],
-            ),
-          )
-        else
-          SizedBox(
-            height: 142,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              physics: const BouncingScrollPhysics(),
-              itemCount: cards.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, index) => SizedBox(width: 256, child: cards[index]),
-            ),
+        SizedBox(
+          height: 140,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            physics: const BouncingScrollPhysics(),
+            itemCount: cards.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, index) => cards[index],
           ),
+        ),
       ],
     );
   }
@@ -1622,21 +1604,18 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
     VoidCallback? onTap,
   }) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        width: 256,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: theme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
-          ),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -1652,9 +1631,8 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.18),
+                    color: badgeColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: badgeColor.withValues(alpha: 0.3), width: 0.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1665,7 +1643,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                       ],
                       Text(
                         badgeText,
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           color: badgeColor,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -1686,9 +1664,9 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     color: theme.colorScheme.onSurface,
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -1697,7 +1675,7 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 12,
                     height: 1.3,
@@ -1714,21 +1692,19 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
   }
 
   Widget _buildLibraryHeroCard({
-    required int totalCount,
-    required int pdfCount,
-    required int ebookCount,
+    int totalCount = 0,
+    int pdfCount = 0,
+    int ebookCount = 0,
   }) {
-    final isMobile = MediaQuery.sizeOf(context).width < 600;
-
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 18 : 22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
           colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
         boxShadow: [
           BoxShadow(
@@ -1741,116 +1717,34 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       child: Stack(
         children: [
           Positioned(
-            right: -10,
-            bottom: -15,
+            right: -20,
+            bottom: -30,
             child: Icon(
               Icons.collections_bookmark_rounded,
-              size: isMobile ? 85 : 110,
-              color: Colors.white.withValues(alpha: 0.08),
+              size: 120,
+              color: Colors.white.withValues(alpha: 0.12),
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.offline_pin_rounded, size: 14, color: AppTheme.kPrimaryGold),
-                    const SizedBox(width: 6),
-                    Text(
-                      'ESTANTE PESSOAL OFFLINE',
-                      style: GoogleFonts.outfit(
-                        color: AppTheme.kPrimaryGold,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
+              const Text(
                 'Sua Estante de Leituras',
-                style: GoogleFonts.outfit(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: isMobile ? 20 : 23,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: -0.3,
+                  height: 1.2,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Text(
                 'Seus livros, comentários e documentos salvos no aparelho para leitura rápida e offline.',
-                style: GoogleFonts.outfit(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: isMobile ? 12.5 : 13.5,
-                  height: 1.35,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 14,
+                  height: 1.4,
                 ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.bookmark_added_rounded, size: 13, color: Colors.white),
-                        const SizedBox(width: 5),
-                        Text(
-                          '$totalCount ${totalCount == 1 ? 'leitura salva' : 'leituras salvas'}',
-                          style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () => _tabController.animateTo(1),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.kPrimaryGold.withValues(alpha: 0.35)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.cloud_download_rounded, size: 13, color: AppTheme.kPrimaryGold),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Explorar Acervo Online (22.500+) →',
-                            style: GoogleFonts.outfit(
-                              color: AppTheme.kPrimaryGold,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -1860,21 +1754,19 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
   }
 
   Widget _buildAcervoHeroCard() {
-    final isMobile = MediaQuery.sizeOf(context).width < 600;
-
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 18 : 24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF3B82F6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+            color: const Color(0xFF1E1B4B).withValues(alpha: 0.35),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -1883,56 +1775,32 @@ class _PdfBooksScreenState extends ConsumerState<PdfBooksScreen>
       child: Stack(
         children: [
           Positioned(
-            right: -15,
-            bottom: -20,
+            right: -20,
+            bottom: -30,
             child: Icon(
               Icons.cloud_download_rounded,
-              size: isMobile ? 95 : 120,
-              color: Colors.white.withValues(alpha: 0.15),
+              size: 120,
+              color: Colors.white.withValues(alpha: 0.12),
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.stars_rounded, size: 14, color: Colors.white),
-                    const SizedBox(width: 5),
-                    Text(
-                      'ACERVO ONLINE KERYX',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Mais de 22.500 Obras Gratuitas',
-                style: GoogleFonts.outfit(
+              const Text(
+                'Mais de 22.500 Obras',
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: isMobile ? 18 : 22,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: -0.3,
+                  height: 1.2,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
-                'Baixe Bíblias de estudo, comentários, teologia e dicionários bíblicos completos para leitura offline na sua estante.',
-                style: GoogleFonts.outfit(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: isMobile ? 12 : 13.5,
+                'Bíblias de estudo, comentários, teologia e e-books gratuitos para download.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 14,
                   height: 1.4,
                 ),
               ),

@@ -35,6 +35,17 @@ const _devotionalChannel = AndroidNotificationChannel(
   showBadge: true,
 );
 
+/// Configuração do canal de Plano de Estudo Bíblico no Android
+const _studyPlanChannel = AndroidNotificationChannel(
+  'keryx_study_plan_channel',
+  'Plano de Estudo Bíblico',
+  description: 'Lembretes diários do Plano de Leitura da Bíblia',
+  importance: Importance.high,
+  playSound: true,
+  enableVibration: true,
+  showBadge: true,
+);
+
 /// Instância do plugin de notificações locais
 final FlutterLocalNotificationsPlugin localNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -151,6 +162,7 @@ class PushNotificationService {
               AndroidFlutterLocalNotificationsPlugin>();
       await androidImpl?.createNotificationChannel(_androidChannel);
       await androidImpl?.createNotificationChannel(_devotionalChannel);
+      await androidImpl?.createNotificationChannel(_studyPlanChannel);
     } catch (e) {
       debugPrint('⚠️ Erro ao criar canais de notificação: $e');
     }
@@ -199,6 +211,8 @@ class PushNotificationService {
       }
       if (data['type'] == 'app_update' || data['type'] == 'devocional') {
         _ref.read(navigationProvider.notifier).setIndex(0);
+      } else if (data['type'] == 'study_plan') {
+        _ref.read(navigationProvider.notifier).setIndex(1);
       }
     } catch (e) {
       debugPrint('❌ Erro ao processar payload do clique: $e');
@@ -273,6 +287,83 @@ class PushNotificationService {
           '⏰ Devocional matinal agendado para às ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} com repetição diária!');
     } catch (e) {
       debugPrint('⚠️ Erro ao agendar notificação diária do devocional: $e');
+    }
+  }
+
+  /// Agenda o lembrete diário do Plano de Estudo Bíblico no horário escolhido
+  Future<void> scheduleStudyPlanReminder({
+    int hour = 7,
+    int minute = 0,
+  }) async {
+    if (kIsWeb) return;
+
+    try {
+      try {
+        tz.initializeTimeZones();
+        try {
+          tz.setLocalLocation(tz.getLocation('America/Sao_Paulo'));
+        } catch (_) {}
+      } catch (_) {}
+
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduledDate = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+      );
+
+      // Se o horário de hoje já passou, agenda a partir de amanhã
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+
+      await localNotificationsPlugin.zonedSchedule(
+        id: 778,
+        title: '📖 Plano de Leitura Bíblica',
+        body: 'Hora da sua leitura diária! Abra para continuar seu progresso.',
+        scheduledDate: scheduledDate,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'keryx_study_plan_channel',
+            'Plano de Estudo Bíblico',
+            channelDescription: 'Lembretes diários do Plano de Leitura da Bíblia',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/launcher_icon',
+            ticker: 'Plano de Leitura',
+            enableVibration: true,
+            playSound: true,
+            category: AndroidNotificationCategory.reminder,
+            visibility: NotificationVisibility.public,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: jsonEncode({'type': 'study_plan'}),
+      );
+      debugPrint(
+          '⏰ Lembrete de leitura bíblica agendado para às ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} com repetição diária!');
+    } catch (e) {
+      debugPrint('⚠️ Erro ao agendar lembrete do plano de estudos: $e');
+    }
+  }
+
+  /// Cancela o lembrete diário do Plano de Leitura
+  Future<void> cancelStudyPlanReminder() async {
+    if (kIsWeb) return;
+    try {
+      await localNotificationsPlugin.cancel(id: 778);
+      debugPrint('🛑 Lembrete diário do plano de estudos cancelado.');
+    } catch (e) {
+      debugPrint('⚠️ Erro ao cancelar lembrete do plano de estudos: $e');
     }
   }
 

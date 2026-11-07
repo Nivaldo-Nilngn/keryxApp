@@ -11,6 +11,7 @@ import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart';
 import '../data/study_plan_bible_service.dart';
 import '../domain/domain.dart';
 import '../application/study_plan_providers.dart';
+import 'widgets/study_plan_celebration.dart';
 
 enum ReaderTheme { dark, sepia, light }
 
@@ -682,9 +683,17 @@ class _StudyPlanReaderScreenState
                               const SizedBox(height: 16),
                               FilledButton.icon(
                                 onPressed: () {
+                                  final wasCompleted = isCompleted;
+                                  final nextDay = widget.globalDayNumber + 1;
                                   ref
                                       .read(studyPlanProgressProvider.notifier)
                                       .toggleDay(widget.globalDayNumber);
+                                  showStudyPlanCelebrationSnackbar(
+                                    context: context,
+                                    dayNumber: widget.globalDayNumber,
+                                    wasCompleted: wasCompleted,
+                                    nextDay: nextDay,
+                                  );
                                 },
                                 icon: Icon(
                                   isCompleted
@@ -713,6 +722,91 @@ class _StudyPlanReaderScreenState
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
+                              ),
+
+                              // Botão Secundário: Continuar para o Dia seguinte
+                              Consumer(
+                                builder: (context, ref, _) {
+                                  final planIndexAsync =
+                                      ref.watch(currentPlanIndexProvider);
+                                  final totalDays =
+                                      planIndexAsync.valueOrNull?.totalDays ??
+                                          364;
+                                  final hasNextDay =
+                                      widget.globalDayNumber < totalDays;
+
+                                  if (!hasNextDay) {
+                                    return const SizedBox.shrink();
+                                  }
+
+                                  final nextDayNumber =
+                                      widget.globalDayNumber + 1;
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: OutlinedButton.icon(
+                                      onPressed: () async {
+                                        // Marca o dia atual como concluído se ainda não foi
+                                        if (!isCompleted) {
+                                          await ref
+                                              .read(studyPlanProgressProvider
+                                                  .notifier)
+                                              .toggleDay(widget.globalDayNumber,
+                                                  totalDays: totalDays);
+                                        }
+
+                                        final PlanIndex planIndex = planIndexAsync
+                                                .valueOrNull ??
+                                            await ref.read(
+                                                currentPlanIndexProvider.future);
+                                        final nextPlanDay =
+                                            planIndex.dayAt(nextDayNumber);
+
+                                        await ref
+                                            .read(studyPlanProgressProvider
+                                                .notifier)
+                                            .setCurrentDay(nextDayNumber);
+
+                                        if (!context.mounted) return;
+
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                StudyPlanReaderScreen(
+                                              planDay: nextPlanDay,
+                                              globalDayNumber: nextDayNumber,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        'Continuar para o Dia seguinte ($nextDayNumber) ➔',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: _accentColor,
+                                        side: BorderSide(
+                                          color: _accentColor
+                                              .withValues(alpha: 0.5),
+                                          width: 1.2,
+                                        ),
+                                        minimumSize: const Size(200, 46),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),

@@ -104,12 +104,12 @@ void main() {
       expect(day4, isNotNull);
       expect(day4!.passages.first.formattedReference, 'Jó 1-5');
 
-      // Semana 52 - Último dia com Apocalipse 12-22
+      // Semana 52 - Último dia com Apocalipse 12-22 (Dia 364 global)
       final week52 = plan.findWeek(52);
       expect(week52, isNotNull);
       expect(week52!.days.length, 7);
       final lastDay = week52.days.last;
-      expect(lastDay.day, 7);
+      expect(lastDay.day, 364);
       expect(lastDay.passages.first.formattedReference, 'Apocalipse 12-22');
 
       // Roundtrip toJson / fromJson
@@ -191,7 +191,7 @@ void main() {
 
   group('StudyPlanNotifier & Backup JSON', () {
     test('salvar e remover anotações por dia', () async {
-      final notifier = StudyPlanNotifier(null);
+      final notifier = StudyPlanNotifier(null, planId: 'cronologico-52');
       expect(notifier.state.notes.isEmpty, isTrue);
 
       await notifier.saveNote(1, 'Primeira nota');
@@ -208,7 +208,7 @@ void main() {
     });
 
     test('exportar e importar backup JSON com restauração total', () async {
-      final notifier = StudyPlanNotifier(null);
+      final notifier = StudyPlanNotifier(null, planId: 'cronologico-52');
       await notifier.toggleDay(1);
       await notifier.toggleDay(2);
       await notifier.saveNote(1, 'Estudo de Gênesis 1');
@@ -218,7 +218,7 @@ void main() {
       expect(exportedJson.contains('Estudo de Gênesis 1'), isTrue);
 
       // Novo notifier simulando outro dispositivo/estado limpo
-      final freshNotifier = StudyPlanNotifier(null);
+      final freshNotifier = StudyPlanNotifier(null, planId: 'cronologico-52');
       expect(freshNotifier.state.completedDays.isEmpty, isTrue);
 
       final success = await freshNotifier.importProgressJson(exportedJson);
@@ -233,7 +233,7 @@ void main() {
     });
 
     test('cálculo do streak diário sequencial', () async {
-      final notifier = StudyPlanNotifier(null);
+      final notifier = StudyPlanNotifier(null, planId: 'cronologico-52');
       final day1 = DateTime(2026, 3, 1, 10, 0);
       final day2 = DateTime(2026, 3, 2, 11, 0);
 
@@ -255,12 +255,19 @@ void main() {
       expect(infoDay1.week, 1);
       expect(infoDay1.dayOfWeek, 1);
 
-      // No dia 8 (Semana 2, Dia 1)
-      final infoDay8 = calculateTodayPlanInfo(start, const {8}, currentDate: DateTime(2026, 1, 8));
+      // No dia 8 (Semana 2, Dia 1) com currentDay explicitamente 8
+      final infoDay8 = calculateTodayPlanInfo(start, const {8}, currentDay: 8);
       expect(infoDay8.day, 8);
       expect(infoDay8.week, 2);
       expect(infoDay8.dayOfWeek, 1);
       expect(infoDay8.isCompleted, isTrue);
+
+      // Sem currentDay e com dia 1 já concluído, aponta automaticamente para o primeiro pendente (Dia 2)
+      final infoNextPending = calculateTodayPlanInfo(start, const {1});
+      expect(infoNextPending.day, 2);
+      expect(infoNextPending.week, 1);
+      expect(infoNextPending.dayOfWeek, 2);
+      expect(infoNextPending.isCompleted, isFalse);
     });
   });
 

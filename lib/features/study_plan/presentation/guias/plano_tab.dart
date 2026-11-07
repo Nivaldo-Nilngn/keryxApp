@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import '../../application/study_plan_providers.dart';
 import '../study_plan_reader_screen.dart';
+import '../widgets/study_plan_celebration.dart';
 
 class PlanoTab extends ConsumerWidget {
   const PlanoTab({super.key});
@@ -185,8 +186,7 @@ class PlanoTab extends ConsumerWidget {
                           children: week.days.asMap().entries.map((entry) {
                             final dayIndexInWeek = entry.key + 1; // 1..7
                             final planDay = entry.value;
-                            final globalDayNumber =
-                                (weekNum - 1) * 7 + dayIndexInWeek;
+                            final globalDayNumber = planDay.day;
                             final isDayCompleted = progress.completedDays
                                 .contains(globalDayNumber);
                             final isToday = todayInfo.day == globalDayNumber;
@@ -214,10 +214,21 @@ class PlanoTab extends ConsumerWidget {
                                     // Checkbox redondo
                                     InkWell(
                                       onTap: () {
+                                        final nextDay =
+                                            globalDayNumber < plan.totalDays
+                                                ? globalDayNumber + 1
+                                                : null;
                                         ref
                                             .read(studyPlanProgressProvider
                                                 .notifier)
-                                            .toggleDay(globalDayNumber);
+                                            .toggleDay(globalDayNumber,
+                                                totalDays: plan.totalDays);
+                                        showStudyPlanCelebrationSnackbar(
+                                          context: context,
+                                          dayNumber: globalDayNumber,
+                                          wasCompleted: isDayCompleted,
+                                          nextDay: nextDay,
+                                        );
                                       },
                                       borderRadius:
                                           BorderRadius.circular(20),
@@ -242,6 +253,10 @@ class PlanoTab extends ConsumerWidget {
                                         borderRadius:
                                             BorderRadius.circular(8),
                                         onTap: () {
+                                          ref
+                                              .read(studyPlanProgressProvider
+                                                  .notifier)
+                                              .setCurrentDay(globalDayNumber);
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(

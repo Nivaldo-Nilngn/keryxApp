@@ -21,6 +21,7 @@ class CommentarySelectionScreen extends ConsumerWidget {
     final searchQuery = ref.watch(bookSearchQueryProvider);
 
     final isTablet = MediaQuery.of(context).size.width >= 720;
+    final horizontalPadding = isTablet ? 24.0 : 16.0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -28,7 +29,7 @@ class CommentarySelectionScreen extends ConsumerWidget {
         children: [
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(24, isTablet ? 24 : 8, 24, 150),
+            padding: EdgeInsets.fromLTRB(horizontalPadding, isTablet ? 24 : 8, horizontalPadding, 150),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1100),
@@ -165,83 +166,54 @@ class CommentarySelectionScreen extends ConsumerWidget {
   }
 
   Widget _buildCommentaryHeroCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: isDark
-              ? [const Color(0xFF1E1B4B), const Color(0xFF312E81)]
-              : [const Color(0xFF4F46E5), const Color(0xFF3B82F6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF3B82F6)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -10,
-            bottom: -20,
+            right: -20,
+            bottom: -30,
             child: Icon(
               Icons.auto_stories_rounded,
-              color: Colors.white.withValues(alpha: 0.15),
-              size: 110,
+              color: Colors.white.withValues(alpha: 0.2),
+              size: 120,
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.auto_awesome_rounded, size: 13, color: Colors.white),
-                    const SizedBox(width: 6),
-                    Text(
-                      'EXEGESE & TEOLOGIA',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
+              const Text(
                 'Escolha uma Obra',
-                style: GoogleFonts.outfit(
+                style: TextStyle(
                   color: Colors.white,
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  height: 1.15,
+                  height: 1.2,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 'Associe o conhecimento teológico aos textos sagrados com exegese versículo por versículo.',
-                style: GoogleFonts.outfit(
-                  color: Colors.white.withValues(alpha: 0.88),
-                  fontSize: 13.5,
-                  height: 1.35,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 14,
+                  height: 1.4,
                 ),
               ),
             ],
@@ -260,16 +232,15 @@ class CommentarySelectionScreen extends ConsumerWidget {
       )),
     );
 
-    final isTablet = MediaQuery.of(context).size.width >= 720;
-
     final cards = [
       _buildCommentaryNavCard(
         context,
         title: 'Comentário Moody',
         subtitle: 'Exegese clássica de cada versículo bíblico.',
         badgeText: 'Exegese',
+        badgeIcon: Icons.menu_book_rounded,
         badgeColor: const Color(0xFF4F46E5),
-        icon: Icons.menu_book_rounded,
+        actionIcon: Icons.auto_awesome_rounded,
         onTap: () {
           final moody = available.where(
             (m) => m.name.toLowerCase().contains('moody') || m.id.toLowerCase().contains('moody'),
@@ -288,8 +259,9 @@ class CommentarySelectionScreen extends ConsumerWidget {
         title: 'Matthew Henry',
         subtitle: 'Profunda aplicação pastoral e devocional.',
         badgeText: 'Devocional',
+        badgeIcon: Icons.auto_stories_rounded,
         badgeColor: const Color(0xFF0284C7),
-        icon: Icons.auto_stories_rounded,
+        actionIcon: Icons.auto_stories_rounded,
         onTap: () {
           final henry = available.where(
             (m) => m.name.toLowerCase().contains('henry') || m.id.toLowerCase().contains('henry'),
@@ -308,8 +280,9 @@ class CommentarySelectionScreen extends ConsumerWidget {
         title: 'Russell Shedd',
         subtitle: 'Notas teológicas e contextuais profundas.',
         badgeText: 'Teologia',
+        badgeIcon: Icons.school_rounded,
         badgeColor: const Color(0xFF059669),
-        icon: Icons.school_rounded,
+        actionIcon: Icons.school_rounded,
         onTap: () {
           final shedd = available.where(
             (m) => m.name.toLowerCase().contains('shedd'),
@@ -328,8 +301,9 @@ class CommentarySelectionScreen extends ConsumerWidget {
         title: 'Catálogo da Loja',
         subtitle: 'Mais de 50 obras completas para baixar grátis.',
         badgeText: '50+ Obras',
+        badgeIcon: Icons.storefront_rounded,
         badgeColor: const Color(0xFFD97706),
-        icon: Icons.storefront_rounded,
+        actionIcon: Icons.storefront_rounded,
         onTap: () {
           ref.read(isLibraryModeProvider.notifier).state = false;
           ref.read(selectedCategoryProvider.notifier).state = StoreCategory.commentaries;
@@ -338,38 +312,24 @@ class CommentarySelectionScreen extends ConsumerWidget {
       ),
     ];
 
-    if (isTablet) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: cards[0]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[1]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[2]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[3]),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 136,
-          child: ListView.separated(
+          height: 140,
+          child: ListView(
             scrollDirection: Axis.horizontal,
             clipBehavior: Clip.none,
             physics: const BouncingScrollPhysics(),
-            itemCount: cards.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, index) => SizedBox(width: 255, child: cards[index]),
+            children: [
+              cards[0],
+              const SizedBox(width: 12),
+              cards[1],
+              const SizedBox(width: 12),
+              cards[2],
+              const SizedBox(width: 12),
+              cards[3],
+            ],
           ),
         ),
         const SizedBox(height: 24),
@@ -382,92 +342,92 @@ class CommentarySelectionScreen extends ConsumerWidget {
     required String title,
     required String subtitle,
     required String badgeText,
+    IconData? badgeIcon,
     required Color badgeColor,
-    required IconData icon,
+    required IconData actionIcon,
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 256,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: badgeColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (badgeIcon != null) ...[
+                        Icon(badgeIcon, color: badgeColor, size: 12),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
                         badgeText,
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           color: badgeColor,
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                    Icon(
-                      icon,
-                      size: 20,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.outfit(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.outfit(
-                        fontSize: 11.5,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
+                Icon(
+                  actionIcon,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  size: 18,
                 ),
               ],
             ),
-          ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

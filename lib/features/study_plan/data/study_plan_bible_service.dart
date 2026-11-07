@@ -25,12 +25,25 @@ class StudyVerse {
 
 class StudyPlanBibleService {
   final DatabaseService _dbService;
+  final Map<String, List<StudyVerse>> _versesCache = {};
 
   StudyPlanBibleService({DatabaseService? dbService})
       : _dbService = dbService ?? DatabaseService();
 
-  /// Carrega todos os versículos das passagens de um determinado dia do plano
+  String _passagesKey(List<Passage> passages) {
+    return passages
+        .map((p) => '${p.book}_${p.from}_${p.to}_${p.verseFrom}_${p.verseTo}')
+        .join('|');
+  }
+
+  /// Carrega todos os versículos das passagens de um determinado dia do plano.
+  /// Utiliza cache em memória para leituras offline instantâneas (0ms).
   Future<List<StudyVerse>> loadPassagesVerses(List<Passage> passages) async {
+    final key = _passagesKey(passages);
+    if (_versesCache.containsKey(key)) {
+      return _versesCache[key]!;
+    }
+
     final db = await _dbService.getDatabase('ARA_S');
     final List<StudyVerse> allVerses = [];
 
@@ -73,7 +86,34 @@ class StudyPlanBibleService {
       }
     }
 
+    _versesCache[key] = allVerses;
     return allVerses;
+  }
+
+  /// Pré-carrega de forma assíncrona os próximos N dias do plano no cache local
+  Future<void> prefetchUpcomingDays(
+    PlanIndex planIndex,
+    int currentDay, {
+    int daysAhead = 3,
+  }) async {
+    for (int i = 0; i <= daysAhead; i++) {
+      final targetDay = currentDay + i;
+      if (targetDay >= 1 && targetDay <= planIndex.totalDays) {
+        final planDay = planIndex.dayAt(targetDay);
+        final key = _passagesKey(planDay.passages);
+        if (!_versesCache.containsKey(key)) {
+          try {
+            await loadPassagesVerses(planDay.passages);
+          } catch (_) {
+            // Falha silenciosa no prefetch para não interromper a interface
+          }
+        }
+      }
+    }
+  }
+
+  void clearCache() {
+    _versesCache.clear();
   }
 }
 
