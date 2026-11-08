@@ -13,7 +13,7 @@ import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/reading/repository/reading_repository.dart';
 import 'package:keryx_app/features/reading/model/reading_history_model.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
@@ -453,47 +453,67 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                 // Calculado dinamicamente para manter o botão de paginação e versículos sempre acima da navbar e painel de áudio
                 final bottomScrollPadding = (isNavbarVisible ? (72.0 + 24.0 + 76.0) : 76.0) + bottomSafeArea + 40.0;
 
-                return SingleChildScrollView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(20, 20, 20, bottomScrollPadding),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildTopSection(chapter),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 12,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildNavigationRow(
-                              subVersions,
-                              effectiveSubVersion,
-                              chapter,
-                            ),
-                            const SizedBox(height: 24),
-                            ...(() {
-                              final effectiveTextColor = KeryxColorContrast.ensureReadableTextColor(
-                                fontSettings.textColor != null
-                                    ? Color(fontSettings.textColor!)
-                                    : null,
-                                context,
-                              );
-                              final cachedVerseStyle = _getFontStyle(
-                                fontSettings.fontFamily,
-                                fontSize: fontSettings.fontSize,
-                                height: 1.6,
-                                color: effectiveTextColor,
-                              );
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.noScaling,
+                  ),
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(20, 20, 20, bottomScrollPadding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildTopSection(chapter),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 12,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildNavigationRow(
+                                subVersions,
+                                effectiveSubVersion,
+                                chapter,
+                              ),
+                              const SizedBox(height: 24),
+                              ...(() {
+                                final effectiveTextColor = KeryxColorContrast.ensureReadableTextColor(
+                                  fontSettings.textColor != null
+                                      ? Color(fontSettings.textColor!)
+                                      : null,
+                                  context,
+                                );
+                                final cachedVerseStyle = _getFontStyle(
+                                  fontSettings.fontFamily,
+                                  fontSize: fontSettings.fontSize,
+                                  height: 1.6,
+                                  color: effectiveTextColor,
+                                );
 
-                              if (fontSettings.splitPage && MediaQuery.of(context).size.width >= 600) {
-                                return [
-                                  _buildTwoColumnVerses(
-                                    verses: chapter.verses,
+                                if (fontSettings.splitPage && MediaQuery.of(context).size.width >= 600) {
+                                  return [
+                                    _buildTwoColumnVerses(
+                                      verses: chapter.verses,
+                                      version: version,
+                                      effectiveSubVersion: effectiveSubVersion,
+                                      fontSettings: fontSettings,
+                                      activeAudioVerseNumber: activeAudioVerseNumber,
+                                      selectedVerses: selectedVerses,
+                                      highlights: highlights,
+                                      favorites: favorites,
+                                      cachedVerseStyle: cachedVerseStyle,
+                                      cachedTextColor: effectiveTextColor,
+                                    ),
+                                  ];
+                                }
+
+                                return chapter.verses.map((verse) {
+                                  return _buildVerseItem(
+                                    verse: verse,
                                     version: version,
                                     effectiveSubVersion: effectiveSubVersion,
                                     fontSettings: fontSettings,
@@ -501,33 +521,18 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                                     selectedVerses: selectedVerses,
                                     highlights: highlights,
                                     favorites: favorites,
+                                    isTwoColumn: false,
                                     cachedVerseStyle: cachedVerseStyle,
                                     cachedTextColor: effectiveTextColor,
-                                  ),
-                                ];
-                              }
-
-                              return chapter.verses.map((verse) {
-                                return _buildVerseItem(
-                                  verse: verse,
-                                  version: version,
-                                  effectiveSubVersion: effectiveSubVersion,
-                                  fontSettings: fontSettings,
-                                  activeAudioVerseNumber: activeAudioVerseNumber,
-                                  selectedVerses: selectedVerses,
-                                  highlights: highlights,
-                                  favorites: favorites,
-                                  isTwoColumn: false,
-                                  cachedVerseStyle: cachedVerseStyle,
-                                  cachedTextColor: effectiveTextColor,
-                                );
-                              }).toList();
-                            })(),
-                            _buildPagination(),
-                          ],
+                                  );
+                                }).toList();
+                              })(),
+                              _buildPagination(),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },

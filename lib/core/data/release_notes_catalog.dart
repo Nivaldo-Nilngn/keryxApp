@@ -5,6 +5,44 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.11',
+      buildNumber: 20,
+      title: 'Tipografia Global Dinâmica, Novo Design de Novidades e Acessibilidade',
+      releaseDate: '08 de Novembro de 2026',
+      highlight:
+          'Aplicação em tempo real de fontes customizadas e escalonamento de texto em todo o aplicativo para acessibilidade, reformulação completa da tela de novidades com tópicos escaneáveis e novo botão de fechar nas configurações.',
+      items: [
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Tipografia e Escala de Texto em Todo o Aplicativo',
+          description:
+              'A troca de fonte e o ajuste de tamanho agora se aplicam dinamicamente a 100% das telas do app (cards, títulos, loja, comunidade e estudos), com suporte avançado a acessibilidade.',
+          customIcon: Icons.font_download_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Nova Tela de Notas de Lançamento',
+          description:
+              'Design moderno, arejado e celebrativo com categorização automática e tópicos escaneáveis para comunicados do administrador e novidades da versão.',
+          customIcon: Icons.auto_awesome_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Botão de Fechar [X] e Altura Completa nas Configurações',
+          description:
+              'Adicionado botão de fechar no topo e visualização completa para facilitar o fechamento em todos os modelos de smartphone.',
+          customIcon: Icons.close_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Correção de Overflows e Alinhamentos',
+          description:
+              'Resolução de estouros visuais na barra de título do chat IATheos, alinhamento do menu de perfil em tablets e proteção do leitor bíblico contra duplo escalonamento.',
+          customIcon: Icons.healing_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.8',
       buildNumber: 17,
       title: 'Menu Lateral Completo em Tablets, TopBars Otimizadas & Curadoria',

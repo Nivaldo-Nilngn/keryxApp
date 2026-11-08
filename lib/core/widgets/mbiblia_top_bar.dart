@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/features/bible/view/tts_settings_sheet.dart' as keryx_tts;
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/font_state.dart';
@@ -31,6 +31,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
   final List<Widget>? additionalActions;
   final bool showBackButton;
   final bool showLogo;
+  final bool showStoreButton;
   final double height;
   final PreferredSizeWidget? bottom;
   final bool isScrolled;
@@ -43,6 +44,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
     this.additionalActions,
     this.showBackButton = false,
     this.showLogo = true,
+    this.showStoreButton = true,
     this.height = 85.0,
     this.bottom,
     this.onBack,
@@ -59,20 +61,22 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final topPadding = MediaQuery.paddingOf(context).top;
-    return Container(
-      height: preferredSize.height + topPadding,
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(
-          bottom: BorderSide(
-            color: isScrolled
-                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05)
-                : Colors.transparent,
-            width: 1,
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.15,
+      child: Container(
+        height: preferredSize.height + topPadding,
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          border: Border(
+            bottom: BorderSide(
+              color: isScrolled
+                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05)
+                  : Colors.transparent,
+              width: 1,
+            ),
           ),
         ),
-      ),
-      child: SafeArea(
+        child: SafeArea(
         bottom: false,
         child: AppBar(
           backgroundColor: Colors.transparent,
@@ -82,7 +86,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
           toolbarHeight: height,
           automaticallyImplyLeading: showBackButton,
           centerTitle: false,
-          titleSpacing: showBackButton ? 0 : 24.0,
+          titleSpacing: showBackButton ? 0 : 16.0,
           leadingWidth: leading != null ? 80 : 56,
           leading: leading ?? (showBackButton ? IconButton(
             tooltip: 'Voltar',
@@ -141,7 +145,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                   ],
                   Flexible(
                     child: Text(
@@ -149,7 +153,8 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
-                        fontSize: 20,
+                        fontSize: 18.5,
+                        letterSpacing: -0.2,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -165,10 +170,13 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
               children: [
                 IconButton(
                   tooltip: 'Notificações',
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                  padding: const EdgeInsets.all(6),
                   icon: Icon(
                     Icons.notifications_none_rounded,
                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    size: 26,
+                    size: 24,
                   ),
                   onPressed: () {
                     showModalBottomSheet(
@@ -185,8 +193,8 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
                     final unreadCount = ref.watch(unreadNotificationsCountProvider);
                     if (unreadCount == 0) return const SizedBox.shrink();
                     return Positioned(
-                      right: 8,
-                      top: 8,
+                      right: 4,
+                      top: 4,
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
@@ -207,53 +215,58 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
                 ),
               ],
             ),
-            IconButton(
-              tooltip: 'Loja de Recursos',
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(
-                    Icons.storefront_rounded,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    size: 24,
-                  ),
-                  if (ref.watch(storeProvider.select((s) => s.downloadProgress.isNotEmpty)))
-                    Positioned(
-                      top: -2,
-                      right: -2,
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.kPrimaryGold,
+            if (showStoreButton)
+              IconButton(
+                tooltip: 'Loja de Recursos',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                padding: const EdgeInsets.all(6),
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      Icons.storefront_rounded,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      size: 24,
+                    ),
+                    if (ref.watch(storeProvider.select((s) => s.downloadProgress.isNotEmpty)))
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.kPrimaryGold,
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
+                onPressed: () {
+                  ref.read(isLibraryModeProvider.notifier).state = false;
+                  ref.read(searchQueryProvider.notifier).state = '';
+                  ref.read(selectedCategoryProvider.notifier).state = null;
+                  if (Navigator.canPop(context)) {
+                    Navigator.popUntil(context, (route) => route.isFirst);
+                  }
+                  ref.read(navigationProvider.notifier).setIndex(5);
+                },
               ),
-              onPressed: () {
-                ref.read(isLibraryModeProvider.notifier).state = false;
-                ref.read(searchQueryProvider.notifier).state = '';
-                ref.read(selectedCategoryProvider.notifier).state = null;
-                if (Navigator.canPop(context)) {
-                  Navigator.popUntil(context, (route) => route.isFirst);
-                }
-                ref.read(navigationProvider.notifier).setIndex(5);
-              },
-            ),
 
             const KeryxUserDropdown(),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
           ],
           bottom: bottom,
         ),
       ),
+    ),
     );
   }
 }
@@ -849,83 +862,147 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
     final settings = ref.watch(fontSettingsProvider);
     final authState = ref.watch(authStateProvider);
     final user = authState.value;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isTablet = MediaQuery.of(context).size.width >= 600;
+    final screenHeight = MediaQuery.of(context).size.height;
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
-            border: Border(top: BorderSide(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1), width: 1)),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            isTablet ? 40 : 24,
-            16,
-            isTablet ? 40 : 24,
-            MediaQuery.of(context).viewInsets.bottom + 36,
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.90,
-            ),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 48,
-                      height: 5,
-                      margin: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: isTablet ? 720 : double.infinity,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(isTablet ? 32 : 28)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              width: double.infinity,
+              height: isTablet ? screenHeight * 0.92 : screenHeight,
+              decoration: BoxDecoration(
+                color: theme.scaffoldBackgroundColor.withValues(alpha: 0.97),
+                border: Border(
+                  top: BorderSide(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                top: true,
+                bottom: false,
+                child: Column(
+                  children: [
+                    // ── Cabeçalho Fixo com Barra de Arraste e Botão [X] Fechar ──
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isTablet ? 36 : 24,
+                        12,
+                        isTablet ? 36 : 20,
+                        14,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 44,
+                              height: 4.5,
+                              margin: const EdgeInsets.only(bottom: 16),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.settings_suggest_rounded,
+                                  color: AppTheme.kPrimaryGold,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  'CONFIGURAÇÕES',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                              Material(
+                                color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.05),
+                                shape: const CircleBorder(),
+                                clipBehavior: Clip.antiAlias,
+                                child: InkWell(
+                                  onTap: () => Navigator.of(context).pop(),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Icon(
+                                      Icons.close_rounded,
+                                      color: theme.colorScheme.onSurface,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+                    ),
+
+                    // ── Conteúdo com Rolagem ───────────────────────────
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          isTablet ? 36 : 24,
+                          20,
+                          isTablet ? 36 : 24,
+                          MediaQuery.of(context).viewInsets.bottom +
+                              MediaQuery.of(context).padding.bottom +
+                              36,
                         ),
-                        child: const Icon(Icons.settings_suggest_rounded, color: AppTheme.kPrimaryGold, size: 24),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        'CONFIGURAÇÕES',
-                        style: GoogleFonts.outfit(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.5,
-                          color: Theme.of(context).colorScheme.onSurface,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. PERFIL DO USUÁRIO COM OPÇÃO DE EDITAR
+                            _buildUserProfileSection(context, user),
+                            const SizedBox(height: 24),
+
+                            // 2. CONFIGURAÇÕES DO SISTEMA (FONTE E VOZ TTS - MINIMIZÁVEL)
+                            _buildSystemSettingsSection(context, settings),
+                            const SizedBox(height: 24),
+
+                            // 3. ARMAZENAMENTO E DADOS
+                            Text('ARMAZENAMENTO E DADOS', style: _sectionTitleStyle(context)),
+                            const SizedBox(height: 14),
+                            _buildDataResetSection(context, ref),
+                            const SizedBox(height: 24),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // 1. PERFIL DO USUÁRIO COM OPÇÃO DE EDITAR
-                  _buildUserProfileSection(context, user),
-                  const SizedBox(height: 24),
-
-                  // 2. CONFIGURAÇÕES DO SISTEMA (FONTE E VOZ TTS - MINIMIZÁVEL)
-                  _buildSystemSettingsSection(context, settings),
-                  const SizedBox(height: 24),
-
-                  // 3. ARMAZENAMENTO E DADOS
-                  Text('ARMAZENAMENTO E DADOS', style: _sectionTitleStyle(context)),
-                  const SizedBox(height: 14),
-                  _buildDataResetSection(context, ref),
-                  const SizedBox(height: 24),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

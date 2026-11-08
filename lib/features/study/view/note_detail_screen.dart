@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:keryx_app/core/widgets/responsive_layout.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';

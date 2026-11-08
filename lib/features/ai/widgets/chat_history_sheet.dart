@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/ai/model/chat_model.dart';
 import 'package:keryx_app/features/ai/service/chat_history_service.dart';
@@ -81,12 +81,20 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
         ),
         content: Text(
           'Deseja excluir "${session.title}" permanentemente do histórico?',
-          style: GoogleFonts.manrope(fontSize: 13, color: Colors.white70),
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.75),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: GoogleFonts.outfit(color: Colors.white60)),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.outfit(
+                color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -136,12 +144,20 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
         ),
         content: Text(
           'Todas as conversas salvas com a IATheos serão permanentemente apagadas. Deseja continuar?',
-          style: GoogleFonts.manrope(fontSize: 13, color: Colors.white70),
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.75),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: GoogleFonts.outfit(color: Colors.white60)),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.outfit(
+                color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -172,6 +188,8 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
   Widget build(BuildContext context) {
     const gold = AppTheme.kPrimaryGold;
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = theme.colorScheme.onSurface;
     final mediaQuery = MediaQuery.of(context);
 
     return ClipRRect(
@@ -184,7 +202,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
             color: theme.scaffoldBackgroundColor.withValues(alpha: 0.96),
             border: Border(
               top: BorderSide(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
                 width: 1,
               ),
             ),
@@ -199,7 +217,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
                   width: 44,
                   height: 4.5,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.25),
+                    color: isDark ? Colors.white.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -230,14 +248,14 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
                             style: GoogleFonts.outfit(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: onSurface,
                             ),
                           ),
                           Text(
                             'Retome ou gerencie suas consultas',
                             style: GoogleFonts.manrope(
                               fontSize: 12,
-                              color: Colors.white54,
+                              color: onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                         ],
@@ -247,7 +265,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         backgroundColor: gold.withValues(alpha: 0.15),
-                        foregroundColor: gold,
+                        foregroundColor: isDark ? gold : const Color(0xFFB45309),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -278,7 +296,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
                 ),
               ),
 
-              const Divider(color: Colors.white12, height: 16),
+              Divider(color: onSurface.withValues(alpha: 0.08), height: 16),
 
               // Lista de Sessões
               Expanded(
@@ -289,7 +307,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
                         ),
                       )
                     : _sessions.isEmpty
-                        ? _buildEmptyState()
+                        ? _buildEmptyState(onSurface)
                         : ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             itemCount: _sessions.length,
@@ -298,7 +316,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
                               final session = _sessions[index];
                               final isCurrent = session.id == widget.currentSessionId;
 
-                              return _buildSessionCard(session, isCurrent, gold);
+                              return _buildSessionCard(session, isCurrent, gold, isDark, onSurface);
                             },
                           ),
               ),
@@ -309,7 +327,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(Color onSurface) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -320,13 +338,13 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: onSurface.withValues(alpha: 0.06),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.chat_bubble_outline_rounded,
                 size: 32,
-                color: Colors.white38,
+                color: onSurface.withValues(alpha: 0.35),
               ),
             ),
             const SizedBox(height: 16),
@@ -335,7 +353,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
               style: GoogleFonts.outfit(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.white70,
+                color: onSurface,
               ),
             ),
             const SizedBox(height: 6),
@@ -344,7 +362,7 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 12.5,
-                color: Colors.white38,
+                color: onSurface.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -353,100 +371,119 @@ class _ChatHistorySheetState extends ConsumerState<ChatHistorySheet> {
     );
   }
 
-  Widget _buildSessionCard(ChatSession session, bool isCurrent, Color gold) {
-    return Material(
-      color: isCurrent
-          ? gold.withValues(alpha: 0.08)
-          : const Color(0xFF161A26),
-      shape: RoundedRectangleBorder(
+  Widget _buildSessionCard(
+    ChatSession session,
+    bool isCurrent,
+    Color gold,
+    bool isDark,
+    Color onSurface,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isCurrent
+            ? (isDark ? gold.withValues(alpha: 0.12) : gold.withValues(alpha: 0.08))
+            : (isDark ? const Color(0xFF161A26) : Colors.white),
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
+        border: Border.all(
           color: isCurrent
               ? gold.withValues(alpha: 0.5)
-              : Colors.white.withValues(alpha: 0.08),
+              : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08)),
           width: isCurrent ? 1.5 : 1,
         ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
-      child: InkWell(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        onTap: () => widget.onSelectSession(session),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: isCurrent
-                      ? gold.withValues(alpha: 0.2)
-                      : Colors.white.withValues(alpha: 0.06),
-                  shape: BoxShape.circle,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => widget.onSelectSession(session),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: isCurrent
+                        ? gold.withValues(alpha: 0.2)
+                        : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04)),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.auto_stories_rounded,
+                    size: 18,
+                    color: isCurrent ? gold : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                  ),
                 ),
-                child: Icon(
-                  Icons.auto_stories_rounded,
-                  size: 18,
-                  color: isCurrent ? gold : Colors.white60,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            session.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
-                              color: isCurrent ? gold : Colors.white,
-                            ),
-                          ),
-                        ),
-                        if (isCurrent) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: gold.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: gold.withValues(alpha: 0.4), width: 0.8),
-                            ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
                             child: Text(
-                              'Ativa',
+                              session.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.outfit(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: gold,
+                                fontSize: 14,
+                                fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                                color: isCurrent ? (isDark ? gold : const Color(0xFFB45309)) : onSurface,
                               ),
                             ),
                           ),
+                          if (isCurrent) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: gold.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: gold.withValues(alpha: 0.4), width: 0.8),
+                              ),
+                              child: Text(
+                                'Ativa',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? gold : const Color(0xFFB45309),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${session.messages.length} ${session.messages.length == 1 ? 'mensagem' : 'mensagens'} • ${_formatSessionDate(session.updatedAt)}',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11.5,
-                        color: Colors.white54,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        '${session.messages.length} ${session.messages.length == 1 ? 'mensagem' : 'mensagens'} • ${_formatSessionDate(session.updatedAt)}',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11.5,
+                          color: onSurface.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 20),
-                tooltip: 'Excluir conversa',
-                onPressed: () => _deleteSession(session),
-              ),
-            ],
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.delete_outline_rounded, color: onSurface.withValues(alpha: 0.4), size: 20),
+                  tooltip: 'Excluir conversa',
+                  onPressed: () => _deleteSession(session),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'app_fonts.dart';
+import '../../features/bible/view_model/bible_state.dart';
 
 class AppTheme {
   static const Color kPrimaryGold = Color(0xFFF2CA50); // Novo Dourado Premium
@@ -144,4 +145,33 @@ class AppTheme {
       elevation: 0,
     ),
   );
+
+  /// Constrói o ThemeData dinâmico aplicando a família de fontes escolhida pelo usuário
+  static ThemeData getTheme({
+    required AppThemeMode mode,
+    required String fontFamily,
+  }) {
+    ThemeData base;
+    switch (mode) {
+      case AppThemeMode.light:
+        base = lightTheme;
+        break;
+      case AppThemeMode.dark:
+        base = darkTheme;
+        break;
+      case AppThemeMode.sepia:
+        base = sepiaTheme;
+        break;
+      case AppThemeMode.paper:
+        base = paperTheme;
+        break;
+    }
+
+    final dynamicTextTheme = GoogleFonts.getTextTheme(fontFamily, base.textTheme);
+
+    return base.copyWith(
+      textTheme: dynamicTextTheme,
+      primaryTextTheme: dynamicTextTheme,
+    );
+  }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/core/widgets/glass_card.dart';
@@ -36,6 +36,34 @@ String _getDestinationText(StoreCategory cat) {
     case StoreCategory.outros: return 'Módulos Diversos';
   }
 }
+
+class _StoreTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _StoreTabBarDelegate({required this.child, this.height = 52.0});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox(
+      height: height,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_StoreTabBarDelegate oldDelegate) {
+    return oldDelegate.height != height || oldDelegate.child != child;
+  }
+}
+
+
 
 class StoreScreen extends ConsumerStatefulWidget {
   final bool initialLibraryMode;
@@ -257,8 +285,12 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
             : KeryxTopBar(
                 title: 'KeryxApp',
                 showBackButton: false,
+                showStoreButton: false,
                 additionalActions: [
                   IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
                     icon: Icon(Icons.refresh_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                     onPressed: () => ref.read(storeProvider.notifier).refresh(),
                   )
@@ -266,205 +298,233 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
               ),
         body: SafeArea(
           bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── 1. CARD DA LOJA SEMPRE NO TOPO (ACIMA DOS OUTROS DOIS ITENS) ───
-              if (searchQuery.isEmpty && selectedCategory == null)
-                Padding(
-                  padding: EdgeInsets.fromLTRB(horizontalPad, isTablet ? 16 : 10, horizontalPad, 10),
-                  child: _buildStoreHeroBanner(context, ref),
-                ),
+          child: NestedScrollView(
+            headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+              return [
+                // ── 1. CARD DA LOJA (ROLA E OCULTA AO DESCER) ───
+                if (searchQuery.isEmpty && selectedCategory == null)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(horizontalPad, isTablet ? 16 : 10, horizontalPad, 10),
+                      child: _buildStoreHeroBanner(context, ref),
+                    ),
+                  ),
 
-              // ── 2. SEARCH BAR PREMIUM ──────────────────────────────────────
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  horizontalPad,
-                  (searchQuery.isNotEmpty || selectedCategory != null) ? (isTablet ? 16 : 12) : 0,
-                  horizontalPad,
-                  8,
-                ),
-                child: GlassCard(
-                  borderRadius: 24,
-                  padding: EdgeInsets.zero,
-                  child: TextField(
-                    onChanged: (val) => ref.read(searchQueryProvider.notifier).state = val,
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      hintText: 'Pesquisar Bíblias, Comentários...',
-                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)),
-                      prefixIcon: Icon(Icons.search_rounded, color: Theme.of(context).colorScheme.primary),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                      suffixIcon: searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.close_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), size: 20),
-                              onPressed: () {
-                                ref.read(searchQueryProvider.notifier).state = '';
-                                FocusScope.of(context).unfocus();
-                              },
-                            )
-                          : (isTablet
+                // ── 2. SEARCH BAR PREMIUM ──────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPad,
+                      (searchQuery.isNotEmpty || selectedCategory != null) ? (isTablet ? 16 : 12) : 0,
+                      horizontalPad,
+                      8,
+                    ),
+                    child: GlassCard(
+                      borderRadius: 24,
+                      padding: EdgeInsets.zero,
+                      child: TextField(
+                        onChanged: (val) => ref.read(searchQueryProvider.notifier).state = val,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText: 'Pesquisar Bíblias, Comentários...',
+                          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)),
+                          prefixIcon: Icon(Icons.search_rounded, color: Theme.of(context).colorScheme.primary),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                          suffixIcon: searchQuery.isNotEmpty
                               ? IconButton(
-                                  tooltip: 'Atualizar',
-                                  icon: Icon(Icons.refresh_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
-                                  onPressed: () => ref.read(storeProvider.notifier).refresh(),
+                                  icon: Icon(Icons.close_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), size: 20),
+                                  onPressed: () {
+                                    ref.read(searchQueryProvider.notifier).state = '';
+                                    FocusScope.of(context).unfocus();
+                                  },
                                 )
-                              : null),
-                    ),
-                  ),
-                ),
-              ),
-              
-              if (_isSelectionMode)
-                 Padding(
-                    padding: EdgeInsets.fromLTRB(horizontalPad, 8, horizontalPad, 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface),
-                              onPressed: () => setState(() {
-                                _isSelectionMode = false;
-                                _selectedItems.clear();
-                              }),
-                            ),
-                            Text(
-                              '${_selectedItems.length} selecionados',
-                              style: GoogleFonts.outfit(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                              : (isTablet
+                                  ? IconButton(
+                                      tooltip: 'Atualizar',
+                                      icon: Icon(Icons.refresh_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                                      onPressed: () => ref.read(storeProvider.notifier).refresh(),
+                                    )
+                                  : null),
                         ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent,
-                            foregroundColor: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          onPressed: _deleteSelectedItems,
-                          icon: Icon(Icons.delete_outline_rounded, size: 18),
-                          label: Text('Excluir', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ),
-              
-              // ── 3. TABBAR ESTILO CÁPSULA MODERNA (PADRÃO HOME / ESTUDOS) ───
-              if (searchQuery.isEmpty && selectedCategory == null)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: 4),
-                  child: Container(
-                    height: 44,
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainer,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
                       ),
                     ),
-                    child: TabBar(
-                      indicator: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        color: AppTheme.kPrimaryGold,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  ),
+                ),
+
+                if (_isSelectionMode)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(horizontalPad, 8, horizontalPad, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface),
+                                onPressed: () => setState(() {
+                                  _isSelectionMode = false;
+                                  _selectedItems.clear();
+                                }),
+                              ),
+                              Text(
+                                '${_selectedItems.length} selecionados',
+                                style: GoogleFonts.outfit(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              foregroundColor: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            onPressed: _deleteSelectedItems,
+                            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                            label: Text('Excluir', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      dividerColor: Colors.transparent,
-                      labelColor: Colors.black,
-                      unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
-                      labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5),
-                      unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13.5),
-                      tabs: const [
-                        Tab(text: 'Para Você'),
-                        Tab(text: 'Categorias'),
-                        Tab(text: 'Minha Biblioteca'),
-                      ],
                     ),
                   ),
-                ),
-                
-              if (selectedCategory != null && searchQuery.isEmpty)
-                Padding(
-                  padding: EdgeInsets.fromLTRB(horizontalPad, 4, horizontalPad, 8),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => ref.read(selectedCategoryProvider.notifier).state = null,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.arrow_back_rounded, color: Theme.of(context).colorScheme.onSurface, size: 18),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _getCategoryLabel(selectedCategory),
-                        style: GoogleFonts.outfit(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _getCategoryColor(selectedCategory).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _getCategoryColor(selectedCategory).withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          '${state.availablePackages.where((i) => i.category == selectedCategory).length} itens',
-                          style: GoogleFonts.outfit(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _getCategoryColor(selectedCategory),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-              _buildActiveDownloadsIndicator(context, state, ref),
-              
-              const SizedBox(height: 8),
 
-              // Conteúdo Principal
-              Expanded(
-                child: state.error != null && state.availablePackages.isEmpty
-                    ? _buildErrorView(state.error!, ref)
-                    : searchQuery.isNotEmpty || selectedCategory != null
-                        ? _buildStoreContent(context, state.availablePackages.where((item) {
-                      final matchesCategory = selectedCategory == null || item.category == selectedCategory;
-                      final matchesSearch = item.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                                            item.id.toLowerCase().contains(searchQuery.toLowerCase());
-                      return matchesCategory && matchesSearch;
-                    }).toList(), state, ref)
-                  : TabBarView(
-                      children: [
-                        _buildDestaquesTab(context, state, ref),
-                        _buildCategoryGrid(context, ref, state, false),
-                        _buildLibraryTab(context, libraryItems, state, ref),
-                      ],
+                // ── 3. TABBAR FIXADA (STICKY) AO ROLAR ───
+                if (searchQuery.isEmpty && selectedCategory == null)
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _StoreTabBarDelegate(
+                      height: 52,
+                      child: Container(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: 4),
+                        alignment: Alignment.center,
+                        child: Container(
+                          height: 44,
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainer,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: TabBar(
+                            indicator: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              color: AppTheme.kPrimaryGold,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.35),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            dividerColor: Colors.transparent,
+                            labelColor: Colors.black,
+                            unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                            labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13.5),
+                            tabs: [
+                              const Tab(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text('Para Você'),
+                                ),
+                              ),
+                              const Tab(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text('Categorias'),
+                                ),
+                              ),
+                              Tab(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(screenWidth < 390 ? 'Biblioteca' : 'Minha Biblioteca'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-              ),
-            ],
+                  ),
+
+                if (selectedCategory != null && searchQuery.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(horizontalPad, 4, horizontalPad, 8),
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => ref.read(selectedCategoryProvider.notifier).state = null,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.arrow_back_rounded, color: Theme.of(context).colorScheme.onSurface, size: 18),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            _getCategoryLabel(selectedCategory),
+                            style: GoogleFonts.outfit(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _getCategoryColor(selectedCategory).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _getCategoryColor(selectedCategory).withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              '${state.availablePackages.where((i) => i.category == selectedCategory).length} itens',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _getCategoryColor(selectedCategory),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                SliverToBoxAdapter(
+                  child: _buildActiveDownloadsIndicator(context, state, ref),
+                ),
+              ];
+            },
+            body: state.error != null && state.availablePackages.isEmpty
+                ? _buildErrorView(state.error!, ref)
+                : searchQuery.isNotEmpty || selectedCategory != null
+                    ? _buildStoreContent(context, state.availablePackages.where((item) {
+                        final matchesCategory = selectedCategory == null || item.category == selectedCategory;
+                        final matchesSearch = item.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+                                              item.id.toLowerCase().contains(searchQuery.toLowerCase());
+                        return matchesCategory && matchesSearch;
+                      }).toList(), state, ref)
+                    : TabBarView(
+                        children: [
+                          _buildDestaquesTab(context, state, ref),
+                          _buildCategoryGrid(context, ref, state, false),
+                          _buildLibraryTab(context, libraryItems, state, ref),
+                        ],
+                      ),
           ),
         ),
       ),
@@ -537,7 +597,6 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20, vertical: isMobile ? 14 : 18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
@@ -555,64 +614,77 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome_rounded, size: 12, color: Colors.white),
-                      const SizedBox(width: 5),
-                      Text(
-                        'LOJA KERYX • CATÁLOGO TEOLÓGICO',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: isMobile ? 6 : 10),
-                Text(
-                  'Explore Recursos Premium',
-                  style: GoogleFonts.outfit(
-                    fontSize: isMobile ? 18 : 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Baixe Bíblias de estudo, comentários, dicionários e livros cristãos completos para leitura offline.',
-                  style: GoogleFonts.outfit(
-                    fontSize: isMobile ? 11.5 : 12.5,
-                    color: Colors.white.withValues(alpha: 0.85),
-                    height: 1.35,
-                  ),
-                ),
-              ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -10,
+              bottom: -15,
+              child: Icon(
+                Icons.storefront_rounded,
+                size: isMobile ? 80 : 100,
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Icon(
-            Icons.storefront_rounded,
-            size: isMobile ? 48 : 64,
-            color: Colors.white.withValues(alpha: 0.15),
-          ),
-        ],
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20, vertical: isMobile ? 14 : 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded, size: 12, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'LOJA KERYX • CATÁLOGO TEOLÓGICO',
+                              style: GoogleFonts.outfit(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.6,
+                              ),
+                              maxLines: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: isMobile ? 6 : 10),
+                  Text(
+                    'Explore Recursos Premium',
+                    style: GoogleFonts.outfit(
+                      fontSize: isMobile ? 18 : 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Baixe Bíblias de estudo, comentários, dicionários e livros cristãos completos para leitura offline.',
+                    style: GoogleFonts.outfit(
+                      fontSize: isMobile ? 11.5 : 12.5,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2313,4 +2385,5 @@ class _HorizontalStoreCollectionWithControlsState
     );
   }
 }
+
 

@@ -4,15 +4,15 @@
  */
 
 const DEFAULT_CONFIG = {
-  latest_version: 19,
-  version_name: "2.0.10",
-  release_date: "2026-11-07",
-  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.10/keryxApp.apk",
+  latest_version: 20,
+  version_name: "2.0.11",
+  release_date: "2026-11-08",
+  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.11/keryxApp.apk",
   ios_url: "https://keryxapp.pages.dev",
-  release_notes: "Versão 2.0.10: Correção completa no salvamento e isolamento do progresso do Plano de Estudos (dias sequenciais 1..364, avanço automático e cálculo independente de semanas); sincronização em nuvem Firestore + persistência local individual por usuário; feedback háptico e celebrações ao concluir dias; navegação direta contínua no leitor bíblico; estimativa inteligente de conclusão com ritmo diário na aba Progresso; lembrete e alarme diário de leitura configurável; pré-carregamento offline ultrarrápido (0ms) das próximas leituras e correção de scroll sticky nas abas.",
+  release_notes: "Versão 2.0.11: Tipografia e escala de texto aplicadas a 100% do aplicativo para máxima acessibilidade; fontes customizadas e Google Fonts em tempo real; novo design comemorativo da tela de novidades com tópicos escaneáveis; botão de fechar [X] e altura total nas configurações; correções de alinhamento e overflows em tablets e no chat IATheos.",
   force_update: false,
   min_version: 1,
-  sha256: "7fd85cc4a86e94d509f2c3a4b445e61bdf6aefa0d1246147328e2d02bc080af4"
+  sha256: "c6c9d0e68143092dbe83e4130ca795ab529a41c917fca5138bdfa0d7900c91de"
 };
 
 export default {

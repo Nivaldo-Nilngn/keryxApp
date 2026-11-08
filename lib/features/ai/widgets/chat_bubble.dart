@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/ai/model/chat_model.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
@@ -61,6 +61,7 @@ class ChatBubble extends ConsumerWidget {
   // ---------- Mensagem da IA ----------
   Widget _buildAi(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     const gold = AppTheme.kPrimaryGold;
     final onSurface = theme.colorScheme.onSurface;
 
@@ -73,7 +74,7 @@ class ChatBubble extends ConsumerWidget {
       strong: GoogleFonts.outfit(
         fontSize: 15.5,
         fontWeight: FontWeight.bold,
-        color: const Color(0xFFFFD56B),
+        color: isDark ? const Color(0xFFFFD56B) : const Color(0xFFB45309),
       ),
       em: GoogleFonts.lora(
         fontSize: 15.5,
@@ -83,25 +84,25 @@ class ChatBubble extends ConsumerWidget {
       h1: GoogleFonts.outfit(
         fontSize: 21,
         fontWeight: FontWeight.bold,
-        color: const Color(0xFFFFD56B),
+        color: isDark ? const Color(0xFFFFD56B) : const Color(0xFF92400E),
         height: 1.4,
       ),
       h2: GoogleFonts.outfit(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: const Color(0xFFFFD56B),
+        color: isDark ? const Color(0xFFFFD56B) : const Color(0xFF92400E),
         height: 1.4,
       ),
       h3: GoogleFonts.outfit(
         fontSize: 16.5,
         fontWeight: FontWeight.w600,
-        color: const Color(0xFFF8FAFC),
+        color: onSurface,
         height: 1.4,
       ),
       listBullet: GoogleFonts.outfit(
         fontSize: 14,
         fontWeight: FontWeight.bold,
-        color: gold,
+        color: isDark ? gold : const Color(0xFFB45309),
       ),
       listIndent: 20,
       blockSpacing: 14,
@@ -114,12 +115,16 @@ class ChatBubble extends ConsumerWidget {
       ),
       blockquotePadding: const EdgeInsets.only(left: 14, top: 4, bottom: 4),
       blockquoteDecoration: BoxDecoration(
-        border: Border(left: BorderSide(color: gold.withValues(alpha: 0.7), width: 3)),
+        border: Border(left: BorderSide(color: (isDark ? gold : const Color(0xFFD97706)).withValues(alpha: 0.7), width: 3)),
       ),
-      tableHead: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: gold),
+      tableHead: GoogleFonts.outfit(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: isDark ? gold : const Color(0xFFB45309),
+      ),
       tableBody: GoogleFonts.lora(fontSize: 13, height: 1.45, color: onSurface),
       tableBorder: TableBorder.all(
-        color: gold.withValues(alpha: 0.25),
+        color: (isDark ? gold : const Color(0xFFD97706)).withValues(alpha: 0.25),
         width: 1,
         borderRadius: BorderRadius.circular(8),
       ),
@@ -130,7 +135,7 @@ class ChatBubble extends ConsumerWidget {
         backgroundColor: onSurface.withValues(alpha: 0.08),
       ),
       horizontalRuleDecoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.12), width: 1)),
+        border: Border(top: BorderSide(color: onSurface.withValues(alpha: 0.12), width: 1)),
       ),
     );
 
@@ -209,7 +214,7 @@ class ChatBubble extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Divider(color: Colors.white.withValues(alpha: 0.08), height: 16),
+            Divider(color: onSurface.withValues(alpha: 0.08), height: 16),
           ],
         ],
       ),

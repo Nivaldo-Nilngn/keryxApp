@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import '../theme/app_theme.dart';
 
 /// Exibe o guia interativo de instalação do PWA no iPhone (iOS) e Android/PC.

@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/state/nav_bar_style_provider.dart';
@@ -190,7 +190,7 @@ class KeryxBottomNav extends ConsumerWidget {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: navItems,
+          children: navItems.map((item) => Expanded(child: item)).toList(),
         ),
       );
 
@@ -255,7 +255,7 @@ class KeryxBottomNav extends ConsumerWidget {
                 constraints: const BoxConstraints(maxWidth: 600),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: navItems,
+                  children: navItems.map((item) => Expanded(child: item)).toList(),
                 ),
               ),
             ),
@@ -264,11 +264,14 @@ class KeryxBottomNav extends ConsumerWidget {
       );
     }
 
-    return AnimatedSlide(
-      offset: isVisible ? Offset.zero : const Offset(0, 1.5),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
-      child: navBody,
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.12,
+      child: AnimatedSlide(
+        offset: isVisible ? Offset.zero : const Offset(0, 1.5),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        child: navBody,
+      ),
     );
   }
 
@@ -302,8 +305,8 @@ class KeryxBottomNav extends ConsumerWidget {
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOutCubic,
             padding: EdgeInsets.symmetric(
-              horizontal: isActive ? 16 : 10,
-              vertical: 6,
+              horizontal: isActive ? 6 : 2,
+              vertical: 5,
             ),
             decoration: BoxDecoration(
               color: isActive
@@ -336,13 +339,18 @@ class KeryxBottomNav extends ConsumerWidget {
                       : null,
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  label,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
-                    fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                    letterSpacing: 0.2,
-                    color: isActive ? activeColor : inactiveColor,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10,
+                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                      letterSpacing: 0.2,
+                      color: isActive ? activeColor : inactiveColor,
+                    ),
                   ),
                 ),
               ],

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/utils/keryx_color_contrast.dart';
 
 /// Abre um seletor de cores visual completo, moderno e inteligente conforme o tema

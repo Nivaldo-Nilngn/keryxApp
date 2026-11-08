@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:keryx_app/core/state/font_state.dart';
@@ -8,12 +8,17 @@ import 'package:keryx_app/core/utils/keryx_color_contrast.dart';
 import 'package:keryx_app/core/widgets/keryx_color_picker_dialog.dart';
 
 /// Abre a tela de Configurações de Leitura & Strong em TELA CHEIA expandida.
-void showTextSettingsBottomSheet(BuildContext context, {bool isStrongVersion = false}) {
+void showTextSettingsBottomSheet(
+  BuildContext context, {
+  bool isStrongVersion = false,
+  bool isDevocional = false,
+}) {
   Navigator.push(
     context,
     MaterialPageRoute(
       builder: (ctx) => TextSettingsBottomSheet(
         isStrongVersion: isStrongVersion,
+        isDevocional: isDevocional,
         isFullScreen: true,
       ),
     ),
@@ -22,11 +27,13 @@ void showTextSettingsBottomSheet(BuildContext context, {bool isStrongVersion = f
 
 class TextSettingsBottomSheet extends ConsumerStatefulWidget {
   final bool isStrongVersion;
+  final bool isDevocional;
   final bool isFullScreen;
 
   const TextSettingsBottomSheet({
     super.key,
     this.isStrongVersion = false,
+    this.isDevocional = false,
     this.isFullScreen = false,
   });
 
@@ -57,6 +64,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
     'Outfit',
     'Inter',
     'Roboto',
+    'Ubuntu',
     'Merriweather',
     'Lora',
     'Poppins',
@@ -102,14 +110,42 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
     return match['label'] as String;
   }
 
-  TextStyle _getFontStyle(String fontName, {double? fontSize, FontWeight? fontWeight, Color? color}) {
+  TextStyle _getFontStyle(
+    String fontName, {
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    FontStyle? fontStyle,
+    double? height,
+  }) {
     if (CustomFontLoader.loadedFontFamilies.contains(fontName)) {
-      return TextStyle(fontFamily: fontName, fontSize: fontSize, fontWeight: fontWeight, color: color);
+      return TextStyle(
+        fontFamily: fontName,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        fontStyle: fontStyle,
+        height: height,
+      );
     }
     try {
-      return GoogleFonts.getFont(fontName, fontSize: fontSize, fontWeight: fontWeight, color: color);
+      return GoogleFonts.getFont(
+        fontName,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        fontStyle: fontStyle,
+        height: height,
+      );
     } catch (_) {
-      return TextStyle(fontFamily: fontName, fontSize: fontSize, fontWeight: fontWeight, color: color);
+      return TextStyle(
+        fontFamily: fontName,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        fontStyle: fontStyle,
+        height: height,
+      );
     }
   }
 
@@ -276,12 +312,12 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
         isCustomSelected: isBadgeCustom,
         activeCustomColor: isBadgeCustom ? badgeColor : null,
         isTablet: isTablet,
-        tooltip: 'Outra cor de balão...',
+        tooltip: widget.isDevocional ? 'Outra cor de destaque...' : 'Outra cor de balão...',
         onTap: () async {
           final picked = await showKeryxColorPicker(
             context: context,
             initialColor: badgeColor,
-            title: 'Cor do Balão Numérico',
+            title: widget.isDevocional ? 'Cor de Destaque do Devocional' : 'Cor do Balão Numérico',
           );
           if (picked != null) {
             ref.read(fontSettingsProvider.notifier).setBadgeColor(picked.toARGB32());
@@ -329,7 +365,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
           final picked = await showKeryxColorPicker(
             context: context,
             initialColor: verseTextColor,
-            title: 'Cor do Texto da Bíblia',
+            title: widget.isDevocional ? 'Cor do Texto do Devocional' : 'Cor do Texto da Bíblia',
             isTextColor: true,
             referenceBackgroundColor: isDark ? const Color(0xFF0F0F1E) : Colors.white,
           );
@@ -387,7 +423,11 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.isStrongVersion ? 'Configurações de Leitura & Strong' : 'Configurações de Leitura',
+                          widget.isDevocional
+                              ? 'Configurações do Devocional'
+                              : (widget.isStrongVersion
+                                  ? 'Configurações de Leitura & Strong'
+                                  : 'Configurações de Leitura'),
                           style: GoogleFonts.outfit(
                             fontSize: 15.5,
                             fontWeight: FontWeight.bold,
@@ -395,7 +435,11 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                           ),
                         ),
                         Text(
-                          widget.isStrongVersion ? 'Ajuste fontes, cores e destaque Strong' : 'Ajuste fontes, cores de texto e balões',
+                          widget.isDevocional
+                              ? 'Ajuste fontes, cores de texto e destaques'
+                              : (widget.isStrongVersion
+                                  ? 'Ajuste fontes, cores e destaque Strong'
+                                  : 'Ajuste fontes, cores de texto e balões'),
                           style: GoogleFonts.outfit(
                             fontSize: 11.5,
                             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
@@ -462,13 +506,17 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                     Row(
                       children: [
                         Icon(
-                          widget.isStrongVersion ? Icons.auto_awesome : Icons.remove_red_eye_outlined,
+                          widget.isDevocional
+                              ? Icons.auto_stories
+                              : (widget.isStrongVersion ? Icons.auto_awesome : Icons.remove_red_eye_outlined),
                           size: 13,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          widget.isStrongVersion ? 'PRÉVIA • BÍBLIA STRONG' : 'PRÉVIA • TEXTO NORMAL',
+                          widget.isDevocional
+                              ? 'PRÉVIA • DEVOCIONAL DO DIA'
+                              : (widget.isStrongVersion ? 'PRÉVIA • BÍBLIA STRONG' : 'PRÉVIA • TEXTO NORMAL'),
                           style: GoogleFonts.outfit(
                             fontSize: 10.5,
                             fontWeight: FontWeight.bold,
@@ -524,52 +572,108 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                       ],
                     ),
                     const SizedBox(height: 8),
-                    RichText(
-                      text: TextSpan(
+                    if (widget.isDevocional) ...[
+                      // Citação do Versículo Base com barra lateral na cor de destaque
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                              : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border(
+                            left: BorderSide(color: badgeColor, width: 3.5),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '“Confessei-te o meu pecado, e a minha maldade não encobri.”',
+                              style: _getFontStyle(
+                                fontSettings.fontFamily,
+                                fontSize: (fontSettings.fontSize - 1).clamp(12.0, 26.0),
+                                fontStyle: FontStyle.italic,
+                                color: verseTextColor,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                '— Salmos 32:5',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'A cada novo dia, a reflexão na Palavra renova o nosso espírito e traz paz e sabedoria aos nossos passos.',
                         style: _getFontStyle(
                           fontSettings.fontFamily,
                           fontSize: fontSettings.fontSize,
-                          fontWeight: FontWeight.normal,
                           color: verseTextColor,
+                          height: 1.45,
                         ),
-                        children: [
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: _buildPreviewBadge(badgeColor, '1'),
-                          ),
-                          if (widget.isStrongVersion) ...[
-                            const TextSpan(text: 'No '),
-                            TextSpan(
-                              text: 'princípio',
-                              style: _getStrongPreviewStyle(context, fontSettings),
-                            ),
-                            const TextSpan(text: ', '),
-                            TextSpan(
-                              text: 'criou',
-                              style: _getStrongPreviewStyle(context, fontSettings),
-                            ),
-                            const TextSpan(text: ' '),
-                            TextSpan(
-                              text: 'Deus',
-                              style: _getStrongPreviewStyle(context, fontSettings),
-                            ),
-                            const TextSpan(text: ' os '),
-                            TextSpan(
-                              text: 'céus',
-                              style: _getStrongPreviewStyle(context, fontSettings),
-                            ),
-                            const TextSpan(text: ' e a '),
-                            TextSpan(
-                              text: 'terra',
-                              style: _getStrongPreviewStyle(context, fontSettings),
-                            ),
-                            const TextSpan(text: '.'),
-                          ] else ...[
-                            const TextSpan(text: 'No princípio, criou Deus os céus e a terra.'),
-                          ],
-                        ],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                    ] else ...[
+                      RichText(
+                        text: TextSpan(
+                          style: _getFontStyle(
+                            fontSettings.fontFamily,
+                            fontSize: fontSettings.fontSize,
+                            fontWeight: FontWeight.normal,
+                            color: verseTextColor,
+                          ),
+                          children: [
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: _buildPreviewBadge(badgeColor, '1'),
+                            ),
+                            if (widget.isStrongVersion) ...[
+                              const TextSpan(text: 'No '),
+                              TextSpan(
+                                text: 'princípio',
+                                style: _getStrongPreviewStyle(context, fontSettings),
+                              ),
+                              const TextSpan(text: ', '),
+                              TextSpan(
+                                text: 'criou',
+                                style: _getStrongPreviewStyle(context, fontSettings),
+                              ),
+                              const TextSpan(text: ' '),
+                              TextSpan(
+                                text: 'Deus',
+                                style: _getStrongPreviewStyle(context, fontSettings),
+                              ),
+                              const TextSpan(text: ' os '),
+                              TextSpan(
+                                text: 'céus',
+                                style: _getStrongPreviewStyle(context, fontSettings),
+                              ),
+                              const TextSpan(text: ' e a '),
+                              TextSpan(
+                                text: 'terra',
+                                style: _getStrongPreviewStyle(context, fontSettings),
+                              ),
+                              const TextSpan(text: '.'),
+                            ] else ...[
+                              const TextSpan(text: 'No princípio, criou Deus os céus e a terra.'),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -661,95 +765,106 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                   ),
 
                   // Cards de Cores (No tablet lado a lado, no celular empilhados)
-                  if (isTablet) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildCollapsibleSectionCard(
-                            context: context,
-                            icon: Icons.tag_rounded,
-                            title: 'COR DO BALÃO NUMÉRICO',
-                            subtitle: 'Marcador do número do versículo',
-                            isExpanded: _isBadgeColorsExpanded,
-                            onToggle: () => setState(() => _isBadgeColorsExpanded = !_isBadgeColorsExpanded),
-                            activeStatusWidget: _buildColorStatusPill(
-                              context: context,
-                              color: badgeColor,
-                              label: _getBadgeColorLabel(fontSettings.badgeColor),
-                            ),
-                            expandedContent: _buildCenteredSwatchGrid(badgeSwatches, isTablet: true),
-                            isDark: isDark,
-                            cardBg: cardBg,
-                            borderColor: borderColor,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: _buildCollapsibleSectionCard(
-                            context: context,
-                            icon: Icons.format_color_text_rounded,
-                            title: 'COR DO TEXTO DA BÍBLIA',
-                            subtitle: isDark ? 'Modo Escuro (alto contraste)' : 'Modo Claro (alto contraste)',
-                            isExpanded: _isTextColorsExpanded,
-                            onToggle: () => setState(() => _isTextColorsExpanded = !_isTextColorsExpanded),
-                            activeStatusWidget: _buildColorStatusPill(
-                              context: context,
-                              color: verseTextColor,
-                              label: _getTextColorLabel(fontSettings.textColor, textColorPresets),
-                              border: Border.all(color: isDark ? Colors.white30 : Colors.black26),
-                            ),
-                            expandedContent: _buildCenteredSwatchGrid(textSwatches, isTablet: true),
-                            isDark: isDark,
-                            cardBg: cardBg,
-                            borderColor: borderColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    // Celular: Card do Balão Numérico
-                    _buildCollapsibleSectionCard(
-                      context: context,
-                      icon: Icons.tag_rounded,
-                      title: 'COR DO BALÃO NUMÉRICO',
-                      subtitle: 'Marcador do número do versículo',
-                      isExpanded: _isBadgeColorsExpanded,
-                      onToggle: () => setState(() => _isBadgeColorsExpanded = !_isBadgeColorsExpanded),
-                      activeStatusWidget: _buildColorStatusPill(
-                        context: context,
-                        color: badgeColor,
-                        label: _getBadgeColorLabel(fontSettings.badgeColor),
-                      ),
-                      expandedContent: _buildCenteredSwatchGrid(badgeSwatches, isTablet: false),
-                      isDark: isDark,
-                      cardBg: cardBg,
-                      borderColor: borderColor,
-                    ),
+                  ...(() {
+                    final badgeSectionTitle = widget.isDevocional ? 'COR DE DESTAQUE & CITAÇÃO' : 'COR DO BALÃO NUMÉRICO';
+                    final badgeSectionSubtitle = widget.isDevocional ? 'Borda do versículo, botões e referências' : 'Marcador do número do versículo';
+                    final badgeSectionIcon = widget.isDevocional ? Icons.palette_rounded : Icons.tag_rounded;
+                    final textSectionTitle = widget.isDevocional ? 'COR DO TEXTO DO DEVOCIONAL' : 'COR DO TEXTO DA BÍBLIA';
 
-                    // Celular: Card da Cor do Texto
-                    _buildCollapsibleSectionCard(
-                      context: context,
-                      icon: Icons.format_color_text_rounded,
-                      title: 'COR DO TEXTO DA BÍBLIA',
-                      subtitle: isDark ? 'Modo Escuro (alto contraste)' : 'Modo Claro (alto contraste)',
-                      isExpanded: _isTextColorsExpanded,
-                      onToggle: () => setState(() => _isTextColorsExpanded = !_isTextColorsExpanded),
-                      activeStatusWidget: _buildColorStatusPill(
-                        context: context,
-                        color: verseTextColor,
-                        label: _getTextColorLabel(fontSettings.textColor, textColorPresets),
-                        border: Border.all(color: isDark ? Colors.white30 : Colors.black26),
-                      ),
-                      expandedContent: _buildCenteredSwatchGrid(textSwatches, isTablet: false),
-                      isDark: isDark,
-                      cardBg: cardBg,
-                      borderColor: borderColor,
-                    ),
-                  ],
+                    if (isTablet) {
+                      return [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _buildCollapsibleSectionCard(
+                                context: context,
+                                icon: badgeSectionIcon,
+                                title: badgeSectionTitle,
+                                subtitle: badgeSectionSubtitle,
+                                isExpanded: _isBadgeColorsExpanded,
+                                onToggle: () => setState(() => _isBadgeColorsExpanded = !_isBadgeColorsExpanded),
+                                activeStatusWidget: _buildColorStatusPill(
+                                  context: context,
+                                  color: badgeColor,
+                                  label: _getBadgeColorLabel(fontSettings.badgeColor),
+                                ),
+                                expandedContent: _buildCenteredSwatchGrid(badgeSwatches, isTablet: true),
+                                isDark: isDark,
+                                cardBg: cardBg,
+                                borderColor: borderColor,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: _buildCollapsibleSectionCard(
+                                context: context,
+                                icon: Icons.format_color_text_rounded,
+                                title: textSectionTitle,
+                                subtitle: isDark ? 'Modo Escuro (alto contraste)' : 'Modo Claro (alto contraste)',
+                                isExpanded: _isTextColorsExpanded,
+                                onToggle: () => setState(() => _isTextColorsExpanded = !_isTextColorsExpanded),
+                                activeStatusWidget: _buildColorStatusPill(
+                                  context: context,
+                                  color: verseTextColor,
+                                  label: _getTextColorLabel(fontSettings.textColor, textColorPresets),
+                                  border: Border.all(color: isDark ? Colors.white30 : Colors.black26),
+                                ),
+                                expandedContent: _buildCenteredSwatchGrid(textSwatches, isTablet: true),
+                                isDark: isDark,
+                                cardBg: cardBg,
+                                borderColor: borderColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ];
+                    } else {
+                      return [
+                        // Celular: Card do Balão Numérico / Destaque
+                        _buildCollapsibleSectionCard(
+                          context: context,
+                          icon: badgeSectionIcon,
+                          title: badgeSectionTitle,
+                          subtitle: badgeSectionSubtitle,
+                          isExpanded: _isBadgeColorsExpanded,
+                          onToggle: () => setState(() => _isBadgeColorsExpanded = !_isBadgeColorsExpanded),
+                          activeStatusWidget: _buildColorStatusPill(
+                            context: context,
+                            color: badgeColor,
+                            label: _getBadgeColorLabel(fontSettings.badgeColor),
+                          ),
+                          expandedContent: _buildCenteredSwatchGrid(badgeSwatches, isTablet: false),
+                          isDark: isDark,
+                          cardBg: cardBg,
+                          borderColor: borderColor,
+                        ),
+
+                        // Celular: Card da Cor do Texto
+                        _buildCollapsibleSectionCard(
+                          context: context,
+                          icon: Icons.format_color_text_rounded,
+                          title: textSectionTitle,
+                          subtitle: isDark ? 'Modo Escuro (alto contraste)' : 'Modo Claro (alto contraste)',
+                          isExpanded: _isTextColorsExpanded,
+                          onToggle: () => setState(() => _isTextColorsExpanded = !_isTextColorsExpanded),
+                          activeStatusWidget: _buildColorStatusPill(
+                            context: context,
+                            color: verseTextColor,
+                            label: _getTextColorLabel(fontSettings.textColor, textColorPresets),
+                            border: Border.all(color: isDark ? Colors.white30 : Colors.black26),
+                          ),
+                          expandedContent: _buildCenteredSwatchGrid(textSwatches, isTablet: false),
+                          isDark: isDark,
+                          cardBg: cardBg,
+                          borderColor: borderColor,
+                        ),
+                      ];
+                    }
+                  })(),
 
                   // Seção Bíblia Strong (Se ativa)
-                  if (widget.isStrongVersion) ...[
+                  if (!widget.isDevocional && widget.isStrongVersion) ...[
                     ...(() {
                       final strongSwatches = <Widget>[
                         _buildCircleSwatch(
@@ -929,8 +1044,8 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                     borderColor: borderColor,
                   ),
 
-                  // Card de Layout de Leitura (Dividir em 2 Colunas) - Ocultado no modo celular
-                  if (isTablet) ...[
+                  // Card de Layout de Leitura (Dividir em 2 Colunas) - Ocultado no modo celular e devocional
+                  if (!widget.isDevocional && isTablet) ...[
                     _buildLayoutCard(
                       context: context,
                       fontSettings: fontSettings,
@@ -985,9 +1100,11 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                widget.isStrongVersion
-                    ? 'Configurações de Leitura & Strong'
-                    : 'Configurações de Leitura',
+                widget.isDevocional
+                    ? 'Configurações do Devocional'
+                    : (widget.isStrongVersion
+                        ? 'Configurações de Leitura & Strong'
+                        : 'Configurações de Leitura'),
                 style: GoogleFonts.plusJakartaSans(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 18,
@@ -997,9 +1114,11 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                widget.isStrongVersion
-                    ? 'AJUSTE DE FONTES, CORES E STRONG'
-                    : 'AJUSTE DE FONTES, CORES E TAMANHO',
+                widget.isDevocional
+                    ? 'AJUSTE DE FONTES, CORES E DESTAQUES'
+                    : (widget.isStrongVersion
+                        ? 'AJUSTE DE FONTES, CORES E STRONG'
+                        : 'AJUSTE DE FONTES, CORES E TAMANHO'),
                 style: GoogleFonts.outfit(
                   color: AppTheme.kPrimaryGold,
                   fontSize: 11,
@@ -1453,7 +1572,9 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                       ),
                     ),
                     Text(
-                      'Escala dos versículos e Léxico Strong',
+                      widget.isDevocional
+                          ? 'Escala da leitura e meditação'
+                          : 'Escala dos versículos e Léxico Strong',
                       style: GoogleFonts.outfit(
                         fontSize: 11,
                         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),

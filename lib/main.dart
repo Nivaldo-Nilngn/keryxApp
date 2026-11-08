@@ -19,6 +19,7 @@ import 'core/state/nav_bar_style_provider.dart';
 import 'core/state/navbar_route_observer.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/theme/app_fonts.dart';
 import 'features/bible/view_model/bible_state.dart';
 import 'core/widgets/main_layout.dart';
 import 'features/auth/view/login_screen.dart';
@@ -195,28 +196,47 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
     });
 
     final appThemeMode = ref.watch(themeModeProvider);
+    final fontSettings = ref.watch(fontSettingsProvider);
 
-    ThemeData themeData;
-    switch (appThemeMode) {
-      case AppThemeMode.light:
-        themeData = AppTheme.lightTheme;
-        break;
-      case AppThemeMode.dark:
-        themeData = AppTheme.darkTheme;
-        break;
-      case AppThemeMode.sepia:
-        themeData = AppTheme.sepiaTheme;
-        break;
-      case AppThemeMode.paper:
-        themeData = AppTheme.paperTheme;
-        break;
-    }
+    // Garante sincronização da fonte global do sistema
+    GoogleFonts.setGlobalFontFamilyOverride(fontSettings.fontFamily);
+
+    final themeData = AppTheme.getTheme(
+      mode: appThemeMode,
+      fontFamily: fontSettings.fontFamily,
+    );
 
     return MaterialApp(
       scrollBehavior: const AppCustomScrollBehavior(),
       scaffoldMessengerKey: ref.watch(scaffoldMessengerKeyProvider),
       navigatorObservers: [if (_navbarObserver != null) _navbarObserver!],
       builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+
+        // Tamanho de fonte selecionado nas configurações do sistema:
+        // 16.0px é a base padrão (1.0).
+        // Se o usuário selecionar 12px -> 0.75
+        // Se o usuário selecionar 20px -> 1.25
+        // Se o usuário selecionar 24px -> 1.50
+        final userFontScale = (fontSettings.fontSize / 16.0).clamp(0.70, 2.2);
+        final systemScale = mediaQuery.textScaler.scale(1.0);
+        final effectiveScale = (systemScale * userFontScale).clamp(0.70, 2.5);
+
+        final String activeFont = fontSettings.fontFamily;
+        final TextStyle dynamicDefaultStyle = CustomFontLoader.loadedFontFamilies.contains(activeFont)
+            ? TextStyle(fontFamily: activeFont)
+            : GoogleFonts.getFont(activeFont);
+
+        final wrappedChild = MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(effectiveScale),
+          ),
+          child: DefaultTextStyle.merge(
+            style: dynamicDefaultStyle,
+            child: child ?? const SizedBox(),
+          ),
+        );
+
         return NotificationListener<ScrollNotification>(
           onNotification: (notification) {
             // Se a barra estiver configurada para o estilo Fixo, ela nunca se oculta ao rolar
@@ -247,7 +267,7 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
             }
             return false;
           },
-          child: child ?? const SizedBox(),
+          child: wrappedChild,
         );
       },
       title: 'KeryxApp',

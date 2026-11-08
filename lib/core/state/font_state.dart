@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_fonts.dart';
 
 class FontSettings {
   final String fontFamily;
@@ -61,6 +62,7 @@ class FontSettingsNotifier extends StateNotifier<FontSettings> {
 
   static FontSettings _loadInitial(SharedPreferences prefs) {
     final family = prefs.getString('bible_font_family') ?? 'Inter';
+    GoogleFonts.setGlobalFontFamilyOverride(family);
     final size = prefs.getDouble('bible_font_size') ?? 16.0;
     final hasTextColor = prefs.containsKey('bible_text_color');
     final textColorVal = hasTextColor ? prefs.getInt('bible_text_color') : null;
@@ -84,6 +86,7 @@ class FontSettingsNotifier extends StateNotifier<FontSettings> {
   }
 
   void setFontFamily(String family) async {
+    GoogleFonts.setGlobalFontFamilyOverride(family);
     state = state.copyWith(fontFamily: family);
     await prefs.setString('bible_font_family', family);
   }

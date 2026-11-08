@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/core/utils/bible_text_parser.dart';

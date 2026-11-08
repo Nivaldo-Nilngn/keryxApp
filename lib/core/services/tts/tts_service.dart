@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'web_tts_helper.dart';
 
 final ttsServiceProvider = Provider<TTSService>((ref) {
   return TTSService();
@@ -97,38 +98,33 @@ class TTSService {
   }
 
   Future<void> _initTts() async {
-    await _flutterTts.awaitSpeakCompletion(true); // REQUIRED so speak() awaits on Web/Android
+    try {
+      await _flutterTts.awaitSpeakCompletion(true);
+    } catch (_) {}
 
     if (kIsWeb) {
-      await _flutterTts.setLanguage("pt-BR");
-      await _flutterTts.setSpeechRate(1.0); // 1.0 é o normal na Web
-      await _flutterTts.setPitch(1.0);
+      try {
+        await _flutterTts.setLanguage("pt-BR");
+        await _flutterTts.setSpeechRate(1.0);
+        await _flutterTts.setPitch(1.0);
+      } catch (_) {}
       return;
     }
 
-    // Check available engines
     try {
-      final engines = await _flutterTts.getEngines;
-      debugPrint("🗣️ TTS: Motores disponíveis: $engines");
       final defaultEngine = await _flutterTts.getDefaultEngine;
-      debugPrint("🗣️ TTS: Motor padrão atual: $defaultEngine");
+      debugPrint("🗣️ TTS: Motor padrão: $defaultEngine");
     } catch (e) {
-      debugPrint("🗣️ TTS: Erro ao buscar motores: $e");
+      debugPrint("🗣️ TTS: Erro ao consultar motor padrão: $e");
     }
 
-    // Try to force Google TTS engine for higher quality voices if available
     try {
-      await _flutterTts.setEngine("com.google.android.tts");
+      await _flutterTts.setLanguage("pt-BR");
+      await _flutterTts.setVolume(1.0);
+      await _flutterTts.setSpeechRate(0.48);
+      await _flutterTts.setPitch(1.0);
     } catch (e) {
-      debugPrint("Engine Google TTS não encontrada, usando padrão.");
-    }
-    
-    await _flutterTts.setLanguage("pt-BR");
-    // Configurações padrão para uma voz mais realista e serena (leitura bíblica)
-    await _flutterTts.setSpeechRate(0.45); // Um pouco mais lento
-    await _flutterTts.setPitch(0.9); // Um pouco mais grave/profundo
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      // Optional: await _flutterTts.setQueueMode(1);
+      debugPrint("🗣️ TTS: Erro ao inicializar parâmetros básicos: $e");
     }
   }
 
@@ -141,7 +137,6 @@ class TTSService {
         for (var voice in voices) {
           final locale = voice["locale"] as String? ?? "";
           final name = voice["name"] as String? ?? "";
-          // O locale as vezes vem como pt-BR mas a engine retorna vozes pt-PT, então filtramos pelo nome também
           if (locale.toLowerCase().contains("pt-br") && !name.toLowerCase().contains("pt-pt")) {
             ptVoices.add({
               "name": name,
@@ -168,187 +163,173 @@ class TTSService {
   }
 
   Future<void> speak(String text, {Map<String, String>? voice}) async {
-    // If no voice was explicitly passed, try to fetch it from SharedPreferences
-    if (voice == null) {
-      final prefs = await SharedPreferences.getInstance();
-      final name = prefs.getString('tts_voice_name');
-      final locale = prefs.getString('tts_voice_locale');
-      if (name != null && locale != null && name.isNotEmpty) {
-        voice = {'name': name, 'locale': locale};
-      }
-    }
-
-    if (voice != null) {
-      debugPrint("🗣️ TTS: Configurando voz selecionada -> ${voice['name']} (${voice['locale']})");
-      try {
-        await _flutterTts.setLanguage(voice['locale']!);
-        await _flutterTts.setVoice({"name": voice['name']!, "locale": voice['locale']!});
-      } catch (e) {
-        debugPrint("🗣️ TTS: Erro ao configurar voz: $e");
-      }
-    } else {
-      debugPrint("🗣️ TTS: Nenhuma voz selecionada, usando pt-BR padrão");
-      await _flutterTts.setLanguage("pt-BR");
-    }
-    
-    debugPrint("🗣️ TTS: Texto a ser lido (${text.length} caracteres): ${text.substring(0, text.length > 50 ? 50 : text.length)}...");
-    
-    // Chunking text if it's too long, as Android TTS fails silently on very long texts.
-    if (text.length > 3900) {
-      text = text.substring(0, 3900);
-    }
-    
-    await _flutterTts.speak(text);
+    await speakAndWait(text, voice: voice);
   }
 
   bool _isStopped = false;
 
   Future<void> speakAndWait(String text, {Map<String, String>? voice}) async {
     _isStopped = false;
-    
+    final clean = text.trim();
+    if (clean.isEmpty) return;
+
     if (voice == null && !kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      final name = prefs.getString('tts_voice_name');
-      final locale = prefs.getString('tts_voice_locale');
-      if (name != null && locale != null && name.isNotEmpty) {
-        voice = {'name': name, 'locale': locale};
-      }
-    }
-
-    if (voice != null && !kIsWeb) {
       try {
-        await _flutterTts.setLanguage(voice['locale']!);
-        await _flutterTts.setVoice({"name": voice['name']!, "locale": voice['locale']!});
-      } catch (e) {}
-    } else {
-      await _flutterTts.setLanguage("pt-BR");
+        final prefs = await SharedPreferences.getInstance();
+        final name = prefs.getString('tts_voice_name');
+        final locale = prefs.getString('tts_voice_locale');
+        if (name != null && locale != null && name.isNotEmpty) {
+          voice = {'name': name, 'locale': locale};
+        }
+      } catch (_) {}
     }
 
-    if (text.trim().isEmpty) return;
+    try {
+      if (voice != null && !kIsWeb) {
+        await _flutterTts.setLanguage(voice['locale'] ?? 'pt-BR');
+        if (voice['name'] != null && voice['locale'] != null) {
+          await _flutterTts.setVoice({"name": voice['name']!, "locale": voice['locale']!});
+        }
+      } else {
+        final langResult = await _flutterTts.setLanguage("pt-BR");
+        if (langResult == 0) {
+          await _flutterTts.setLanguage("pt");
+        }
+      }
+      await _flutterTts.setVolume(1.0);
 
-    if (text.length > 3900) {
-      text = text.substring(0, 3900);
+      // Aplica taxa de fala e pitch salvos
+      final prefs = await SharedPreferences.getInstance();
+      final rate = prefs.getDouble('tts_speech_rate');
+      if (rate != null) {
+        await _flutterTts.setSpeechRate(rate);
+      }
+      final pitch = prefs.getDouble('tts_pitch');
+      if (pitch != null) {
+        await _flutterTts.setPitch(pitch);
+      }
+    } catch (e) {
+      debugPrint("🗣️ TTS: Erro ao aplicar voz/taxa: $e");
+      try {
+        await _flutterTts.setLanguage("pt-BR");
+        await _flutterTts.setVolume(1.0);
+      } catch (_) {}
     }
-    
+
+    var speechText = clean;
+    if (speechText.length > 3900) {
+      speechText = speechText.substring(0, 3900);
+    }
+
     try {
       if (kIsWeb) {
-        Completer<bool> completer = Completer<bool>();
-        _flutterTts.setCompletionHandler(() {
-          if (!completer.isCompleted) completer.complete(true);
-        });
-        _flutterTts.setErrorHandler((msg) {
-          if (!completer.isCompleted) completer.complete(false);
-        });
-        _flutterTts.speak(text);
-        bool success = await completer.future;
+        final completer = Completer<bool>();
+        WebTtsHelper.speakQueue(
+          texts: [speechText],
+          onStart: () {},
+          onFinished: () {
+            if (!completer.isCompleted) completer.complete(true);
+          },
+          onError: () {
+            if (!completer.isCompleted) completer.complete(false);
+          },
+        );
+        bool success = await completer.future.timeout(
+          const Duration(seconds: 45),
+          onTimeout: () => false,
+        );
         if (!success || _isStopped) throw Exception("TTS_FAILED");
       } else {
-        final result = await _flutterTts.speak(text);
+        final completer = Completer<void>();
+
+        _flutterTts.setCompletionHandler(() {
+          if (!completer.isCompleted) completer.complete();
+        });
+        _flutterTts.setCancelHandler(() {
+          if (!completer.isCompleted) completer.complete();
+        });
+        _flutterTts.setErrorHandler((msg) {
+          debugPrint("🗣️ TTS Erro retornado: $msg");
+          if (!completer.isCompleted) completer.complete();
+        });
+
+        final result = await _flutterTts.speak(speechText, focus: true);
         if (result == 0 || result == false) {
-           throw Exception("TTS_FAILED");
+          // Se falhou por estado interno, reseta e tenta mais uma vez
+          await _flutterTts.stop();
+          await Future.delayed(const Duration(milliseconds: 120));
+          final retryResult = await _flutterTts.speak(speechText, focus: true);
+          if (retryResult == 0 || retryResult == false) {
+            throw Exception("TTS_FAILED");
+          }
         }
+
+        // Se o speak já retornou esperando a finalização, completer.isCompleted pode já ser true.
+        // Se ainda não completou, aguarda com timeout de segurança.
+        if (!completer.isCompleted) {
+          final timeoutSeconds = (speechText.length / 5).clamp(5, 120).toInt();
+          await completer.future.timeout(
+            Duration(seconds: timeoutSeconds),
+            onTimeout: () {
+              debugPrint("🗣️ TTS: Timeout de fala atingido.");
+            },
+          );
+        }
+
         if (_isStopped) {
-           throw Exception("TTS_INTERRUPTED");
+          throw Exception("TTS_INTERRUPTED");
         }
       }
     } catch (e) {
       debugPrint("Erro no speakAndWait: $e");
-      throw Exception("TTS_INTERRUPTED");
+      rethrow;
     }
   }
 
   Future<void> speakVerses(List<String> verses, {Map<String, String>? voice}) async {
-    await stop(); // Para qualquer leitura anterior
+    await stop();
     _isStopped = false;
-    
-    if (voice == null && !kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      final name = prefs.getString('tts_voice_name');
-      final locale = prefs.getString('tts_voice_locale');
-      if (name != null && locale != null && name.isNotEmpty) {
-        voice = {'name': name, 'locale': locale};
-      }
-    }
-
-    if (voice != null && !kIsWeb) {
-      debugPrint("🗣️ TTS: Configurando voz selecionada -> ${voice['name']} (${voice['locale']})");
-      try {
-        await _flutterTts.setLanguage(voice['locale']!);
-        await _flutterTts.setVoice({"name": voice['name']!, "locale": voice['locale']!});
-        // Pequeno delay para garantir que o Android carregue a voz antes de falar
-        await Future.delayed(const Duration(milliseconds: 300));
-      } catch (e) {
-        debugPrint("🗣️ TTS: Erro ao configurar voz: $e");
-      }
-    } else {
-      await _flutterTts.setLanguage("pt-BR");
-    }
 
     if (kIsWeb) {
-      // Na Web, o motor de TTS tem limite de caracteres e engasga em textos longos.
-      // Além disso, ele possui uma fila interna. Portanto, enviamos cada versículo
-      // separadamente para a fila do navegador. O stop() limpa a fila.
-      for (String verse in verses) {
-        if (verse.trim().isNotEmpty) {
-          await _flutterTts.speak(verse);
-        }
-      }
+      final completer = Completer<void>();
+      WebTtsHelper.speakQueue(
+        texts: verses,
+        onStart: () {},
+        onFinished: () {
+          if (!completer.isCompleted) completer.complete();
+        },
+        onError: () {
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+      await completer.future;
       return;
     }
 
-    String fullText = verses.join(". ");
-    
-    // Regex para dividir o texto em blocos de no máximo 3500 caracteres,
-    // tentando cortar em pontos finais.
-    List<String> chunks = [];
-    int maxChunkSize = 3500;
-    int start = 0;
-    
-    while (start < fullText.length) {
-      int end = start + maxChunkSize;
-      if (end >= fullText.length) {
-        chunks.add(fullText.substring(start));
-        break;
-      }
-      
-      // Procura o último ponto final dentro do limite
-      int lastDot = fullText.lastIndexOf('.', end);
-      if (lastDot > start) {
-        chunks.add(fullText.substring(start, lastDot + 1));
-        start = lastDot + 1;
-      } else {
-        // Se não houver ponto, corta no limite mesmo
-        chunks.add(fullText.substring(start, end));
-        start = end;
-      }
-    }
-
-    // Usar Completer para aguardar cada chunk de forma robusta no Android/iOS
-    for (int i = 0; i < chunks.length; i++) {
+    for (final verse in verses) {
       if (_isStopped) break;
-      String chunk = chunks[i].trim();
-      if (chunk.isEmpty) continue;
-      
-      Completer<void> completer = Completer<void>();
-      
-      _flutterTts.setCompletionHandler(() {
-        if (!completer.isCompleted) completer.complete();
-      });
-      
-      _flutterTts.setErrorHandler((msg) {
-        debugPrint("🗣️ TTS: Erro no chunk $i: $msg");
-        if (!completer.isCompleted) completer.complete();
-      });
+      final clean = verse.trim();
+      if (clean.isEmpty) continue;
 
-      await _flutterTts.speak(chunk);
-      
-      // Aguarda até o chunk terminar (ou erro)
-      await completer.future;
+      try {
+        await speakAndWait(clean, voice: voice);
+      } catch (e) {
+        if (_isStopped) break;
+        debugPrint("🗣️ TTS: Erro no verso/parágrafo: $e");
+      }
+
+      if (_isStopped) break;
+      // Pausa natural e agradável entre blocos/parágrafos
+      await Future.delayed(const Duration(milliseconds: 260));
     }
   }
 
   Future<void> stop() async {
     _isStopped = true;
+    if (kIsWeb) {
+      WebTtsHelper.stop();
+      return;
+    }
     try {
       await _flutterTts.stop();
     } catch (e) {

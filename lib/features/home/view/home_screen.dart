@@ -18,13 +18,13 @@ import 'package:keryx_app/features/store/view/store_screen.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keryx_app/features/study_plan/presentation/study_plan_window.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/widgets/update_banner.dart';
 import 'package:keryx_app/core/services/app_update_service.dart';
 import 'package:keryx_app/core/services/release_notes_service.dart';
+import 'package:keryx_app/core/state/font_state.dart';
+import 'package:keryx_app/core/services/custom_font_loader.dart';
 
-const Color _secondaryColor = Color(0xFFFFB95F);
-const Color _primaryContainer = Color(0xFF4F46E5);
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -609,161 +609,185 @@ class _HomeMainTools extends ConsumerWidget {
       children: [
         _buildSectionHeader(context, 'Ferramentas Principais'),
         const SizedBox(height: 12),
-        GridView(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 300,
-            mainAxisExtent: 160, // Fixed height to prevent giant cards
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-          ),
-          children: [
-            _buildToolCard(
-              title: 'Bíblia Sagrada',
-              subtitle: 'Leia e estude em $availableCount versões diferentes',
-              icon: Icons.menu_book_rounded,
-              colors: const [Color(0xFF4F46E5), Color(0xFF3B82F6)],
-              badge: _buildBadge(
-                'IA',
-                Icons.auto_awesome_rounded,
-                Colors.black.withValues(alpha: 0.3),
-                Colors.white,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth <= 0) {
+              return const SizedBox.shrink();
+            }
+            final width = constraints.maxWidth;
+            final int crossAxisCount = width >= 1000 ? 4 : (width >= 620 ? 3 : 2);
+            return GridView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                mainAxisExtent: 98,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
               ),
-              onTap: () {
-                ref.read(navigationProvider.notifier).setIndex(1); // Bíblia
-              },
-            ),
-            _buildToolCard(
-              title: 'Biblioteca de Arquivos',
-              subtitle: 'Seus materiais e ebooks',
-              icon: Icons.library_books_rounded,
-              colors: const [Color(0xFFDC2626), Color(0xFFEF4444)],
-              onTap: () {
-                Navigator.push(
+              children: [
+                _buildToolCard(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const PdfBooksScreen(),
+                  title: 'Bíblia Sagrada',
+                  subtitle: 'Leia e estude em $availableCount versões',
+                  icon: Icons.menu_book_rounded,
+                  colors: const [Color(0xFF4F46E5), Color(0xFF3B82F6)],
+                  badge: _buildBadge(
+                    'IA',
+                    Icons.auto_awesome_rounded,
+                    const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                    const Color(0xFFA855F7),
                   ),
-                );
-              },
-            ),
-            _buildToolCard(
-              title: 'Comentários',
-              subtitle: 'Coment. bíblicos de grandes teólogos',
-              icon: Icons.menu_open_rounded,
-              colors: const [Color(0xFF065F46), Color(0xFF059669)],
-              badge: _buildBadge(
-                'Novo',
-                null,
-                Colors.black.withValues(alpha: 0.3),
-                Colors.white,
-              ),
-              onTap: () {
-                ref.read(navigationProvider.notifier).setIndex(2); // Comentários
-              },
-            ),
-            _buildToolCard(
-              title: 'Versículos Favoritos',
-              subtitle: 'Seus trechos bíblicos marcados',
-              icon: Icons.favorite_rounded,
-              colors: const [Color(0xFFEA580C), Color(0xFFF97316)],
-              badge: _buildBadge(
-                'Novidade',
-                null,
-                Colors.black.withValues(alpha: 0.3),
-                Colors.white,
-              ),
-              onTap: () {
-                ref.read(navigationProvider.notifier).setIndex(4); // Favoritos
-              },
-            ),
-            _buildToolCard(
-              title: 'Minhas Anotações',
-              subtitle: 'Seus cadernos e estudos pessoais',
-              icon: Icons.note_alt_rounded,
-              colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
-              badge: _buildBadge(
-                'Novidade',
-                null,
-                Colors.black.withValues(alpha: 0.3),
-                Colors.white,
-              ),
-              onTap: () {
-                ref.read(navigationProvider.notifier).setIndex(3); // Anotações
-              },
-            ),
-            _buildToolCard(
-              title: 'Comunidade',
-              subtitle: 'Feed de Fé, Stories e Oração',
-              icon: Icons.people_alt_rounded,
-              colors: const [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-              badge: _buildBadge(
-                'Novo',
-                null,
-                Colors.black.withValues(alpha: 0.3),
-                Colors.white,
-              ),
-              onTap: () {
-                ref.read(navigationProvider.notifier).setIndex(6); // Comunidade
-              },
-            ),
-            _buildToolCard(
-              title: 'Dicionário e Concordância',
-              subtitle: '8.362 termos e definições',
-              icon: Icons.library_books_rounded,
-              colors: const [Color(0xFF059669), Color(0xFF10B981)],
-              badge: _buildBadge(
-                'Novo',
-                null,
-                Colors.black.withValues(alpha: 0.3),
-                Colors.white,
-              ),
-              onTap: () {
-                Navigator.push(
+                  onTap: () {
+                    ref.read(navigationProvider.notifier).setIndex(1); // Bíblia
+                  },
+                ),
+                _buildToolCard(
                   context,
-                  MaterialPageRoute(builder: (_) => const DictionaryScreen()),
-                );
-              },
-            ),
-            _buildToolCard(
-              title: 'IATheos Teologia',
-              subtitle: 'Inteligência Artificial Teológica',
-              icon: Icons.auto_awesome_rounded,
-              colors: const [Color(0xFF7C3AED), Color(0xFF9333EA)],
-              onTap: () {
-                Navigator.push(
+                  title: 'Biblioteca',
+                  subtitle: 'Seus materiais e ebooks',
+                  icon: Icons.library_books_rounded,
+                  colors: const [Color(0xFFDC2626), Color(0xFFEF4444)],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PdfBooksScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildToolCard(
                   context,
-                  MaterialPageRoute(builder: (_) => const ChatAssistantScreen()),
-                );
-              },
-            ),
-            _buildToolCard(
-              title: 'Plano de Estudo',
-              subtitle: 'Leitura bíblica cronológica em 1 ano',
-              icon: Icons.calendar_month_rounded,
-              colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
-              badge: _buildBadge(
-                'Novo',
-                null,
-                Colors.black.withValues(alpha: 0.3),
-                Colors.white,
-              ),
-              onTap: () {
-                Navigator.push(
+                  title: 'Comentários',
+                  subtitle: 'Comentários de teólogos',
+                  icon: Icons.menu_open_rounded,
+                  colors: const [Color(0xFF065F46), Color(0xFF059669)],
+                  badge: _buildBadge(
+                    'Novo',
+                    null,
+                    const Color(0xFF059669).withValues(alpha: 0.18),
+                    const Color(0xFF10B981),
+                  ),
+                  onTap: () {
+                    ref.read(navigationProvider.notifier).setIndex(2); // Comentários
+                  },
+                ),
+                _buildToolCard(
                   context,
-                  MaterialPageRoute(builder: (_) => const StudyPlanWindow()),
-                );
-              },
-            ),
-            if (isHarpaDownloaded || !isHarpaDismissed)
-              _HomeHarpaCard(
-                harpaPackage: harpaPackage,
-                isDownloaded: isHarpaDownloaded,
-                harpaBook: harpaBook,
-                onDismiss: onDismissHarpa,
-              ),
-          ],
+                  title: 'Favoritos',
+                  subtitle: 'Seus versículos marcados',
+                  icon: Icons.favorite_rounded,
+                  colors: const [Color(0xFFEA580C), Color(0xFFF97316)],
+                  badge: _buildBadge(
+                    'Novidade',
+                    null,
+                    const Color(0xFFEA580C).withValues(alpha: 0.18),
+                    const Color(0xFFF97316),
+                  ),
+                  onTap: () {
+                    ref.read(navigationProvider.notifier).setIndex(4); // Favoritos
+                  },
+                ),
+                _buildToolCard(
+                  context,
+                  title: 'Anotações',
+                  subtitle: 'Cadernos e estudos',
+                  icon: Icons.note_alt_rounded,
+                  colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
+                  badge: _buildBadge(
+                    'Novidade',
+                    null,
+                    const Color(0xFFD97706).withValues(alpha: 0.18),
+                    const Color(0xFFF59E0B),
+                  ),
+                  onTap: () {
+                    ref.read(navigationProvider.notifier).setIndex(3); // Anotações
+                  },
+                ),
+                _buildToolCard(
+                  context,
+                  title: 'Comunidade',
+                  subtitle: 'Feed de Fé e Oração',
+                  icon: Icons.people_alt_rounded,
+                  colors: const [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                  badge: _buildBadge(
+                    'Novo',
+                    null,
+                    const Color(0xFF4F46E5).withValues(alpha: 0.18),
+                    const Color(0xFF818CF8),
+                  ),
+                  onTap: () {
+                    ref.read(navigationProvider.notifier).setIndex(6); // Comunidade
+                  },
+                ),
+                _buildToolCard(
+                  context,
+                  title: 'Dicionário',
+                  subtitle: '8.362 termos bíblicos',
+                  icon: Icons.auto_stories_rounded,
+                  colors: const [Color(0xFF059669), Color(0xFF10B981)],
+                  badge: _buildBadge(
+                    'Novo',
+                    null,
+                    const Color(0xFF059669).withValues(alpha: 0.18),
+                    const Color(0xFF10B981),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DictionaryScreen()),
+                    );
+                  },
+                ),
+                _buildToolCard(
+                  context,
+                  title: 'IATheos',
+                  subtitle: 'Inteligência Artificial Teológica',
+                  icon: Icons.auto_awesome_rounded,
+                  colors: const [Color(0xFF7C3AED), Color(0xFF9333EA)],
+                  badge: _buildBadge(
+                    'IA',
+                    Icons.auto_awesome_rounded,
+                    const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                    const Color(0xFFA855F7),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ChatAssistantScreen()),
+                    );
+                  },
+                ),
+                _buildToolCard(
+                  context,
+                  title: 'Plano de Estudo',
+                  subtitle: 'Cronológico em 1 ano',
+                  icon: Icons.calendar_month_rounded,
+                  colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                  badge: _buildBadge(
+                    'Novo',
+                    null,
+                    const Color(0xFF0284C7).withValues(alpha: 0.18),
+                    const Color(0xFF38BDF8),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const StudyPlanWindow()),
+                    );
+                  },
+                ),
+                if (isHarpaDownloaded || !isHarpaDismissed)
+                  _HomeHarpaCard(
+                    harpaPackage: harpaPackage,
+                    isDownloaded: isHarpaDownloaded,
+                    harpaBook: harpaBook,
+                    onDismiss: onDismissHarpa,
+                  ),
+              ],
+            );
+          },
         ),
         if (isHarpaDownloaded) ...[
           const SizedBox(height: 24),
@@ -856,15 +880,16 @@ class _HomeHarpaCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (isDownloaded) {
       return _buildToolCard(
+        context,
         title: 'Harpa Cristã',
-        subtitle: '640 hinos e cânticos de louvor',
+        subtitle: '640 hinos de louvor',
         icon: Icons.music_note_rounded,
         colors: const [Color(0xFFB45309), Color(0xFFF59E0B)],
         badge: _buildBadge(
-          '640 Hinos',
+          '640',
           Icons.music_note_rounded,
-          Colors.black.withValues(alpha: 0.3),
-          Colors.white,
+          const Color(0xFFD97706).withValues(alpha: 0.18),
+          const Color(0xFFF59E0B),
         ),
         onTap: () {
           Navigator.push(
@@ -918,158 +943,140 @@ class _HomeHarpaCard extends ConsumerWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1B1E2B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: isDark
-                ? const [Color(0xFF232530), Color(0xFF191B22)]
-                : const [Color(0xFFF1F3F5), Color(0xFFE2E8F0)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.12)
-                : Colors.black.withValues(alpha: 0.12),
+                : Colors.black.withValues(alpha: 0.1),
             width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Stack(
           children: [
-            // Topo: Ícone monocromático à esquerda + (Badge Baixar + botão X) à direita
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Topo direito: (Badge Baixar/Progresso + botão X)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isDownloading)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.kPrimaryGold.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 8,
+                            height: 8,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.8,
+                              color: AppTheme.kPrimaryGold,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${(downloadProgress * 100).toInt()}%',
+                            style: const TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.kPrimaryGold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.download_rounded,
+                            size: 10,
+                            color: isDark ? Colors.white70 : const Color(0xFF475569),
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            'Baixar',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white70 : const Color(0xFF475569),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onDismiss,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 11,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Conteúdo do card
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: isDark
                         ? Colors.white.withValues(alpha: 0.08)
                         : Colors.black.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(9),
                   ),
                   child: Center(
                     child: Icon(
                       Icons.music_note_rounded,
                       color: isDark
-                          ? Colors.white.withValues(alpha: 0.7)
+                          ? Colors.white.withValues(alpha: 0.8)
                           : const Color(0xFF475569),
-                      size: 22,
+                      size: 18,
                     ),
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isDownloading)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppTheme.kPrimaryGold.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(
-                              width: 10,
-                              height: 10,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppTheme.kPrimaryGold,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              '${(downloadProgress * 100).toInt()}%',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.kPrimaryGold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.black.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.15)
-                                : Colors.black.withValues(alpha: 0.12),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.download_rounded,
-                              size: 11,
-                              color: isDark ? Colors.white70 : const Color(0xFF475569),
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Baixar',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white70 : const Color(0xFF475569),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: onDismiss,
-                      child: Tooltip(
-                        message: 'Ocultar da tela inicial',
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : Colors.black.withValues(alpha: 0.06),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.15)
-                                  : Colors.black.withValues(alpha: 0.12),
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.close_rounded,
-                            size: 14,
-                            color: isDark ? Colors.white70 : const Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
             // Rodapé: Título e Subtítulo / Barra de progresso
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1078,32 +1085,21 @@ class _HomeHarpaCard extends ConsumerWidget {
                 Text(
                   'Harpa Cristã',
                   style: TextStyle(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.9)
-                        : const Color(0xFF1E293B),
-                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.bold,
-                    height: 1.1,
+                    height: 1.15,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 if (isDownloading) ...[
-                  Text(
-                    'Baixando da loja...',
-                    style: TextStyle(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.65)
-                          : const Color(0xFF64748B),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: downloadProgress > 0 ? downloadProgress : null,
-                      minHeight: 4,
+                      minHeight: 3,
                       backgroundColor: isDark
                           ? Colors.white.withValues(alpha: 0.1)
                           : Colors.black.withValues(alpha: 0.08),
@@ -1112,32 +1108,81 @@ class _HomeHarpaCard extends ConsumerWidget {
                   ),
                 ] else
                   Text(
-                    '640 hinos · Toque para baixar',
+                    '640 hinos · Baixar',
                     style: TextStyle(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.55)
-                          : const Color(0xFF64748B),
-                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      fontSize: 11,
                       height: 1.2,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
               ],
             ),
           ],
         ),
-      ),
-    );
+      ],
+    ),
+  ),
+);
   }
 }
 
 class _HomeDevotional extends ConsumerWidget {
   const _HomeDevotional();
 
+  TextStyle _getHomeTextStyle(
+    String fontName, {
+    required double fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    FontStyle? fontStyle,
+    double? height,
+  }) {
+    if (CustomFontLoader.loadedFontFamilies.contains(fontName)) {
+      return TextStyle(
+        fontFamily: fontName,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        fontStyle: fontStyle,
+        height: height,
+      );
+    }
+    try {
+      return GoogleFonts.getFont(
+        fontName,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        fontStyle: fontStyle,
+        height: height,
+      );
+    } catch (_) {
+      return TextStyle(
+        fontFamily: fontName,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        fontStyle: fontStyle,
+        height: height,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final devocionalAsync = ref.watch(devocionalDiarioProvider);
+    final fontSettings = ref.watch(fontSettingsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final accentColor = fontSettings.badgeColor != null
+        ? Color(fontSettings.badgeColor!)
+        : (isDark ? AppTheme.kPrimaryGold : const Color(0xFF4F46E5));
+
+    final textColor = fontSettings.textColor != null
+        ? Color(fontSettings.textColor!)
+        : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1159,111 +1204,137 @@ class _HomeDevotional extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
+                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
                     blurRadius: 10,
-                    offset: const Offset(0, 5),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 1. Tag de Categoria com linha sutil (Sem ícone de sol)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'REFLEXÃO ESPIRITUAL',
-                              style: TextStyle(
-                                color: _secondaryColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              devocional.title,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: accentColor.withValues(alpha: 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          'REFLEXÃO ESPIRITUAL',
+                          style: GoogleFonts.outfit(
+                            color: accentColor,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.wb_sunny_rounded,
-                            color: _secondaryColor,
-                            size: 24,
-                          ),
+                      Expanded(
+                        child: Container(
+                          height: 1,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
+
+                  // 2. Título do Devocional
+                  Text(
+                    devocional.title,
+                    style: _getHomeTextStyle(
+                      fontSettings.fontFamily,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      height: 1.25,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 3. Citação do Versículo Base
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                      border: const Border(
-                        left: BorderSide(color: _primaryContainer, width: 4),
+                      color: isDark
+                          ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.25)
+                          : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border(
+                        left: BorderSide(
+                          color: accentColor,
+                          width: 3.5,
+                        ),
                       ),
                     ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          devocional.verse,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 14,
+                          devocional.verse.startsWith('“') || devocional.verse.startsWith('"')
+                              ? devocional.verse
+                              : '“${devocional.verse}”',
+                          style: _getHomeTextStyle(
+                            fontSettings.fontFamily,
+                            fontSize: 13.5,
                             fontStyle: FontStyle.italic,
+                            color: textColor,
+                            height: 1.5,
                           ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '— ${devocional.verseReference}',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '— ${devocional.verseReference}',
+                            style: GoogleFonts.outfit(
+                              color: accentColor,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+
+                  // 4. Trecho da Reflexão
                   Text(
                     devocional.content.length > 200
                         ? '${devocional.content.substring(0, 200)}...'
                         : devocional.content,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontSize: 14,
+                    style: _getHomeTextStyle(
+                      fontSettings.fontFamily,
+                      fontSize: 13.5,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       height: 1.5,
                     ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 16),
+
+                  // 5. Botão "Ler devocional completo"
                   InkWell(
                     onTap: () {
                       Navigator.push(
@@ -1277,18 +1348,22 @@ class _HomeDevotional extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
+                        color: accentColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: accentColor.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
                             'Ler devocional completo',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurface,
+                            style: GoogleFonts.outfit(
+                              color: accentColor,
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1296,7 +1371,7 @@ class _HomeDevotional extends ConsumerWidget {
                           const SizedBox(width: 8),
                           Icon(
                             Icons.arrow_forward_rounded,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: accentColor,
                             size: 18,
                           ),
                         ],
@@ -1307,10 +1382,10 @@ class _HomeDevotional extends ConsumerWidget {
               ),
             );
           },
-          loading: () => const Center(
+          loading: () => Center(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: CircularProgressIndicator(color: _secondaryColor),
+              padding: const EdgeInsets.all(32.0),
+              child: CircularProgressIndicator(color: accentColor),
             ),
           ),
           error: (error, stack) => const Center(
@@ -1416,24 +1491,25 @@ Widget _buildBadge(
   Color textColor,
 ) {
   return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
     decoration: BoxDecoration(
       color: bgColor,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(6),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (icon != null) ...[
-          Icon(icon, color: textColor, size: 10),
+          Icon(icon, color: textColor, size: 8.5),
           const SizedBox(width: 2),
         ],
         Text(
           text,
           style: TextStyle(
             color: textColor,
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: FontWeight.bold,
+            letterSpacing: 0.2,
           ),
         ),
       ],
@@ -1441,7 +1517,8 @@ Widget _buildBadge(
   );
 }
 
-Widget _buildToolCard({
+Widget _buildToolCard(
+  BuildContext context, {
   required String title,
   required String subtitle,
   required IconData icon,
@@ -1449,63 +1526,98 @@ Widget _buildToolCard({
   Widget? badge,
   VoidCallback? onTap,
 }) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isDark
+              ? const Color(0xFF1B1E2B)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: colors[0].withValues(alpha: isDark ? 0.25 : 0.15),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colors[0].withValues(alpha: isDark ? 0.12 : 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: colors[0].withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: Colors.white, size: 28),
-              if (badge != null) badge,
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  height: 1.1,
-                ),
+        child: Stack(
+          children: [
+            if (badge != null)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: badge,
               ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 12,
-                  height: 1.2,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(9),
+                    gradient: LinearGradient(
+                      colors: colors,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors[0].withValues(alpha: 0.35),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Icon(icon, color: Colors.white, size: 18),
+                  ),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        height: 1.15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 10.5,
+                        height: 1.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     ),
   );

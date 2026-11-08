@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/store/view/book_reader_screen.dart';
@@ -226,64 +226,77 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    TextButton.icon(
-                      icon: const Icon(Icons.done_all_rounded, size: 18),
-                      onPressed: () async {
-                        await ref.read(notificationServiceProvider).markAllAsRead();
-                        ref.read(notificationUiServiceProvider).showInfo(
-                              'Todas as notificações foram marcadas como lidas.',
-                            );
-                      },
-                      label: Text(
-                        'Marcar todas como lidas',
-                        style: GoogleFonts.outfit(
-                          fontSize: isTablet ? 13 : 12,
-                          fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.done_all_rounded, size: 18),
+                          onPressed: () async {
+                            await ref.read(notificationServiceProvider).markAllAsRead();
+                            ref.read(notificationUiServiceProvider).showInfo(
+                                  'Todas as notificações foram marcadas como lidas.',
+                                );
+                          },
+                          label: Text(
+                            'Marcar todas como lidas',
+                            maxLines: 1,
+                            style: GoogleFonts.outfit(
+                              fontSize: isTablet ? 13 : 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF6366F1),
+                            padding: EdgeInsets.symmetric(horizontal: isTablet ? 14 : 8, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
                         ),
                       ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF6366F1),
-                        padding: EdgeInsets.symmetric(horizontal: isTablet ? 14 : 8, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
                     ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.delete_sweep_rounded, size: 18),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            backgroundColor: Theme.of(context).cardColor,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            title: Text(
-                              'Limpar notificações?',
-                              style: GoogleFonts.outfit(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            content: Text(
-                              'Isso removerá todas as notificações salvas do banco de dados, incluindo avisos de downloads e o devocional de hoje.',
-                              style: GoogleFonts.outfit(
-                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: Text('Cancelar', style: GoogleFonts.outfit(color: Colors.grey)),
-                              ),
-                              FilledButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-                                child: Text(
-                                  'Limpar tudo',
-                                  style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                backgroundColor: Theme.of(context).cardColor,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                title: Text(
+                                  'Limpar notificações?',
+                                  style: GoogleFonts.outfit(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
+                                content: Text(
+                                  'Isso removerá todas as notificações salvas do banco de dados, incluindo avisos de downloads e o devocional de hoje.',
+                                  style: GoogleFonts.outfit(
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                                actionsOverflowButtonSpacing: 8,
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: Text('Cancelar', style: GoogleFonts.outfit(color: Colors.grey)),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+                                    child: Text(
+                                      'Limpar tudo',
+                                      style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        );
+                            );
                         if (confirm == true) {
                           final notifsList = notificationsAsync.valueOrNull ?? [];
                           final currentVersion = ref.read(currentAppVersionProvider).valueOrNull;
@@ -331,9 +344,11 @@ class _NotificationsBottomSheetState extends ConsumerState<NotificationsBottomSh
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
+            ),
+          ),
 
               // Lista de notificações
               Expanded(

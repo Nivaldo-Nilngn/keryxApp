@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
@@ -18,6 +18,8 @@ import 'package:keryx_app/features/study_plan/presentation/study_plan_window.dar
 import 'package:keryx_app/features/study/view/dictionary_screen.dart';
 import 'package:keryx_app/features/pdf/view/pdf_books_screen.dart';
 import 'package:keryx_app/features/ai/view/chat_assistant_screen.dart';
+import 'package:keryx_app/features/home/view/devocional_screen.dart';
+import 'package:keryx_app/features/home/service/devocional_service.dart';
 import 'package:keryx_app/core/widgets/main_layout.dart';
 
 /// Provider global para controlar a expansão manual do menu lateral em tablets/desktop.
@@ -55,8 +57,13 @@ class InstagramTabletSidebar extends ConsumerWidget {
     onSelectIndex(index);
   }
 
-  void _openSpecialScreen(BuildContext context, int targetIndex) {
+  void _openSpecialScreen(BuildContext context, int targetIndex, {WidgetRef? ref}) {
     if (currentIndex == targetIndex) return;
+
+    if (targetIndex == 11 && ref != null) {
+      _openDevocional(context, ref);
+      return;
+    }
 
     Widget page;
     switch (targetIndex) {
@@ -88,6 +95,39 @@ class InstagramTabletSidebar extends ConsumerWidget {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => page),
+      );
+    }
+  }
+
+  Future<void> _openDevocional(BuildContext context, WidgetRef ref) async {
+    if (currentIndex == 11) return;
+
+    final devocionalAsync = ref.read(devocionalDiarioProvider);
+    DevocionalData? devocional = devocionalAsync.valueOrNull;
+
+    if (devocional == null) {
+      try {
+        devocional = await ref.read(devocionalDiarioProvider.future);
+      } catch (e) {
+        debugPrint('Erro ao buscar devocional na sidebar: $e');
+      }
+    }
+
+    if (devocional != null && context.mounted) {
+      final route = MaterialPageRoute(
+        builder: (_) => DevocionalScreen(devocional: devocional!),
+      );
+      if (isRoute) {
+        Navigator.pushReplacement(context, route);
+      } else {
+        Navigator.push(context, route);
+      }
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível carregar o devocional de hoje.'),
+          duration: Duration(seconds: 2),
+        ),
       );
     }
   }
@@ -406,7 +446,7 @@ class InstagramTabletSidebar extends ConsumerWidget {
                     children: [
                       // 1. Topo: Logo + Nome do App com transição suave de opacidade
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+                        padding: EdgeInsets.fromLTRB(isExpanded ? 16 : 7, 12, isExpanded ? 12 : 7, 8),
                         child: SizedBox(
                           height: 34,
                           child: GestureDetector(
@@ -414,66 +454,48 @@ class InstagramTabletSidebar extends ConsumerWidget {
                             onTap: () => _handleNavigate(context, 0),
                             child: MouseRegion(
                               cursor: SystemMouseCursors.click,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(9),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.15),
-                                          blurRadius: 5,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(9),
-                                      child: Image.asset(
-                                        'assets/img/logo.png',
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: ClipRect(
-                                      child: AnimatedOpacity(
-                                        duration: const Duration(milliseconds: 160),
-                                        curve: Curves.easeInOut,
-                                        opacity: isExpanded ? 1.0 : 0.0,
-                                        child: SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          physics: const NeverScrollableScrollPhysics(),
-                                          child: SizedBox(
-                                            width: 175,
-                                            child: Row(
-                                              children: [
-                                                const SizedBox(width: 10),
-                                                Expanded(
-                                                  child: Text(
-                                                    'KeryxApp',
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.clip,
-                                                    softWrap: false,
-                                                    style: GoogleFonts.plusJakartaSans(
-                                                      fontSize: 17.5,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: Theme.of(context).colorScheme.onSurface,
-                                                      letterSpacing: -0.3,
-                                                    ),
+                              child: isExpanded
+                                  ? Row(
+                                      children: [
+                                        _buildLogoWidget(),
+                                        Expanded(
+                                          child: ClipRect(
+                                            child: AnimatedOpacity(
+                                              duration: const Duration(milliseconds: 160),
+                                              curve: Curves.easeInOut,
+                                              opacity: 1.0,
+                                              child: SingleChildScrollView(
+                                                scrollDirection: Axis.horizontal,
+                                                physics: const NeverScrollableScrollPhysics(),
+                                                child: SizedBox(
+                                                  width: 175,
+                                                  child: Row(
+                                                    children: [
+                                                      const SizedBox(width: 10),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'KeryxApp',
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.clip,
+                                                          softWrap: false,
+                                                          style: GoogleFonts.plusJakartaSans(
+                                                            fontSize: 17.5,
+                                                            fontWeight: FontWeight.w800,
+                                                            color: Theme.of(context).colorScheme.onSurface,
+                                                            letterSpacing: -0.3,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                              ],
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                      ],
+                                    )
+                                  : Center(child: _buildLogoWidget()),
                             ),
                           ),
                         ),
@@ -507,6 +529,16 @@ class InstagramTabletSidebar extends ConsumerWidget {
                                 isSelected: currentIndex == 1,
                                 isExpanded: isExpanded,
                                 onTap: () => _handleNavigate(context, 1),
+                              ),
+                              const SizedBox(height: 2),
+                              _buildNavItem(
+                                context: context,
+                                icon: Icons.auto_stories_rounded,
+                                inactiveIcon: Icons.auto_stories_outlined,
+                                label: 'Devocional Diário',
+                                isSelected: currentIndex == 11,
+                                isExpanded: isExpanded,
+                                onTap: () => _openDevocional(context, ref),
                               ),
                               const SizedBox(height: 2),
                               _buildNavItem(
@@ -712,6 +744,30 @@ class InstagramTabletSidebar extends ConsumerWidget {
     );
   }
 
+  Widget _buildLogoWidget() {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(9),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: Image.asset(
+          'assets/img/logo.png',
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
   Widget _buildEdgeToggleButton(
     BuildContext context,
     WidgetRef ref,
@@ -801,6 +857,19 @@ class InstagramTabletSidebar extends ConsumerWidget {
     required String userFrameId,
     required bool isDark,
   }) {
+    final avatarWidget = SizedBox(
+      width: 22,
+      height: 22,
+      child: Center(
+        child: CommunityUserAvatar(
+          photoUrl: userPhoto,
+          name: userName,
+          radius: 11.0,
+          avatarFrame: userFrameId,
+        ),
+      ),
+    );
+
     return Tooltip(
       message: 'Meu Perfil ($userName)',
       preferBelow: false,
@@ -817,39 +886,28 @@ class InstagramTabletSidebar extends ConsumerWidget {
           },
           borderRadius: BorderRadius.circular(8),
           child: Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: Center(
-                    child: CommunityUserAvatar(
-                      photoUrl: userPhoto,
-                      name: userName,
-                      radius: 11,
-                      avatarFrame: userFrameId,
-                    ),
-                  ),
-                ),
-                if (isExpanded) ...[
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Text(
-                      userName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.outfit(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
+            height: 35,
+            padding: EdgeInsets.symmetric(horizontal: isExpanded ? 10 : 0),
+            child: isExpanded
+                ? Row(
+                    children: [
+                      avatarWidget,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          userName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+                    ],
+                  )
+                : Center(child: avatarWidget),
           ),
         ),
       ),
@@ -1089,16 +1147,17 @@ class InstagramTabletSidebar extends ConsumerWidget {
               ),
             )
           : Container(
-              height: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.menu_rounded,
-                  size: 21,
-                  color: onSurface.withValues(alpha: 0.8),
+              height: 35,
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: Center(
+                  child: Icon(
+                    Icons.menu_rounded,
+                    size: 20,
+                    color: onSurface.withValues(alpha: 0.8),
+                  ),
                 ),
               ),
             ),
@@ -1135,96 +1194,114 @@ class InstagramTabletSidebar extends ConsumerWidget {
           borderRadius: BorderRadius.circular(8),
           child: Container(
             height: 35,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: EdgeInsets.symmetric(horizontal: isExpanded ? 10 : 0),
             decoration: BoxDecoration(
               color: isSelected
                   ? activeColor.withValues(alpha: 0.14)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
+            child: isExpanded
+                ? Row(
                     children: [
-                      Icon(
-                        isSelected ? icon : inactiveIcon,
-                        color: itemColor,
-                        size: isSelected ? 20.5 : 19.0,
+                      SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
+                          children: [
+                            Icon(
+                              isSelected ? icon : inactiveIcon,
+                              color: itemColor,
+                              size: isSelected ? 20.5 : 19.0,
+                            ),
+                          ],
+                        ),
                       ),
-                      if (badgeText != null && !isExpanded)
-                        Positioned(
-                          top: -2,
-                          right: -2,
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF10B981),
-                              shape: BoxShape.circle,
+                      Expanded(
+                        child: ClipRect(
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 160),
+                            curve: Curves.easeInOut,
+                            opacity: 1.0,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const NeverScrollableScrollPhysics(),
+                              child: SizedBox(
+                                width: 175,
+                                child: Row(
+                                  children: [
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        softWrap: false,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 13.5,
+                                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                          color: itemColor,
+                                        ),
+                                      ),
+                                    ),
+                                    if (badgeText != null)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 4),
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10B981).withValues(alpha: 0.18),
+                                          borderRadius: BorderRadius.circular(5),
+                                        ),
+                                        child: Text(
+                                          badgeText,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: const Color(0xFF10B981),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
+                      ),
                     ],
-                  ),
-                ),
-                Expanded(
-                  child: ClipRect(
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 160),
-                      curve: Curves.easeInOut,
-                      opacity: isExpanded ? 1.0 : 0.0,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: SizedBox(
-                          width: 175,
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  softWrap: false,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 13.5,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                    color: itemColor,
-                                  ),
+                  )
+                : Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            isSelected ? icon : inactiveIcon,
+                            color: itemColor,
+                            size: isSelected ? 20.5 : 19.0,
+                          ),
+                          if (badgeText != null)
+                            Positioned(
+                              top: -2,
+                              right: -2,
+                              child: Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF10B981),
+                                  shape: BoxShape.circle,
                                 ),
                               ),
-                              if (badgeText != null)
-                                Container(
-                                  margin: const EdgeInsets.only(left: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
-                                  child: Text(
-                                    badgeText,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF10B981),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),

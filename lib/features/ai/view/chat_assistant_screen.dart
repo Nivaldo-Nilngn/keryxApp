@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/features/ai/model/chat_model.dart';
 import 'package:keryx_app/features/ai/service/chat_history_service.dart';
@@ -481,12 +481,20 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
         ),
         content: Text(
           'Todas as mensagens desta conversa serão removidas da tela e do histórico.',
-          style: GoogleFonts.manrope(fontSize: 13, color: Colors.white70),
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.75),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: GoogleFonts.outfit(color: Colors.white60)),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.outfit(
+                color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -547,6 +555,8 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = theme.colorScheme.onSurface;
     const gold = AppTheme.kPrimaryGold;
     final tokens = ref.watch(aiTokenProvider);
     final isTablet = MediaQuery.of(context).size.width >= 720;
@@ -556,15 +566,26 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
       appBar: AppBar(
         centerTitle: false,
         titleSpacing: 0,
+        leadingWidth: 42,
+        leading: IconButton(
+          tooltip: 'Voltar',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 42, height: 42),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: onSurface,
+            size: 20,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Row(
           children: [
-            const SizedBox(width: 4),
-            // Avatar Celestial da IATheos
+            // Avatar Celestial da IATheos compacto (30x30)
             Container(
-              width: 36,
-              height: 36,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: const LinearGradient(
@@ -574,52 +595,57 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFD97706).withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: const Color(0xFFD97706).withValues(alpha: isDark ? 0.35 : 0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 1.5),
                   ),
                 ],
               ),
               child: const Icon(
                 Icons.auto_awesome_rounded,
-                size: 19,
+                size: 16,
                 color: Color(0xFF1E1B18),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'IATheos',
-                        style: GoogleFonts.outfit(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'IATheos',
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: onSurface,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF10B981),
-                          shape: BoxShape.circle,
+                        const SizedBox(width: 5),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Text(
                     'Assistente Teológico',
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      color: Colors.white54,
+                      fontSize: 10.5,
+                      color: onSurface.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -631,44 +657,44 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
         actions: [
           // Pílula Elegante com Contador de Consultas
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            margin: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-              color: gold.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
+              color: isDark ? gold.withValues(alpha: 0.12) : const Color(0xFFD97706).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: gold.withValues(alpha: 0.35),
+                color: isDark ? gold.withValues(alpha: 0.35) : const Color(0xFFD97706).withValues(alpha: 0.30),
                 width: 1,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.bolt_rounded, size: 14, color: gold),
-                const SizedBox(width: 4),
+                Icon(Icons.bolt_rounded, size: 13, color: isDark ? gold : const Color(0xFFD97706)),
+                const SizedBox(width: 3),
                 Text(
                   '$tokens/${AiTokenNotifier.maxTokens}',
                   style: GoogleFonts.outfit(
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: gold,
+                    color: isDark ? gold : const Color(0xFFB45309),
                   ),
                 ),
               ],
             ),
           ),
           IconButton(
-            constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
-            padding: const EdgeInsets.all(6),
-            icon: const Icon(Icons.history_rounded, color: Colors.white70, size: 21),
+            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            padding: EdgeInsets.zero,
+            icon: Icon(Icons.history_rounded, color: onSurface.withValues(alpha: 0.75), size: 20),
             tooltip: 'Histórico de conversas',
             onPressed: _openHistoryBottomSheet,
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 21),
+            icon: Icon(Icons.more_vert_rounded, color: onSurface.withValues(alpha: 0.75), size: 20),
             tooltip: 'Opções',
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
             onSelected: (val) {
               if (val == 'new') _startNewChat();
               if (val == 'clear') _confirmClear();
@@ -679,9 +705,9 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
                 enabled: _messages.isNotEmpty,
                 child: Row(
                   children: [
-                    const Icon(Icons.add_comment_outlined, size: 18, color: Colors.white70),
+                    Icon(Icons.add_comment_outlined, size: 18, color: onSurface.withValues(alpha: 0.8)),
                     const SizedBox(width: 10),
-                    Text('Nova conversa', style: GoogleFonts.outfit(fontSize: 13.5)),
+                    Text('Nova conversa', style: GoogleFonts.outfit(fontSize: 13.5, color: onSurface)),
                   ],
                 ),
               ),
@@ -711,7 +737,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
           children: [
             Expanded(
               child: _messages.isEmpty
-                  ? _buildModernEmptyState(theme, gold)
+                  ? _buildModernEmptyState(theme, gold, isDark, onSurface)
                   : ListView.builder(
                       controller: _scrollController,
                       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -735,7 +761,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.outfit(
                   fontSize: 10,
-                  color: Colors.white.withValues(alpha: 0.38),
+                  color: onSurface.withValues(alpha: 0.45),
                   height: 1.25,
                 ),
               ),
@@ -767,7 +793,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
 
   /// Estado Vazio Moderno estilo ChatGPT / Perplexity com Avatar Celestial,
   /// Seletor de Modos e Mosaico 2x2 com Cores Temáticas
-  Widget _buildModernEmptyState(ThemeData theme, Color gold) {
+  Widget _buildModernEmptyState(ThemeData theme, Color gold, bool isDark, Color onSurface) {
     final size = MediaQuery.of(context).size;
     final isCompact = size.width < 600;
     final suggestions = _getSuggestionsForMode(_selectedMode);
@@ -795,7 +821,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFD97706).withValues(alpha: 0.35),
+                  color: const Color(0xFFD97706).withValues(alpha: isDark ? 0.35 : 0.20),
                   blurRadius: 28,
                   spreadRadius: 4,
                 ),
@@ -819,7 +845,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
               fontSize: isCompact ? 20 : 23,
               fontWeight: FontWeight.bold,
               height: 1.25,
-              color: Colors.white,
+              color: onSurface,
             ),
           ),
           const SizedBox(height: 6),
@@ -828,14 +854,14 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
             textAlign: TextAlign.center,
             style: GoogleFonts.manrope(
               fontSize: 13,
-              color: Colors.white60,
+              color: onSurface.withValues(alpha: 0.65),
               height: 1.35,
             ),
           ),
           const SizedBox(height: 20),
 
           // ── Seletor Horizontal de Modos de Estudo ───────────────────
-          _buildModeSelector(),
+          _buildModeSelector(isDark: isDark, onSurface: onSurface),
 
           const SizedBox(height: 20),
 
@@ -851,7 +877,11 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
               mainAxisExtent: isCompact ? 84 : 100,
             ),
             itemBuilder: (context, index) {
-              return _buildModernSuggestionCard(suggestions[index]);
+              return _buildModernSuggestionCard(
+                suggestions[index],
+                isDark: isDark,
+                onSurface: onSurface,
+              );
             },
           ),
 
@@ -861,13 +891,13 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.verified_rounded, size: 13, color: Colors.white38),
+              Icon(Icons.verified_rounded, size: 13, color: onSurface.withValues(alpha: 0.45)),
               const SizedBox(width: 5),
               Flexible(
                 child: Text(
                   'Respostas geradas por IA. Examine tudo à luz das Escrituras.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(fontSize: 11, color: Colors.white38),
+                  style: GoogleFonts.manrope(fontSize: 11, color: onSurface.withValues(alpha: 0.45)),
                 ),
               ),
             ],
@@ -879,7 +909,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
   }
 
   /// Seletor de Especialidade Teológica (Geral, Exegese, História, Esboços, Devocional)
-  Widget _buildModeSelector() {
+  Widget _buildModeSelector({required bool isDark, required Color onSurface}) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -899,16 +929,20 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? modeColor.withValues(alpha: 0.22) : const Color(0xFF1B1F2D),
+                    color: isSelected
+                        ? modeColor.withValues(alpha: isDark ? 0.22 : 0.16)
+                        : (isDark ? const Color(0xFF1B1F2D) : Colors.black.withValues(alpha: 0.05)),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isSelected ? modeColor : Colors.white.withValues(alpha: 0.1),
+                      color: isSelected
+                          ? modeColor
+                          : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08)),
                       width: isSelected ? 1.5 : 1,
                     ),
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: modeColor.withValues(alpha: 0.3),
+                              color: modeColor.withValues(alpha: isDark ? 0.3 : 0.18),
                               blurRadius: 8,
                             ),
                           ]
@@ -920,7 +954,7 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
                       Icon(
                         mode.icon,
                         size: 15,
-                        color: isSelected ? modeColor : Colors.white60,
+                        color: isSelected ? modeColor : (isDark ? Colors.white60 : const Color(0xFF64748B)),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -928,7 +962,9 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
                         style: GoogleFonts.outfit(
                           fontSize: 12.5,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : Colors.white70,
+                          color: isSelected
+                              ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                              : (isDark ? Colors.white70 : const Color(0xFF475569)),
                         ),
                       ),
                     ],
@@ -943,102 +979,117 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
   }
 
   /// Card de Sugestão Estilo ChatGPT/Perplexity
-  Widget _buildModernSuggestionCard(_SuggestionItem item) {
-    return Material(
-      color: const Color(0xFF161A26),
-      shape: RoundedRectangleBorder(
+  Widget _buildModernSuggestionCard(
+    _SuggestionItem item, {
+    required bool isDark,
+    required Color onSurface,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161A26) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: item.color.withValues(alpha: 0.25),
-          width: 1,
+        border: Border.all(
+          color: item.color.withValues(alpha: isDark ? 0.25 : 0.18),
+          width: 1.1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: InkWell(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          _controller.text = item.prompt;
-          _sendMessage(item.prompt);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Ícone com Container Squircle
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: item.color.withValues(alpha: 0.35),
-                    width: 1,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            _controller.text = item.prompt;
+            _sendMessage(item.prompt);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Ícone com Container Squircle
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: item.color.withValues(alpha: isDark ? 0.15 : 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: item.color.withValues(alpha: isDark ? 0.35 : 0.25),
+                      width: 1,
+                    ),
                   ),
+                  child: Icon(item.icon, size: 20, color: item.color),
                 ),
-                child: Icon(item.icon, size: 20, color: item.color),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-              // Textos e Pergunta
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: item.color.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            item.category,
-                            style: GoogleFonts.outfit(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: item.color,
-                              letterSpacing: 0.5,
+                // Textos e Pergunta
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: item.color.withValues(alpha: isDark ? 0.18 : 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              item.category,
+                              style: GoogleFonts.outfit(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: item.color,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.title,
+                        style: GoogleFonts.outfit(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: onSurface,
+                          height: 1.15,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.title,
-                      style: GoogleFonts.outfit(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.15,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      item.prompt,
-                      style: GoogleFonts.manrope(
-                        fontSize: 11.5,
-                        color: Colors.white60,
-                        height: 1.25,
+                      Text(
+                        item.prompt,
+                        style: GoogleFonts.manrope(
+                          fontSize: 11.5,
+                          color: onSurface.withValues(alpha: 0.65),
+                          height: 1.25,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              const SizedBox(width: 6),
-              Icon(
-                Icons.arrow_forward_rounded,
-                size: 16,
-                color: item.color.withValues(alpha: 0.6),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: item.color.withValues(alpha: 0.6),
+                ),
+              ],
+            ),
           ),
         ),
       ),

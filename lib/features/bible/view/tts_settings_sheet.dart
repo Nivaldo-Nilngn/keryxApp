@@ -4,7 +4,7 @@ import 'package:keryx_app/core/services/tts/tts_service.dart';
 import 'package:keryx_app/core/services/tts/tts_player_provider.dart';
 
 import 'dart:ui';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 
 final autoScrollProvider = StateProvider<bool>((ref) => true);
 final highlightVerseProvider = StateProvider<bool>((ref) => true);
@@ -63,23 +63,52 @@ class TtsSettingsSheet extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    Text(
-                      'CONFIGURAÇÕES DE LEITURA (TTS)',
-                      style: GoogleFonts.outfit(
-                        color: onSurface,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.5,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'CONFIGURAÇÕES DE LEITURA (TTS)',
+                                  style: GoogleFonts.outfit(
+                                    color: onSurface,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Personalize a voz, velocidade e o timbre.',
+                                  style: GoogleFonts.outfit(
+                                    color: onSurface.withValues(alpha: 0.6),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Material(
+                            color: onSurface.withValues(alpha: 0.08),
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () => Navigator.of(context).pop(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  color: onSurface,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Personalize a voz, velocidade e o timbre.',
-                      style: GoogleFonts.outfit(
-                        color: onSurface.withValues(alpha: 0.6),
-                        fontSize: 14,
-                      ),
-                    ),
                   ],
                 ),
               ),

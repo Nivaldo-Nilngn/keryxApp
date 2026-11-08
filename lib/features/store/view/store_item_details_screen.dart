@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 import 'package:keryx_app/features/bible/navigation/view/commentary_selection_screen.dart';
@@ -12,6 +12,7 @@ import 'package:keryx_app/features/bible/reading/view/commentary_reader_screen.d
 import 'package:keryx_app/core/widgets/keryx_top_bar.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
 import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/widgets/main_layout.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -51,13 +52,103 @@ class StoreItemDetailsScreen extends ConsumerWidget {
     final isDownloading = downloadProgress != null;
     final isTablet = MediaQuery.of(context).size.width >= 720;
 
-    final Widget bodyContent = Stack(
+    final Widget tabletBackBar = Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+      child: Row(
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 1000;
-              
-              final mainContentHeader = Column(
+          Tooltip(
+            message: 'Voltar para a Loja',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    ref.read(navigationProvider.notifier).setIndex(5);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MainLayout()),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          InkWell(
+            onTap: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                ref.read(navigationProvider.notifier).setIndex(5);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MainLayout()),
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Loja',
+                    style: GoogleFonts.outfit(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+                  ),
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final Widget layoutContent = LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 1000;
+        
+        final mainContentHeader = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                 // Header Row: Title on Left, Icon on Right
@@ -483,7 +574,7 @@ class StoreItemDetailsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 24),
+                            padding: EdgeInsets.only(left: 24, right: 24, top: isTablet ? 8 : 24, bottom: 24),
                             child: mainContentHeader,
                           ),
                           Expanded(
@@ -510,7 +601,7 @@ class StoreItemDetailsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(left: 24, right: 24, top: 12, bottom: 24),
+                    padding: EdgeInsets.only(left: 24, right: 24, top: isTablet ? 6 : 12, bottom: 24),
                     child: mainContentHeader,
                   ),
                   Expanded(
@@ -529,30 +620,47 @@ class StoreItemDetailsScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
-          if (!isTablet)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: CustomBottomNav(
-                currentIndex: 5,
-                onTap: (index) {
-                  ref.read(navigationProvider.notifier).setIndex(index);
-                  Navigator.popUntil(context, (route) => route.isFirst);
-                },
-                onBack: () => Navigator.pop(context),
-              ),
+          );
+
+    final Widget mainBody = isTablet
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              tabletBackBar,
+              Expanded(child: layoutContent),
+            ],
+          )
+        : layoutContent;
+
+    final Widget bodyContent = Stack(
+      children: [
+        mainBody,
+        if (!isTablet)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: CustomBottomNav(
+              currentIndex: 5,
+              onTap: (index) {
+                ref.read(navigationProvider.notifier).setIndex(index);
+                Navigator.popUntil(context, (route) => route.isFirst);
+              },
+              onBack: () => Navigator.pop(context),
             ),
-        ],
-      );
+          ),
+      ],
+    );
 
     final Widget innerScaffold = Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: KeryxTopBar(
-        title: item.name,
-        showBackButton: false,
-      ),
+      appBar: isTablet
+          ? null
+          : KeryxTopBar(
+              title: item.name,
+              showBackButton: true,
+              onBack: () => Navigator.pop(context),
+            ),
       body: bodyContent,
     );
 
