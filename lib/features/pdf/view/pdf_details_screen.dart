@@ -526,7 +526,7 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
                     return;
                   }
                 }
-                if (pathToOpen != null && mounted) {
+                if (pathToOpen != null && context.mounted) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -1147,6 +1147,7 @@ class _PdfCommentSectionState extends ConsumerState<_PdfCommentSection> {
       });
       
       _controller.clear();
+      if (!mounted) return;
       FocusScope.of(context).unfocus();
       
       Future.delayed(const Duration(seconds: 3), () {
@@ -1171,7 +1172,7 @@ class _PdfCommentSectionState extends ConsumerState<_PdfCommentSection> {
     final editController = TextEditingController(text: comment['text']);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: Text('Editar Comentário', style: GoogleFonts.outfit()),
         content: TextField(
           controller: editController,
@@ -1179,18 +1180,18 @@ class _PdfCommentSectionState extends ConsumerState<_PdfCommentSection> {
           decoration: InputDecoration(
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Theme.of(context).colorScheme.surfaceContainer,
+            fillColor: Theme.of(dialogCtx).colorScheme.surfaceContainer,
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text('Cancelar', style: GoogleFonts.outfit()),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              backgroundColor: Theme.of(dialogCtx).colorScheme.primary,
+              foregroundColor: Theme.of(dialogCtx).colorScheme.onPrimary,
             ),
             onPressed: () async {
               if (editController.text.trim().isNotEmpty) {
@@ -1198,7 +1199,7 @@ class _PdfCommentSectionState extends ConsumerState<_PdfCommentSection> {
                   'text': editController.text.trim(),
                   'editedAt': FieldValue.serverTimestamp(),
                 });
-                if (mounted) Navigator.pop(context);
+                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
               }
             },
             child: Text('Salvar', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),

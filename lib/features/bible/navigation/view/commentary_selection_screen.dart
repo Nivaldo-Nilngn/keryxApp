@@ -784,9 +784,9 @@ class CommentarySelectionScreen extends ConsumerWidget {
     final isDownloading = downloadProgress != null;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 32),
+      padding: const EdgeInsets.only(bottom: 24),
       child: Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
@@ -804,7 +804,7 @@ class CommentarySelectionScreen extends ConsumerWidget {
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
@@ -812,48 +812,51 @@ class CommentarySelectionScreen extends ConsumerWidget {
               child: Icon(
                 Icons.cloud_sync_rounded,
                 color: Theme.of(context).colorScheme.primary,
-                size: 24,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'CONTINUAR DA NUVEM',
-                          style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'CONTINUAR DA NUVEM',
+                        style: GoogleFonts.outfit(
+                          fontSize: 9.5,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     '${lastRead.book.name} ${lastRead.chapter == 0 ? "(Introdução)" : lastRead.chapter}',
                     style: GoogleFonts.outfit(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     '${lastRead.metadata.name} • Baixe para ler',
                     style: GoogleFonts.outfit(
-                      fontSize: 12,
+                      fontSize: 11.5,
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     maxLines: 1,
@@ -862,7 +865,7 @@ class CommentarySelectionScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             if (isDownloading)
               SizedBox(
                 width: 24,
@@ -879,7 +882,8 @@ class CommentarySelectionScreen extends ConsumerWidget {
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.black,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  visualDensity: VisualDensity.compact,
                 ),
                 onPressed: () async {
                   try {
@@ -906,9 +910,11 @@ class CommentarySelectionScreen extends ConsumerWidget {
                   }
                 },
                 icon: const Icon(Icons.download_rounded, size: 14),
-                label: Text('Baixar', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold)),
+                label: Text('Baixar', style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.bold)),
               ),
             IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               icon: Icon(
                 Icons.close_rounded,
                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),

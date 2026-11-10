@@ -299,8 +299,9 @@ ${widget.devocional.content}
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final bottomPadding = bottomInset + 40.0;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    return SelectionArea(
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
@@ -652,6 +653,7 @@ ${widget.devocional.content}
           ),
         ),
       ),
+    ),
     );
   }
 

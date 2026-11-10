@@ -419,12 +419,13 @@ class InstagramTabletSidebar extends ConsumerWidget {
     final bgColor = isDark ? const Color(0xFF101018) : Colors.white;
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
 
-    final sidebarWidget = SizedBox(
-      width: sidebarWidth + 14.0,
-      height: double.infinity,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
+    final sidebarWidget = SelectionContainer.disabled(
+      child: SizedBox(
+        width: sidebarWidth + 14.0,
+        height: double.infinity,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
           // Barra lateral com animação de largura suave
           RepaintBoundary(
             child: AnimatedContainer(
@@ -703,7 +704,8 @@ class InstagramTabletSidebar extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
 
     if (body == null) {
       return sidebarWidget;
@@ -1081,6 +1083,8 @@ class InstagramTabletSidebar extends ConsumerWidget {
             context,
             MaterialPageRoute(builder: (_) => const GuideScreen()),
           );
+        } else if (val == 'shortcuts') {
+          showKeyboardShortcutsModal(context);
         } else if (val == 'logout') {
           _handleLogout(context, ref);
         }
@@ -1103,6 +1107,16 @@ class InstagramTabletSidebar extends ConsumerWidget {
               Icon(Icons.account_circle_outlined, size: 20),
               SizedBox(width: 12),
               Text('Editar Perfil'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'shortcuts',
+          child: Row(
+            children: [
+              Icon(Icons.keyboard_outlined, size: 20),
+              SizedBox(width: 12),
+              Text('Atalhos de Teclado (?)'),
             ],
           ),
         ),

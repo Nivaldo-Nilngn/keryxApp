@@ -143,6 +143,7 @@ class FontSettingsNotifier extends StateNotifier<FontSettings> {
   }
 
   void resetToDefault() async {
+    GoogleFonts.setGlobalFontFamilyOverride('Inter');
     state = FontSettings(fontFamily: 'Inter', fontSize: 16.0);
     await prefs.setString('bible_font_family', 'Inter');
     await prefs.setDouble('bible_font_size', 16.0);

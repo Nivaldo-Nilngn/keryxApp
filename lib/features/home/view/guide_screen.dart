@@ -166,7 +166,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
               child: Text(
                 'Seu guia para aproveitar cada ferramenta.',
                 style: GoogleFonts.outfit(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   fontSize: 16,
                 ),
               ),
@@ -180,11 +180,11 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
                   ),
                   boxShadow: isDark ? [] : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -194,9 +194,9 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
                   onChanged: (value) => setState(() => _searchQuery = value),
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                   decoration: InputDecoration(
-                    icon: Icon(Icons.search_rounded, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                    icon: Icon(Icons.search_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
                     hintText: 'Buscar no guia',
-                    hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
+                    hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
                     border: InputBorder.none,
                   ),
                 ),
@@ -292,8 +292,8 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
     // Configurações baseadas no tema para evitar dourado no branco e criar efeito 3D
     final iconColor = isDark ? (item['color'] as Color) : Theme.of(context).colorScheme.primary;
     final iconBgColor = isDark 
-        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.05)
-        : Theme.of(context).colorScheme.primary.withOpacity(0.1);
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05)
+        : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1);
         
     final cardColor = Theme.of(context).cardColor;
     
@@ -308,20 +308,20 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isDark
-                ? (isExpanded ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.03))
-                : Colors.black.withOpacity(0.05),
+                ? (isExpanded ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.03))
+                : Colors.black.withValues(alpha: 0.05),
           ),
           boxShadow: isDark
               ? [] // No escuro, mantém sutil
               : [
                   // No claro, efeito 3D em destaque
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 15,
                     offset: const Offset(0, 8),
                   ),
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     blurRadius: 10,
                     offset: const Offset(-2, -2),
                   ),
@@ -382,7 +382,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
                         child: Text(
                           step,
                           style: GoogleFonts.outfit(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                             fontSize: 15,
                             height: 1.5,
                           ),
@@ -399,8 +399,8 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
                   onPressed: item['onTap'] as VoidCallback,
                   style: TextButton.styleFrom(
                     backgroundColor: isDark 
-                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.05)
-                        : Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05)
+                        : Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

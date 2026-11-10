@@ -859,6 +859,7 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
       });
       
       _controller.clear();
+      if (!mounted) return;
       FocusScope.of(context).unfocus();
     } catch (e) {
       // Falha silenciosa ou log
@@ -873,7 +874,7 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
     final editController = TextEditingController(text: comment['text']);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: Text('Editar Comentário', style: GoogleFonts.outfit()),
         content: TextField(
           controller: editController,
@@ -881,18 +882,18 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
           decoration: InputDecoration(
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Theme.of(context).colorScheme.surfaceContainer,
+            fillColor: Theme.of(dialogCtx).colorScheme.surfaceContainer,
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text('Cancelar', style: GoogleFonts.outfit()),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              backgroundColor: Theme.of(dialogCtx).colorScheme.primary,
+              foregroundColor: Theme.of(dialogCtx).colorScheme.onPrimary,
             ),
             onPressed: () async {
               if (editController.text.trim().isNotEmpty) {
@@ -900,7 +901,7 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
                   'text': editController.text.trim(),
                   'editedAt': FieldValue.serverTimestamp(),
                 });
-                if (mounted) Navigator.pop(context);
+                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
               }
             },
             child: Text('Salvar', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),

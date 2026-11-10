@@ -108,7 +108,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   double _zoomLevel = 1.0;
   bool _didInitView = false;
   bool _isGeneratingPdf = false;
-  Color _quoteColor = const Color(0xFFF9A826); // Amarelo vibrante padrão
+  final Color _quoteColor = const Color(0xFFF9A826); // Amarelo vibrante padrão
   bool _isPublic = false;
   bool _isEditing = true;
   bool _showBars = true;
@@ -306,9 +306,10 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
       await file.writeAsBytes(await pdfDocument.save());
 
       if (mounted) {
-        Share.shareXFiles([
-          XFile(file.path),
-        ], text: 'Aqui está o meu estudo: $title');
+        SharePlus.instance.share(ShareParams(
+          files: [XFile(file.path)],
+          text: 'Aqui está o meu estudo: $title',
+        ));
       }
     } catch (e) {
       if (mounted) {
@@ -527,7 +528,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   void _shareNote() {
     final text = _quillController.getPlainText();
     final title = _titleCtrl.text.trim().isNotEmpty ? _titleCtrl.text.trim() : 'Estudo Bíblico';
-    Share.share(text, subject: title);
+    SharePlus.instance.share(ShareParams(text: text, subject: title));
   }
 
   Future<void> _insertBibleVerse() async {

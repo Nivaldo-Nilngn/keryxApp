@@ -395,7 +395,7 @@ class BibleService {
           }
         }
       } catch (e) {
-        print("Erro ao tentar buscar MAX(chapter): $e");
+        debugPrint("Erro ao tentar buscar MAX(chapter): $e");
       }
     }
 
@@ -457,7 +457,7 @@ class BibleService {
             count = res.first['max_c'] as int;
           }
         } catch (e) {
-          print("Erro ao tentar buscar MAX(chapter): $e");
+          debugPrint("Erro ao tentar buscar MAX(chapter): $e");
         }
       }
     }
@@ -614,7 +614,7 @@ class BibleService {
           return chapterObj;
         }
       } catch (e) {
-        print("Erro na query SQLite: $e. Tentando Cloudflare.");
+        debugPrint("Erro na query SQLite: $e. Tentando Cloudflare.");
       }
     }
 
@@ -683,7 +683,7 @@ class BibleService {
 
         return {'verses': results, 'total': results.length};
       } catch (e) {
-        print("Erro na busca SQLite: $e");
+        debugPrint("Erro na busca SQLite: $e");
       }
     }
 
@@ -692,7 +692,7 @@ class BibleService {
       final results = await _searchCloudflare(version, query);
       if (results != null) return results;
     } catch (e) {
-      print("Erro na busca Cloudflare: $e");
+      debugPrint("Erro na busca Cloudflare: $e");
     }
 
     return {'verses': [], 'total': 0};
@@ -874,7 +874,7 @@ class BibleService {
         return {'verses': mapped, 'total': mapped.length};
       }
     } catch (e) {
-      print("Worker Error (search): $e");
+      debugPrint("Worker Error (search): $e");
     }
     return null;
   }
@@ -941,7 +941,7 @@ class BibleService {
           }
         }
       } catch (e) {
-        print("Erro ao pegar verso aleatório no SQLite: $e");
+        debugPrint("Erro ao pegar verso aleatório no SQLite: $e");
       }
     }
 
@@ -969,7 +969,7 @@ class BibleService {
         }
       }
     } catch (e) {
-      print("Worker Error (getRandom): $e");
+      debugPrint("Worker Error (getRandom): $e");
     }
 
     // 3. Fallback Final
@@ -1131,7 +1131,7 @@ class BibleService {
           cloudCom; // Cacheia mesmo se for null para evitar retry
       return cloudCom;
     } catch (e) {
-      print("Erro ao buscar comentário na Cloud ($versionId): $e");
+      debugPrint("Erro ao buscar comentário na Cloud ($versionId): $e");
     }
     return null;
   }
@@ -1202,7 +1202,7 @@ class BibleService {
           }
         }
       } catch (e) {
-        print("Erro ao buscar livros comentados (Worker): $e");
+        debugPrint("Erro ao buscar livros comentados (Worker): $e");
       }
     }
     return {};
@@ -1222,7 +1222,7 @@ class BibleService {
         return results.map((r) => (r['source_id'] ?? '').toString()).toList();
       }
     } catch (e) {
-      print("Erro ao buscar sources na Cloud: $e");
+      debugPrint("Erro ao buscar sources na Cloud: $e");
     }
     return [];
   }
@@ -1523,7 +1523,7 @@ class BibleService {
         return data['result']?['data'] as String?;
       }
     } catch (e) {
-      print("Worker Error (getDictionary): $e");
+      debugPrint("Worker Error (getDictionary): $e");
     }
     return null;
   }
@@ -1562,7 +1562,7 @@ class BibleService {
         }
       }
     } catch (e) {
-      print("Erro ao buscar lista de dicionário na Cloud: $e");
+      debugPrint("Erro ao buscar lista de dicionário na Cloud: $e");
     }
 
     // 2. Fallback para Local
@@ -1603,7 +1603,7 @@ class BibleService {
         }
       }
     } catch (e) {
-      print("Erro ao buscar no dicionário na Cloud: $e");
+      debugPrint("Erro ao buscar no dicionário na Cloud: $e");
     }
 
     // 2. Fallback para Local
@@ -1640,7 +1640,7 @@ class BibleService {
         if (count is String) return int.tryParse(count) ?? 0;
       }
     } catch (e) {
-      print("Erro ao contar termos na Cloud: $e");
+      debugPrint("Erro ao contar termos na Cloud: $e");
     }
 
     // 2. Fallback para Local
@@ -1672,7 +1672,7 @@ class BibleService {
         return ids.map((id) => {'id': id}).toList();
       }
     } catch (e) {
-      print("Worker Error (getXRefs): $e");
+      debugPrint("Worker Error (getXRefs): $e");
     }
     return [];
   }

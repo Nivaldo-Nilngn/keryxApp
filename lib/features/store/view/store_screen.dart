@@ -131,6 +131,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     );
 
     if (confirm != true) return;
+    if (!mounted) return;
 
     setState(() {
       _isSelectionMode = false;

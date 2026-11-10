@@ -22,7 +22,6 @@ import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/core/utils/bible_text_parser.dart';
 import 'package:keryx_app/core/utils/keryx_color_contrast.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:keryx_app/features/bible/strong/view/strong_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/reading/view/text_settings_bottom_sheet.dart';
@@ -31,6 +30,7 @@ import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/study/view/study_hub_panel.dart';
 import 'package:keryx_app/features/study/view/cross_references_screen.dart';
 import 'package:keryx_app/features/bible/reading/view/verse_comparison_screen.dart';
+import 'package:keryx_app/features/bible/reading/view/verse_story_editor_screen.dart';
 import 'package:keryx_app/features/study/view/annotations_screen.dart'
     as keryx_annotations;
 import 'package:keryx_app/features/study/view/favorites_screen.dart'
@@ -38,6 +38,8 @@ import 'package:keryx_app/features/study/view/favorites_screen.dart'
 import 'package:keryx_app/features/bible/reading/providers/reading_state_provider.dart';
 import 'package:keryx_app/core/services/tts/tts_player_provider.dart';
 import 'package:keryx_app/features/bible/view/tts_settings_sheet.dart' as keryx_tts;
+import 'package:keryx_app/core/state/nav_bar_style_provider.dart';
+import 'package:keryx_app/core/state/reading_audio_bar_provider.dart';
 
 import 'package:keryx_app/features/bible/view/tts_settings_sheet.dart' show continuousReadingProvider;
 
@@ -238,6 +240,9 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       versesText.add(plainText.isNotEmpty ? plainText : " ");
     }
 
+    // Garante que o player de áudio fique visível durante a reprodução
+    ref.read(showReadingAudioBarProvider.notifier).setVisible(true);
+
     await ttsPlayer.playChapter(
       _currentBook.id.toString(),
       _currentBook.name,
@@ -345,7 +350,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final readingSelection = ref.watch(readingSelectionProvider);
     final selectedVerses = readingSelection.selectedVerses;
     final hasSelection = selectedVerses.isNotEmpty;
-    final isNavbarVisible = ref.watch(navbarVisibleProvider) && !hasSelection;
+    final navBarStyle = ref.watch(navBarStyleProvider);
+    final isFloatingNavBar = navBarStyle == NavBarStyle.floating;
+    final isNavbarEffectiveVisible = isFloatingNavBar
+        ? (ref.watch(navbarVisibleProvider) && !hasSelection)
+        : !hasSelection;
+    final showAudioBar = ref.watch(showReadingAudioBarProvider);
     final highlightVerseSetting = ref.watch(keryx_tts.highlightVerseProvider);
 
     // Seletor fino de áudio: a tela inteira só rebuilda quando o número do versículo ativo mudar
@@ -451,7 +461,11 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
 
                 final bottomSafeArea = MediaQuery.of(context).padding.bottom;
                 // Calculado dinamicamente para manter o botão de paginação e versículos sempre acima da navbar e painel de áudio
-                final bottomScrollPadding = (isNavbarVisible ? (72.0 + 24.0 + 76.0) : 76.0) + bottomSafeArea + 40.0;
+                final navBarHeight = (isNavbarEffectiveVisible && !isTablet)
+                    ? (isFloatingNavBar ? 88.0 : 70.0)
+                    : 0.0;
+                final audioBarHeight = showAudioBar ? (isFloatingNavBar ? 68.0 : 58.0) : 0.0;
+                final bottomScrollPadding = navBarHeight + audioBarHeight + bottomSafeArea + 32.0;
 
                 return MediaQuery(
                   data: MediaQuery.of(context).copyWith(
@@ -544,29 +558,44 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                 orElse: () => const SizedBox.shrink(),
               ),
 
-            // Navbar Fixa no Rodapé
+            // Navbar Fixa no Rodapé e Player de Áudio
             Align(
               alignment: Alignment.bottomCenter,
               child: Stack(
                 alignment: Alignment.bottomCenter,
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                    padding: EdgeInsets.only(
-                      bottom: (isNavbarVisible && !isTablet)
-                          ? (72.0 + 24.0 + MediaQuery.of(context).padding.bottom)
-                          : MediaQuery.of(context).padding.bottom,
+                  if (showAudioBar)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      padding: EdgeInsets.only(
+                        bottom: (isNavbarEffectiveVisible && !isTablet)
+                            ? (isFloatingNavBar
+                                ? (88.0 + MediaQuery.of(context).padding.bottom + 6.0)
+                                : (66.0 + MediaQuery.of(context).padding.bottom))
+                            : MediaQuery.of(context).padding.bottom,
+                      ),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.light
+                            ? Colors.white
+                            : const Color(0xFF161B2B),
+                        border: !isFloatingNavBar
+                            ? Border(
+                                top: BorderSide(
+                                  color: Theme.of(context).brightness == Brightness.light
+                                      ? const Color(0xFFE2E8F0)
+                                      : Colors.white.withValues(alpha: 0.08),
+                                  width: 1,
+                                ),
+                              )
+                            : null,
+                      ),
+                      child: asyncChapter.maybeWhen(
+                        data: (chapter) => _buildAudioController(chapter, isFixed: !isFloatingNavBar),
+                        orElse: () => const SizedBox.shrink(),
+                      ),
                     ),
-                    width: double.infinity,
-                    color: Theme.of(context).brightness == Brightness.light
-                        ? Colors.white
-                        : const Color(0xFF161B2B),
-                    child: asyncChapter.maybeWhen(
-                      data: (chapter) => _buildAudioController(chapter),
-                      orElse: () => const SizedBox.shrink(),
-                    ),
-                  ),
                   if (!isTablet)
                     BookDetailBottomNav(
                       currentIndex: 1,
@@ -623,6 +652,67 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                 ],
               ),
             ),
+
+            // Mini Botão Flutuante para reabrir o áudio quando estiver recolhido
+            if (!showAudioBar && !isTablet && !hasSelection)
+              Positioned(
+                right: 16,
+                bottom: (isNavbarEffectiveVisible)
+                    ? (isFloatingNavBar
+                        ? (88.0 + MediaQuery.of(context).padding.bottom + 12.0)
+                        : (70.0 + MediaQuery.of(context).padding.bottom + 12.0))
+                    : (MediaQuery.of(context).padding.bottom + 16.0),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutBack,
+                  builder: (context, scale, child) {
+                    return Transform.scale(
+                      scale: scale,
+                      child: child,
+                    );
+                  },
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(24),
+                      onTap: () {
+                        ref.read(showReadingAudioBarProvider.notifier).setVisible(true);
+                      },
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.light
+                              ? Colors.white
+                              : const Color(0xFF1C2236),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.kPrimaryGold.withValues(alpha: 0.6),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: Theme.of(context).brightness == Brightness.light
+                                    ? 0.14
+                                    : 0.4,
+                              ),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.headphones_rounded,
+                          color: AppTheme.kPrimaryGold,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       );
@@ -691,21 +781,74 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
       (v) => v.number == firstVerseNum,
     );
 
+    final activeVersion = ref.read(selectedVersionProvider);
+    final String referenceText;
+    if (versesText.length == 1) {
+      referenceText = '${_currentBook.name} $_currentChapter:${versesText.first} ($activeVersion)';
+    } else {
+      referenceText = '${_currentBook.name} $_currentChapter:${versesText.first}-${versesText.last} ($activeVersion)';
+    }
+
+    final storyVerseText = versesText
+        .map((vNum) {
+          final v = chapter.verses.firstWhere((v) => v.number == vNum);
+          return BibleTextParser.cleanToPlainText(v.text, subVersionFilter: _selectedSubVersion);
+        })
+        .join(' ');
+
     final actions = <({IconData icon, String label, VoidCallback onTap})>[
+      (
+        icon: Icons.photo_camera_back_rounded,
+        label: 'Compartilhar',
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VerseStoryEditorScreen(
+                verseText: storyVerseText.isNotEmpty ? storyVerseText : textForCopy,
+                reference: referenceText,
+              ),
+            ),
+          );
+        },
+      ),
+      (
+        icon: Icons.copy_rounded,
+        label: 'Copiar',
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: textForCopy));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text('Versículo(s) copiado(s)!'),
+            ),
+          );
+        },
+      ),
+      (
+        icon: Icons.bookmark_border_rounded,
+        label: 'Marcar',
+        onTap: () => _showHighlightColorsSheet(versesText),
+      ),
+      (
+        icon: Icons.edit_note_rounded,
+        label: 'Anotar',
+        onTap: () => _showCommentarySheet(initialTab: 1),
+      ),
       (
         icon: Icons.auto_awesome,
         label: 'Estudar',
         onTap: () => _showCommentarySheet(initialTab: 0),
       ),
       (
-        icon: Icons.alt_route_rounded,
-        label: 'Referências',
-        onTap: () => _showCrossReferencesSheet(firstVerse),
-      ),
-      (
         icon: Icons.layers_outlined,
         label: 'Comparar',
         onTap: () => _showComparisonSheet(versesText),
+      ),
+      (
+        icon: Icons.alt_route_rounded,
+        label: 'Referências',
+        onTap: () => _showCrossReferencesSheet(firstVerse),
       ),
       (
         icon: Icons.favorite_border_rounded,
@@ -718,43 +861,29 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
           ref.read(readingSelectionProvider.notifier).clearSelection();
         },
       ),
-      (
-        icon: Icons.bookmark_border_rounded,
-        label: 'Marcar',
-        onTap: () => _showHighlightColorsSheet(versesText),
-      ),
-      (
-        icon: Icons.edit_note,
-        label: 'Anotar',
-        onTap: () => _showCommentarySheet(initialTab: 1),
-      ),
-      (
-        icon: Icons.copy,
-        label: 'Copiar',
-        onTap: () {
-          Clipboard.setData(ClipboardData(text: textForCopy));
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Copiado!')));
-        },
-      ),
-      (
-        icon: Icons.share,
-        label: 'Compartilhar',
-        onTap: () => Share.share(textForCopy),
-      ),
     ];
 
-    return Positioned(
-      bottom: 90,
-      left: 16,
-      right: 16,
+    final bottomSafe = MediaQuery.paddingOf(context).bottom;
+    final showAudioBar = ref.watch(showReadingAudioBarProvider);
+    final navBarStyle = ref.watch(navBarStyleProvider);
+    final isFloatingNavBar = navBarStyle == NavBarStyle.floating;
+    final double audioBarHeight = isFloatingNavBar ? 64.0 : 54.0;
+    final double toolkitBottom = showAudioBar
+        ? (audioBarHeight + bottomSafe + 8.0)
+        : (bottomSafe > 0 ? (bottomSafe + 10.0) : 14.0);
+
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+      bottom: toolkitBottom,
+      left: 12,
+      right: 12,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 860),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            padding: const EdgeInsets.symmetric(vertical: 11),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(24),
@@ -883,11 +1012,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                     } else {
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Row(
                           children: actions.map((item) {
                             return SizedBox(
-                              width: 78,
+                              width: 70,
                               child: _buildFloatingAction(
                                 item.icon,
                                 item.label,
@@ -1138,23 +1268,34 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.menu_book_rounded,
-                    color: isLight ? const Color(0xFF4F46E5) : const Color(0xFF818CF8),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Selecione a Versão Bíblica:',
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.7),
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.menu_book_rounded,
+                          color: isLight ? const Color(0xFF4F46E5) : const Color(0xFF818CF8),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Versão Bíblica:',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
@@ -1163,7 +1304,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
+                        horizontal: 8,
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
@@ -1179,7 +1320,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                           Icon(
                             Icons.settings_outlined,
                             color: settingsBtnColor,
-                            size: 15,
+                            size: 14,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -1193,6 +1334,57 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                         ],
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 6),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final showAudio = ref.watch(showReadingAudioBarProvider);
+                      final isPlaying = ref.watch(ttsPlayerProvider.select((s) => s.isPlaying));
+                      final audioBtnColor = isPlaying
+                          ? AppTheme.kPrimaryGold
+                          : (showAudio ? settingsBtnColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6));
+
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          ref.read(showReadingAudioBarProvider.notifier).toggle();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: audioBtnColor.withValues(alpha: isLight ? 0.12 : 0.16),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: audioBtnColor.withValues(alpha: isLight ? 0.25 : 0.45),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isPlaying
+                                    ? Icons.volume_up_rounded
+                                    : (showAudio ? Icons.headphones_rounded : Icons.headphones_outlined),
+                                color: audioBtnColor,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                showAudio ? 'Áudio' : 'Ouvir',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: audioBtnColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1901,7 +2093,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     );
   }
 
-  Widget _buildAudioController(BibleChapter chapter) {
+  Widget _buildAudioController(BibleChapter chapter, {bool isFixed = false}) {
     return Consumer(
       builder: (context, ref, child) {
         final ttsState = ref.watch(ttsPlayerProvider);
@@ -1916,7 +2108,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
         return Container(
           width: double.infinity,
           color: Colors.transparent,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          padding: EdgeInsets.fromLTRB(16, isFixed ? 6 : 12, 16, isFixed ? 4 : 10),
       child: Row(
         children: [
           // Play/Pause Button
@@ -1943,7 +2135,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               }
             },
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: isLight ? Colors.grey[200] : const Color(0xFF2C2C2E),
                 shape: BoxShape.circle,
@@ -1951,11 +2143,11 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               child: Icon(
                 isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 color: isLight ? Colors.black87 : Colors.white,
-                size: 24,
+                size: 22,
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 10),
           // Chapter navigation pill
           Expanded(
             child: Container(
@@ -1978,10 +2170,11 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                       }
                     },
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       child: Icon(
                         Icons.skip_previous_rounded,
                         color: isLight ? Colors.black87 : Colors.white,
+                        size: 20,
                       ),
                     ),
                   ),
@@ -2004,10 +2197,12 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                           return Text(
                             displayText,
                             textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.outfit(
                               color: isLight ? Colors.black87 : Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 15,
                             ),
                           );
                         }
@@ -2026,10 +2221,11 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                       }
                     },
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       child: Icon(
                         Icons.skip_next_rounded,
                         color: isLight ? Colors.black87 : Colors.white,
+                        size: 20,
                       ),
                     ),
                   ),
@@ -2037,27 +2233,64 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           // Botão de Configurações de Voz
-          GestureDetector(
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => const keryx_tts.TtsSettingsSheet(),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isLight ? Colors.grey[200] : const Color(0xFF2C2C2E),
-                shape: BoxShape.circle,
+          Tooltip(
+            message: 'Configurações de voz (TTS)',
+            child: GestureDetector(
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const keryx_tts.TtsSettingsSheet(),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isLight ? Colors.grey[200] : const Color(0xFF2C2C2E),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.settings_voice_rounded,
+                  color: isLight ? Colors.black87 : Colors.white,
+                  size: 19,
+                ),
               ),
-              child: Icon(
-                Icons.settings_voice_rounded,
-                color: isLight ? Colors.black87 : Colors.white,
-                size: 20,
+            ),
+          ),
+          const SizedBox(width: 6),
+          // Botão de Minimizar/Ocultar Player de Áudio
+          Tooltip(
+            message: 'Ocultar player de áudio',
+            child: GestureDetector(
+              onTap: () {
+                ref.read(showReadingAudioBarProvider.notifier).setVisible(false);
+                ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: isLight ? const Color(0xFF1F2937) : const Color(0xFF232738),
+                    content: const Text(
+                      'Player de áudio oculto. Toque no ícone de fone para reabrir.',
+                      style: TextStyle(fontSize: 13, color: Colors.white),
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isLight ? Colors.grey[200] : const Color(0xFF2C2C2E),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: isLight ? Colors.black87 : Colors.white70,
+                  size: 20,
+                ),
               ),
             ),
           ),

@@ -184,6 +184,7 @@ class _StudyLessonScreenState extends ConsumerState<StudyLessonScreen> {
                         lessonIndex: widget.lesson.lessonIndex,
                         totalLessons: widget.totalLessons,
                       );
+                      if (!context.mounted) return;
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Parabéns! Aula concluída. 🔥')),

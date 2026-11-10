@@ -13,6 +13,12 @@ analyzer:
     - android/**
     - web/**
     - linux/**
+    - _arquivados/**
+    - scratch/**
+    - scripts/**
+    - tdlib_local/**
+    - parse_devocional.dart
+    - test_url.dart
 include: package:flutter_lints/flutter.yaml
 
 linter:

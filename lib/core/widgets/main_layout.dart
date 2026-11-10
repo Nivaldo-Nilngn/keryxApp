@@ -94,15 +94,16 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         if (didPop) return;
         ref.read(navigationProvider.notifier).goBack();
       },
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: (isTablet || currentIndex == 5 || currentIndex == 6)
-          ? null
-          : MBibliaTopBar(
-              title: _getTitle(currentIndex),
-              showLogo: _showLogo(currentIndex),
-              showBackButton: false,
-            ),
+      child: SelectionArea(
+        child: Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: (isTablet || currentIndex == 5 || currentIndex == 6)
+            ? null
+            : MBibliaTopBar(
+                title: _getTitle(currentIndex),
+                showLogo: _showLogo(currentIndex),
+                showBackButton: false,
+              ),
         body: isTablet
           ? InstagramTabletSidebar(
               currentIndex: currentIndex,
@@ -171,6 +172,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                 ),
               ),
             ),
+        ),
       ),
     );
   }

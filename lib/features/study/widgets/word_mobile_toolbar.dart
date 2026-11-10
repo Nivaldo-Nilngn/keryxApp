@@ -837,7 +837,7 @@ class _WordMobileLowerRibbonState extends State<WordMobileLowerRibbon> {
             style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey),
           ),
           value: widget.isMobileView,
-          activeColor: WordMobileTheme.primaryBlue,
+          activeThumbColor: WordMobileTheme.primaryBlue,
           onChanged: (_) => widget.onToggleViewMode(),
         ),
         const Divider(),

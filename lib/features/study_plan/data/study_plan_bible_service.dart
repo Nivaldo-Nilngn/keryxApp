@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,9 +27,13 @@ class StudyVerse {
 class StudyPlanBibleService {
   final DatabaseService _dbService;
   final Map<String, List<StudyVerse>> _versesCache = {};
+  final Set<int> _prefetchedDays = {};
+  bool _isPrefetching = false;
 
   StudyPlanBibleService({DatabaseService? dbService})
       : _dbService = dbService ?? DatabaseService();
+
+  bool isDayPrefetched(int day) => _prefetchedDays.contains(day);
 
   String _passagesKey(List<Passage> passages) {
     return passages
@@ -94,26 +99,41 @@ class StudyPlanBibleService {
   Future<void> prefetchUpcomingDays(
     PlanIndex planIndex,
     int currentDay, {
-    int daysAhead = 3,
+    int daysAhead = 2,
   }) async {
-    for (int i = 0; i <= daysAhead; i++) {
-      final targetDay = currentDay + i;
-      if (targetDay >= 1 && targetDay <= planIndex.totalDays) {
-        final planDay = planIndex.dayAt(targetDay);
-        final key = _passagesKey(planDay.passages);
-        if (!_versesCache.containsKey(key)) {
-          try {
-            await loadPassagesVerses(planDay.passages);
-          } catch (_) {
-            // Falha silenciosa no prefetch para não interromper a interface
+    if (_isPrefetching) return;
+    // No Web, evitar prefetch em lote massivo que bloqueia o thread principal
+    if (kIsWeb) {
+      daysAhead = 0;
+    }
+    _isPrefetching = true;
+    try {
+      for (int i = 0; i <= daysAhead; i++) {
+        final targetDay = currentDay + i;
+        if (_prefetchedDays.contains(targetDay)) continue;
+        if (targetDay >= 1 && targetDay <= planIndex.totalDays) {
+          final planDay = planIndex.dayAt(targetDay);
+          final key = _passagesKey(planDay.passages);
+          if (!_versesCache.containsKey(key)) {
+            try {
+              await loadPassagesVerses(planDay.passages);
+              _prefetchedDays.add(targetDay);
+            } catch (_) {
+              // Falha silenciosa no prefetch para não interromper a interface
+            }
+          } else {
+            _prefetchedDays.add(targetDay);
           }
         }
       }
+    } finally {
+      _isPrefetching = false;
     }
   }
 
   void clearCache() {
     _versesCache.clear();
+    _prefetchedDays.clear();
   }
 }
 

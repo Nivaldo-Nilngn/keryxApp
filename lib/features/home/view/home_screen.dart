@@ -616,14 +616,18 @@ class _HomeMainTools extends ConsumerWidget {
             }
             final width = constraints.maxWidth;
             final int crossAxisCount = width >= 1000 ? 4 : (width >= 620 ? 3 : 2);
+            final textScaler = MediaQuery.textScalerOf(context);
+            final scaleFactor = textScaler.scale(1.0);
+            final double cardHeight = (160.0 * (scaleFactor > 1.0 ? (1.0 + (scaleFactor - 1.0) * 0.4) : 1.0)).clamp(155.0, 195.0);
+
             return GridView(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
-                mainAxisExtent: 98,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+                mainAxisExtent: cardHeight,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
               ),
               children: [
                 _buildToolCard(
@@ -635,8 +639,8 @@ class _HomeMainTools extends ConsumerWidget {
                   badge: _buildBadge(
                     'IA',
                     Icons.auto_awesome_rounded,
-                    const Color(0xFF7C3AED).withValues(alpha: 0.18),
-                    const Color(0xFFA855F7),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.white,
                   ),
                   onTap: () {
                     ref.read(navigationProvider.notifier).setIndex(1); // Bíblia
@@ -666,8 +670,8 @@ class _HomeMainTools extends ConsumerWidget {
                   badge: _buildBadge(
                     'Novo',
                     null,
-                    const Color(0xFF059669).withValues(alpha: 0.18),
-                    const Color(0xFF10B981),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.white,
                   ),
                   onTap: () {
                     ref.read(navigationProvider.notifier).setIndex(2); // Comentários
@@ -682,8 +686,8 @@ class _HomeMainTools extends ConsumerWidget {
                   badge: _buildBadge(
                     'Novidade',
                     null,
-                    const Color(0xFFEA580C).withValues(alpha: 0.18),
-                    const Color(0xFFF97316),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.white,
                   ),
                   onTap: () {
                     ref.read(navigationProvider.notifier).setIndex(4); // Favoritos
@@ -691,15 +695,15 @@ class _HomeMainTools extends ConsumerWidget {
                 ),
                 _buildToolCard(
                   context,
-                  title: 'Anotações',
-                  subtitle: 'Cadernos e estudos',
+                  title: 'Minhas Anotações',
+                  subtitle: 'Cadernos e estudos pessoais',
                   icon: Icons.note_alt_rounded,
                   colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
                   badge: _buildBadge(
                     'Novidade',
                     null,
-                    const Color(0xFFD97706).withValues(alpha: 0.18),
-                    const Color(0xFFF59E0B),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.white,
                   ),
                   onTap: () {
                     ref.read(navigationProvider.notifier).setIndex(3); // Anotações
@@ -708,14 +712,14 @@ class _HomeMainTools extends ConsumerWidget {
                 _buildToolCard(
                   context,
                   title: 'Comunidade',
-                  subtitle: 'Feed de Fé e Oração',
+                  subtitle: 'Feed de Fé, Stories e Oração',
                   icon: Icons.people_alt_rounded,
                   colors: const [Color(0xFF4F46E5), Color(0xFF7C3AED)],
                   badge: _buildBadge(
                     'Novo',
                     null,
-                    const Color(0xFF4F46E5).withValues(alpha: 0.18),
-                    const Color(0xFF818CF8),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.white,
                   ),
                   onTap: () {
                     ref.read(navigationProvider.notifier).setIndex(6); // Comunidade
@@ -723,15 +727,15 @@ class _HomeMainTools extends ConsumerWidget {
                 ),
                 _buildToolCard(
                   context,
-                  title: 'Dicionário',
-                  subtitle: '8.362 termos bíblicos',
+                  title: 'Dicionário e Concordância',
+                  subtitle: '8.362 termos e definições',
                   icon: Icons.auto_stories_rounded,
                   colors: const [Color(0xFF059669), Color(0xFF10B981)],
                   badge: _buildBadge(
                     'Novo',
                     null,
-                    const Color(0xFF059669).withValues(alpha: 0.18),
-                    const Color(0xFF10B981),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.white,
                   ),
                   onTap: () {
                     Navigator.push(
@@ -742,15 +746,15 @@ class _HomeMainTools extends ConsumerWidget {
                 ),
                 _buildToolCard(
                   context,
-                  title: 'IATheos',
+                  title: 'IATheos Teologia',
                   subtitle: 'Inteligência Artificial Teológica',
                   icon: Icons.auto_awesome_rounded,
                   colors: const [Color(0xFF7C3AED), Color(0xFF9333EA)],
                   badge: _buildBadge(
                     'IA',
                     Icons.auto_awesome_rounded,
-                    const Color(0xFF7C3AED).withValues(alpha: 0.18),
-                    const Color(0xFFA855F7),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.white,
                   ),
                   onTap: () {
                     Navigator.push(
@@ -762,14 +766,14 @@ class _HomeMainTools extends ConsumerWidget {
                 _buildToolCard(
                   context,
                   title: 'Plano de Estudo',
-                  subtitle: 'Cronológico em 1 ano',
+                  subtitle: 'Leitura bíblica cronológica em 1 ano',
                   icon: Icons.calendar_month_rounded,
                   colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
                   badge: _buildBadge(
                     'Novo',
                     null,
-                    const Color(0xFF0284C7).withValues(alpha: 0.18),
-                    const Color(0xFF38BDF8),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.white,
                   ),
                   onTap: () {
                     Navigator.push(
@@ -882,14 +886,14 @@ class _HomeHarpaCard extends ConsumerWidget {
       return _buildToolCard(
         context,
         title: 'Harpa Cristã',
-        subtitle: '640 hinos de louvor',
+        subtitle: '640 hinos e cânticos de louvor',
         icon: Icons.music_note_rounded,
         colors: const [Color(0xFFB45309), Color(0xFFF59E0B)],
         badge: _buildBadge(
-          '640',
+          '640 Hinos',
           Icons.music_note_rounded,
-          const Color(0xFFD97706).withValues(alpha: 0.18),
-          const Color(0xFFF59E0B),
+          Colors.black.withValues(alpha: 0.25),
+          Colors.white,
         ),
         onTap: () {
           Navigator.push(
@@ -943,120 +947,38 @@ class _HomeHarpaCard extends ConsumerWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1B1E2B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: isDark
+                ? const [Color(0xFF232530), Color(0xFF191B22)]
+                : const [Color(0xFFF1F3F5), Color(0xFFE2E8F0)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.12)
-                : Colors.black.withValues(alpha: 0.1),
+                : Colors.black.withValues(alpha: 0.12),
             width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Topo direito: (Badge Baixar/Progresso + botão X)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isDownloading)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.kPrimaryGold.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(
-                            width: 8,
-                            height: 8,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.8,
-                              color: AppTheme.kPrimaryGold,
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${(downloadProgress * 100).toInt()}%',
-                            style: const TextStyle(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.kPrimaryGold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.black.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.download_rounded,
-                            size: 10,
-                            color: isDark ? Colors.white70 : const Color(0xFF475569),
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            'Baixar',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white70 : const Color(0xFF475569),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onDismiss,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.black.withValues(alpha: 0.06),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 11,
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Conteúdo do card
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Topo: Ícone à esquerda + (Badge Baixar + botão X) à direita
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 32,
@@ -1071,12 +993,106 @@ class _HomeHarpaCard extends ConsumerWidget {
                     child: Icon(
                       Icons.music_note_rounded,
                       color: isDark
-                          ? Colors.white.withValues(alpha: 0.8)
+                          ? Colors.white.withValues(alpha: 0.7)
                           : const Color(0xFF475569),
-                      size: 18,
+                      size: 20,
                     ),
                   ),
                 ),
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isDownloading)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.kPrimaryGold.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(
+                                width: 8,
+                                height: 8,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.8,
+                                  color: AppTheme.kPrimaryGold,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${(downloadProgress * 100).toInt()}%',
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.kPrimaryGold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.15)
+                                  : Colors.black.withValues(alpha: 0.12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.download_rounded,
+                                size: 10,
+                                color: isDark ? Colors.white70 : const Color(0xFF475569),
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                'Baixar',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onDismiss,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 11,
+                            color: isDark ? Colors.white70 : const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             // Rodapé: Título e Subtítulo / Barra de progresso
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1086,20 +1102,20 @@ class _HomeHarpaCard extends ConsumerWidget {
                   'Harpa Cristã',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 13.5,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.bold,
                     height: 1.15,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 if (isDownloading) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: downloadProgress > 0 ? downloadProgress : null,
-                      minHeight: 3,
+                      minHeight: 4,
                       backgroundColor: isDark
                           ? Colors.white.withValues(alpha: 0.1)
                           : Colors.black.withValues(alpha: 0.08),
@@ -1111,7 +1127,7 @@ class _HomeHarpaCard extends ConsumerWidget {
                     '640 hinos · Baixar',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontSize: 11,
+                      fontSize: 11.5,
                       height: 1.2,
                     ),
                     maxLines: 1,
@@ -1121,10 +1137,8 @@ class _HomeHarpaCard extends ConsumerWidget {
             ),
           ],
         ),
-      ],
-    ),
-  ),
-);
+      ),
+    );
   }
 }
 
@@ -1491,23 +1505,27 @@ Widget _buildBadge(
   Color textColor,
 ) {
   return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
     decoration: BoxDecoration(
       color: bgColor,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(
+        color: Colors.white.withValues(alpha: 0.18),
+        width: 0.8,
+      ),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (icon != null) ...[
-          Icon(icon, color: textColor, size: 8.5),
-          const SizedBox(width: 2),
+          Icon(icon, color: textColor, size: 9.5),
+          const SizedBox(width: 3),
         ],
         Text(
           text,
           style: TextStyle(
             color: textColor,
-            fontSize: 9,
+            fontSize: 9.5,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.2,
           ),
@@ -1526,93 +1544,65 @@ Widget _buildToolCard(
   Widget? badge,
   VoidCallback? onTap,
 }) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-
   return Material(
     color: Colors.transparent,
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark
-              ? const Color(0xFF1B1E2B)
-              : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: colors[0].withValues(alpha: isDark ? 0.25 : 0.15),
-            width: 1.2,
+          gradient: LinearGradient(
+            colors: colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: colors[0].withValues(alpha: isDark ? 0.12 : 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              color: colors[0].withValues(alpha: 0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            if (badge != null)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: badge,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: Colors.white, size: 28),
+                if (badge != null) badge,
+              ],
+            ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(9),
-                    gradient: LinearGradient(
-                      colors: colors,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors[0].withValues(alpha: 0.35),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.bold,
+                    height: 1.15,
                   ),
-                  child: Center(
-                    child: Icon(icon, color: Colors.white, size: 18),
-                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        height: 1.15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                        fontSize: 10.5,
-                        height: 1.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 11.5,
+                    height: 1.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

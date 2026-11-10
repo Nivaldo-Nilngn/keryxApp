@@ -315,66 +315,59 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
 
         final resetBtn = _buildResetButton(context, ref);
 
+        final horizontalPadding = isTablet ? 24.0 : 16.0;
+
         return SingleChildScrollView(
           padding: EdgeInsets.only(
-            left: isTablet ? 32.0 : 16.0,
-            right: isTablet ? 32.0 : 16.0,
+            left: horizontalPadding,
+            right: horizontalPadding,
             top: 20.0,
-            bottom: isTablet ? 32.0 : 155.0,
+            bottom: isTablet ? 36.0 : 155.0,
           ),
-          child: isTablet
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Coluna Esquerda: Progresso Geral, Previsão e Métricas
-                    Expanded(
-                      flex: 5,
-                      child: Column(
-                        children: [
-                          mainProgressCard,
-                          const SizedBox(height: 16),
-                          estimationCard,
-                          const SizedBox(height: 16),
-                          metricsCard,
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    // Coluna Direita: Lembretes, Datas, Backup e Reset
-                    Expanded(
-                      flex: 5,
-                      child: Column(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 880),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  mainProgressCard,
+                  const SizedBox(height: 16),
+                  metricsCard,
+                  const SizedBox(height: 16),
+                  estimationCard,
+                  const SizedBox(height: 16),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth >= 640;
+                      if (isWide) {
+                        return IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: reminderCard),
+                              const SizedBox(width: 16),
+                              Expanded(child: startDateCard),
+                            ],
+                          ),
+                        );
+                      }
+                      return Column(
                         children: [
                           reminderCard,
                           const SizedBox(height: 16),
                           startDateCard,
-                          const SizedBox(height: 16),
-                          backupCard,
-                          const SizedBox(height: 20),
-                          resetBtn,
                         ],
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    mainProgressCard,
-                    const SizedBox(height: 16),
-                    estimationCard,
-                    const SizedBox(height: 16),
-                    metricsCard,
-                    const SizedBox(height: 16),
-                    reminderCard,
-                    const SizedBox(height: 16),
-                    startDateCard,
-                    const SizedBox(height: 16),
-                    backupCard,
-                    const SizedBox(height: 24),
-                    resetBtn,
-                  ],
-                ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  backupCard,
+                  const SizedBox(height: 24),
+                  Center(child: resetBtn),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
@@ -817,41 +810,56 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
     required int completedWeeks,
     required int totalWeeks,
   }) {
-    return Row(
-      children: [
-        // Card Streak
-        Expanded(
-          child: _buildMetricCard(
-            context,
-            icon: Icons.local_fire_department_rounded,
-            iconColor: const Color(0xFFF97316),
-            label: 'Sequência',
-            value: '${progress.streak} dias',
-          ),
-        ),
-        const SizedBox(width: 10),
-        // Card Semanas
-        Expanded(
-          child: _buildMetricCard(
-            context,
-            icon: Icons.check_circle_rounded,
-            iconColor: const Color(0xFF10B981),
-            label: 'Semanas 100%',
-            value: '$completedWeeks de $totalWeeks',
-          ),
-        ),
-        const SizedBox(width: 10),
-        // Card Anotações
-        Expanded(
-          child: _buildMetricCard(
-            context,
-            icon: Icons.edit_note_rounded,
-            iconColor: const Color(0xFF38BDF8),
-            label: 'Anotações',
-            value: '${progress.totalNotes} dias',
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 580;
+
+        final streakCard = _buildMetricCard(
+          context,
+          icon: Icons.local_fire_department_rounded,
+          iconColor: const Color(0xFFF97316),
+          label: 'Sequência Atual',
+          value: '${progress.streak} dias',
+        );
+
+        final weeksCard = _buildMetricCard(
+          context,
+          icon: Icons.check_circle_rounded,
+          iconColor: const Color(0xFF10B981),
+          label: 'Semanas 100%',
+          value: '$completedWeeks de $totalWeeks',
+        );
+
+        final notesCard = _buildMetricCard(
+          context,
+          icon: Icons.edit_note_rounded,
+          iconColor: const Color(0xFF38BDF8),
+          label: 'Anotações Feitas',
+          value: '${progress.totalNotes} dias',
+        );
+
+        if (isWide) {
+          return Row(
+            children: [
+              Expanded(child: streakCard),
+              const SizedBox(width: 12),
+              Expanded(child: weeksCard),
+              const SizedBox(width: 12),
+              Expanded(child: notesCard),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            streakCard,
+            const SizedBox(height: 10),
+            weeksCard,
+            const SizedBox(height: 10),
+            notesCard,
+          ],
+        );
+      },
     );
   }
 
@@ -862,13 +870,12 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
     required String startFormatted,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
         ),
       ),
       child: Row(
@@ -876,41 +883,40 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: AppTheme.kPrimaryGold.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.calendar_month_rounded,
               color: AppTheme.kPrimaryGold,
-              size: 22,
+              size: 20,
             ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Início do Plano',
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 15,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   'Iniciado em $startFormatted',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
+                    fontSize: 12.5,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],
             ),
           ),
-          TextButton(
+          FilledButton.tonal(
             onPressed: () async {
               final picked = await showDatePicker(
                 context: context,
@@ -924,7 +930,14 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
                     .setStartDate(picked);
               }
             },
-            child: const Text('Alterar'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              'Alterar',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
           ),
         ],
       ),
@@ -935,13 +948,12 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
     required BuildContext context,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
         ),
       ),
       child: Column(
@@ -949,65 +961,76 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
         children: [
           Row(
             children: [
-              const Icon(Icons.backup_rounded,
-                  color: AppTheme.kPrimaryGold, size: 20),
-              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.backup_rounded,
+                  color: AppTheme.kPrimaryGold,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
               Text(
-                'Backup & Sincronização',
+                'Backup & Sincronização do Progresso',
                 style: GoogleFonts.plusJakartaSans(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 15,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
-            'Exporte seu progresso para salvar em arquivo ou transfira para outro celular.',
+            'Exporte seu progresso para salvar em arquivo seguro ou importe para transferir para outro dispositivo.',
             style: GoogleFonts.manrope(
-              fontSize: 12,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.6),
+              fontSize: 12.5,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () => _exportBackup(context),
                   icon: const Icon(Icons.upload_rounded, size: 16),
-                  label: const Text('Exportar'),
+                  label: Text(
+                    'Exportar Backup',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.kPrimaryGold,
                     side: BorderSide(
                       color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
                     ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () => _importBackup(context),
                   icon: const Icon(Icons.download_rounded, size: 16),
-                  label: const Text('Restaurar'),
+                  label: Text(
+                    'Restaurar Backup',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+                  ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        Theme.of(context).colorScheme.onSurface,
+                    foregroundColor: Theme.of(context).colorScheme.onSurface,
                     side: BorderSide(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.2),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
                     ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -1041,10 +1064,11 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('Cancelar'),
               ),
-              TextButton(
+              FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.redAccent,
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
                 ),
                 child: const Text('Reiniciar'),
               ),
@@ -1053,17 +1077,31 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
         );
 
         if (confirmed == true) {
-          ref.read(studyPlanProgressProvider.notifier).reset();
+          await ref.read(studyPlanProgressProvider.notifier).reset();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Progresso do plano reiniciado com sucesso.'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
         }
       },
-      icon: const Icon(Icons.refresh_rounded, size: 18),
-      label: const Text('Reiniciar Progresso do Plano'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.redAccent.withValues(alpha: 0.8),
-        side: BorderSide(
-          color: Colors.redAccent.withValues(alpha: 0.3),
+      icon: const Icon(Icons.restart_alt_rounded, color: Colors.redAccent, size: 18),
+      label: const Text(
+        'Reiniciar Progresso do Plano',
+        style: TextStyle(
+          color: Colors.redAccent,
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
         ),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(
+          color: Colors.redAccent.withValues(alpha: 0.35),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -1079,36 +1117,53 @@ class _ProgressoTabState extends ConsumerState<ProgressoTab> {
     required String value,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Icon(icon, color: iconColor, size: 22),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.manrope(
-              fontSize: 11,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.6),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    fontSize: 11.5,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -176,18 +176,22 @@ class ReadingRepository {
       'chapters': existingChapters,
     }, SetOptions(merge: true));
 
-    // 5. Commit de tudo no Firestore!
-    await batch.commit();
+    try {
+      // 5. Commit de tudo no Firestore!
+      await batch.commit();
 
-    // 6. Verificar conquistas (Desencadeado pelo fim da sessão)
-    final newStats = UserStats(
-      currentStreak: currentStreak,
-      longestStreak: longestStreak,
-      totalDays: totalDays,
-      totalSessions: totalSessions + 1,
-      lastReadDate: todayDateString,
-    );
-    await _achievementRepository.checkAndUnlockAchievements(uid, newStats);
+      // 6. Verificar conquistas (Desencadeado pelo fim da sessão)
+      final newStats = UserStats(
+        currentStreak: currentStreak,
+        longestStreak: longestStreak,
+        totalDays: totalDays,
+        totalSessions: totalSessions + 1,
+        lastReadDate: todayDateString,
+      );
+      await _achievementRepository.checkAndUnlockAchievements(uid, newStats);
+    } catch (e) {
+      debugPrint('⚠️ Erro ao salvar sessão de leitura no Firestore: $e');
+    }
   }
 
   /// Remove o progresso de leitura de um livro específico

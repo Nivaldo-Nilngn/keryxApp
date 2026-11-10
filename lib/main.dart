@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -22,6 +23,10 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/app_fonts.dart';
 import 'features/bible/view_model/bible_state.dart';
 import 'core/widgets/main_layout.dart';
+import 'core/widgets/mbiblia_top_bar.dart';
+import 'features/ai/view/chat_assistant_screen.dart';
+import 'features/home/view/devocional_screen.dart';
+import 'features/study_plan/presentation/study_plan_window.dart';
 import 'features/auth/view/login_screen.dart';
 import 'core/services/auth_service.dart';
 import 'core/widgets/keryx_splash_screen.dart';
@@ -96,6 +101,10 @@ void main() async {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Chave global de navegação da raiz da aplicação para permitir controle seguro
+/// por atalhos de hardware e modais globais.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 class KeryxApp extends ConsumerStatefulWidget {
   const KeryxApp({super.key});
@@ -207,6 +216,7 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
     );
 
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       scrollBehavior: const AppCustomScrollBehavior(),
       scaffoldMessengerKey: ref.watch(scaffoldMessengerKeyProvider),
       navigatorObservers: [if (_navbarObserver != null) _navbarObserver!],
@@ -237,7 +247,7 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
           ),
         );
 
-        return NotificationListener<ScrollNotification>(
+        final scrollNotificationHandler = NotificationListener<ScrollNotification>(
           onNotification: (notification) {
             // Se a barra estiver configurada para o estilo Fixo, ela nunca se oculta ao rolar
             if (ref.read(navBarStyleProvider) == NavBarStyle.fixed) {
@@ -268,6 +278,10 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
             return false;
           },
           child: wrappedChild,
+        );
+
+        return GlobalShortcutsHandler(
+          child: scrollNotificationHandler,
         );
       },
       title: 'KeryxApp',
@@ -418,16 +432,232 @@ class AppCustomScrollBehavior extends MaterialScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    // Retorna o conteúdo diretamente, removendo a barra visual de rolagem em todas as páginas
-    return child;
+    // No mobile touch nativo, mantém visual limpo.
+    // No desktop/web, permite a barra de rolagem interativa e responsiva do Material.
+    if (kIsWeb) {
+      final platform = getPlatform(context);
+      if (platform == TargetPlatform.windows ||
+          platform == TargetPlatform.macOS ||
+          platform == TargetPlatform.linux) {
+        return Scrollbar(
+          controller: details.controller,
+          interactive: true,
+          child: child,
+        );
+      }
+      return child;
+    }
+    return super.buildScrollbar(context, child, details);
   }
 
   @override
   Set<PointerDeviceKind> get dragDevices => {
         PointerDeviceKind.touch,
-        PointerDeviceKind.mouse,
-        PointerDeviceKind.trackpad,
         PointerDeviceKind.stylus,
       };
+}
+
+/// Manipulador global de atalhos de teclado para toda a aplicação.
+/// Permite navegação rápida, zoom de fonte, comandos e abertura do guia de atalhos.
+class GlobalShortcutsHandler extends ConsumerStatefulWidget {
+  final Widget child;
+
+  const GlobalShortcutsHandler({
+    super.key,
+    required this.child,
+  });
+
+  @override
+  ConsumerState<GlobalShortcutsHandler> createState() => _GlobalShortcutsHandlerState();
+}
+
+class _GlobalShortcutsHandlerState extends ConsumerState<GlobalShortcutsHandler> {
+  bool _isModalOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleGlobalKeyEvent);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleGlobalKeyEvent);
+    super.dispose();
+  }
+
+  bool _isEditingText() {
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus == null) return false;
+    final context = focus.context;
+    if (context == null) return false;
+    return context.widget is EditableText ||
+        context.findAncestorWidgetOfExactType<EditableText>() != null;
+  }
+
+  BuildContext? get _navContext => appNavigatorKey.currentContext;
+
+  Future<void> _openShortcutsModal() async {
+    final ctx = _navContext;
+    if (ctx == null || _isModalOpen) return;
+    _isModalOpen = true;
+    try {
+      await showKeyboardShortcutsModal(ctx);
+    } finally {
+      _isModalOpen = false;
+    }
+  }
+
+  void _adjustFontSize(double delta) {
+    final current = ref.read(fontSettingsProvider).fontSize;
+    final newSize = (current + delta).clamp(12.0, 32.0);
+    ref.read(fontSettingsProvider.notifier).setFontSize(newSize);
+
+    // Feedback visual sutil
+    final messenger = ref.read(scaffoldMessengerKeyProvider).currentState;
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text('Tamanho da Fonte: ${newSize.toInt()}px'),
+        duration: const Duration(milliseconds: 900),
+        behavior: SnackBarBehavior.floating,
+        width: 220,
+      ),
+    );
+  }
+
+  void _resetFontSize() {
+    ref.read(fontSettingsProvider.notifier).setFontSize(16.0);
+    final messenger = ref.read(scaffoldMessengerKeyProvider).currentState;
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      const SnackBar(
+        content: Text('Tamanho da Fonte restaurado: 16px'),
+        duration: Duration(milliseconds: 900),
+        behavior: SnackBarBehavior.floating,
+        width: 280,
+      ),
+    );
+  }
+
+  void _navigateToTab(int tabIndex) {
+    final navState = appNavigatorKey.currentState;
+    if (navState != null && navState.canPop()) {
+      navState.popUntil((route) => route.isFirst);
+    }
+    ref.read(navigationProvider.notifier).setIndex(tabIndex);
+  }
+
+  Future<void> _openDevocional() async {
+    final navState = appNavigatorKey.currentState;
+    if (navState != null && navState.canPop()) {
+      navState.popUntil((route) => route.isFirst);
+    }
+
+    final devocionalAsync = ref.read(devocionalDiarioProvider);
+    final devocional = devocionalAsync.valueOrNull ??
+        await ref.read(devocionalDiarioProvider.future).catchError((_) => null);
+
+    if (devocional != null) {
+      appNavigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => DevocionalScreen(devocional: devocional)),
+      );
+    }
+  }
+
+  void _openStudyPlan() {
+    final navState = appNavigatorKey.currentState;
+    if (navState != null && navState.canPop()) {
+      navState.popUntil((route) => route.isFirst);
+    }
+    appNavigatorKey.currentState?.push(
+      MaterialPageRoute(builder: (_) => const StudyPlanWindow()),
+    );
+  }
+
+  void _openAI() {
+    final navState = appNavigatorKey.currentState;
+    if (navState != null && navState.canPop()) {
+      navState.popUntil((route) => route.isFirst);
+    }
+    appNavigatorKey.currentState?.push(
+      MaterialPageRoute(builder: (_) => const ChatAssistantScreen()),
+    );
+  }
+
+  bool _handleGlobalKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+
+    final key = event.logicalKey;
+    final isControl = HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+    final isShift = HardwareKeyboard.instance.isShiftPressed;
+    final isAlt = HardwareKeyboard.instance.isAltPressed;
+    final isEditing = _isEditingText();
+
+    // 1. Abrir modal de atalhos de teclado:
+    // Suporta '?' (LogicalKeyboardKey.question), 'Shift + /', 'Ctrl + /' (padrão universal Web),
+    // ou 'Alt + A' (Atalhos) / 'Alt + H' (Help).
+    final isQuestion = key == LogicalKeyboardKey.question ||
+        (isShift && key == LogicalKeyboardKey.slash) ||
+        (key.keyLabel == '?');
+    final isCommandSlash = isControl &&
+        (key == LogicalKeyboardKey.slash || key == LogicalKeyboardKey.question);
+    final isAltHelp = isAlt &&
+        (key == LogicalKeyboardKey.keyA || key == LogicalKeyboardKey.keyH);
+
+    if (!isEditing && (isQuestion || isCommandSlash || isAltHelp)) {
+      _openShortcutsModal();
+      return true;
+    }
+
+    // Se estiver em campo de texto, não interceptar os demais comandos comuns
+    if (isEditing && !isControl && !isAlt) {
+      return false;
+    }
+
+    // 2. Zoom de Fonte: Ctrl + '+' / '=' e Ctrl + '-'
+    if (isControl && (key == LogicalKeyboardKey.equal || key == LogicalKeyboardKey.add)) {
+      _adjustFontSize(1.0);
+      return true;
+    }
+    if (isControl && (key == LogicalKeyboardKey.minus || key == LogicalKeyboardKey.numpadSubtract)) {
+      _adjustFontSize(-1.0);
+      return true;
+    }
+    if (isControl && (key == LogicalKeyboardKey.digit0 || key == LogicalKeyboardKey.numpad0)) {
+      _resetFontSize();
+      return true;
+    }
+
+    // 3. Navegação rápida entre abas: Alt + 1..5
+    if (isAlt && key == LogicalKeyboardKey.digit1) {
+      _navigateToTab(0);
+      return true;
+    }
+    if (isAlt && key == LogicalKeyboardKey.digit2) {
+      _navigateToTab(1);
+      return true;
+    }
+    if (isAlt && key == LogicalKeyboardKey.digit3) {
+      _openDevocional();
+      return true;
+    }
+    if (isAlt && key == LogicalKeyboardKey.digit4) {
+      _openStudyPlan();
+      return true;
+    }
+    if (isAlt && key == LogicalKeyboardKey.digit5) {
+      _openAI();
+      return true;
+    }
+
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
+  }
 }
 

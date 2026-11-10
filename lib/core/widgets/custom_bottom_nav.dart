@@ -264,13 +264,15 @@ class KeryxBottomNav extends ConsumerWidget {
       );
     }
 
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: 1.12,
-      child: AnimatedSlide(
-        offset: isVisible ? Offset.zero : const Offset(0, 1.5),
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-        child: navBody,
+    return SelectionContainer.disabled(
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.12,
+        child: AnimatedSlide(
+          offset: isVisible ? Offset.zero : const Offset(0, 1.5),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          child: navBody,
+        ),
       ),
     );
   }

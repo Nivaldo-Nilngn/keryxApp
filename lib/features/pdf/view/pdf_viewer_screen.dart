@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -841,6 +840,54 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   // _loadPdfBytes removido (Era apenas para Web/CORS)
 
 
+  Future<void> _handlePop() async {
+    // 1. Salva o progresso final antes de sair
+    await _saveProgress();
+
+    // 2. Notifica o estado que estamos saindo
+    if (mounted) {
+      setState(() {
+        _isHiding = true;
+      });
+    }
+    
+    // 3. Para sons e libera travas de tela e oculta mensagens
+    _tts.stop();
+    WakelockPlus.disable();
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+    }
+
+    // Aguarda um tempo seguro para o Flutter remover o SfPdfViewer da árvore
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    // Fecha a tela de fato
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _deleteCorruptedPdf() async {
+    try {
+      final f = File(_pdfNetworkUrl!);
+      if (await f.exists()) {
+        await f.delete();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Arquivo corrompido excluído do aparelho com sucesso.')),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao excluir: $e')),
+        );
+      }
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // BUILD
   // ─────────────────────────────────────────────────────────────────────────
@@ -854,31 +901,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       canPop: false, // 👈 Bloqueia o pop automático para limparmos o PDF primeiro
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        
-        // 1. Salva o progresso final antes de sair
-        await _saveProgress();
-
-        // 2. Notifica o estado que estamos saindo
-        if (mounted) {
-          setState(() {
-            _isHiding = true;
-          });
-        }
-        
-        // 3. Para sons e libera travas de tela e oculta mensagens
-        _tts.stop();
-        WakelockPlus.disable();
-        if (mounted) {
-          ScaffoldMessenger.of(context).clearSnackBars();
-        }
-
-        // 3. Aguarda um tempo seguro para o Flutter remover o SfPdfViewer da árvore
-        await Future.delayed(const Duration(milliseconds: 100));
-
-        // 4. Fecha a tela de fato
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
+        await _handlePop();
       },
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -1085,26 +1108,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
               if (_pdfNetworkUrl != null && (_pdfNetworkUrl!.startsWith('/') || _pdfNetworkUrl!.contains('app_flutter'))) ...[
                 const SizedBox(height: 16),
                 TextButton.icon(
-                  onPressed: () async {
-                    try {
-                      final f = File(_pdfNetworkUrl!);
-                      if (await f.exists()) {
-                        await f.delete();
-                      }
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Arquivo corrompido excluído do aparelho com sucesso.')),
-                        );
-                        Navigator.pop(context, true);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Erro ao excluir: $e')),
-                        );
-                      }
-                    }
-                  },
+                  onPressed: _deleteCorruptedPdf,
                   icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
                   label: const Text(
                     'Excluir arquivo corrompido do aparelho',

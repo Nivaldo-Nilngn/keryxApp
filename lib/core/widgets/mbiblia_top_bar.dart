@@ -8,6 +8,7 @@ import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import 'package:keryx_app/core/state/nav_bar_style_provider.dart';
+import 'package:keryx_app/core/state/reading_audio_bar_provider.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/auth/view/login_screen.dart';
@@ -61,9 +62,10 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final topPadding = MediaQuery.paddingOf(context).top;
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: 1.15,
-      child: Container(
+    return SelectionContainer.disabled(
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.15,
+        child: Container(
         height: preferredSize.height + topPadding,
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -166,6 +168,19 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
           ),
           actions: actions ?? [
             if (additionalActions != null) ...additionalActions!,
+            if (MediaQuery.sizeOf(context).width >= 720)
+              IconButton(
+                tooltip: 'Atalhos de Teclado (?)',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                padding: const EdgeInsets.all(6),
+                icon: Icon(
+                  Icons.keyboard_outlined,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  size: 22,
+                ),
+                onPressed: () => showKeyboardShortcutsModal(context),
+              ),
             Stack(
               children: [
                 IconButton(
@@ -266,6 +281,7 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
           bottom: bottom,
         ),
       ),
+    ),
     ),
     );
   }
@@ -973,12 +989,12 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(
-                          isTablet ? 36 : 24,
-                          20,
-                          isTablet ? 36 : 24,
+                          isTablet ? 36 : 16,
+                          16,
+                          isTablet ? 36 : 16,
                           MediaQuery.of(context).viewInsets.bottom +
                               MediaQuery.of(context).padding.bottom +
-                              36,
+                              44,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -1080,7 +1096,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
             String? photoUrl = data?['photoUrl'] ?? user.photoURL ?? (user.providerData.isNotEmpty ? user.providerData.first.photoURL : null);
 
             return Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isDark
@@ -1107,34 +1123,35 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                   Stack(
                     children: [
                       Container(
-                        width: 54,
-                        height: 54,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(color: AppTheme.kPrimaryGold, width: 2),
                           color: theme.colorScheme.surfaceContainerHighest,
                         ),
-                        child: KeryxUserDropdown.buildAvatarImageWidget(context, photoUrl, initial, size: 54),
+                        child: KeryxUserDropdown.buildAvatarImageWidget(context, photoUrl, initial, size: 48),
                       ),
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: Container(
-                          padding: const EdgeInsets.all(3),
+                          padding: const EdgeInsets.all(2.5),
                           decoration: BoxDecoration(
                             color: AppTheme.kPrimaryGold,
                             shape: BoxShape.circle,
                             border: Border.all(color: theme.scaffoldBackgroundColor, width: 1.5),
                           ),
-                          child: const Icon(Icons.camera_alt_rounded, size: 11, color: Colors.black),
+                          child: const Icon(Icons.camera_alt_rounded, size: 10, color: Colors.black),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
                           children: [
@@ -1143,7 +1160,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                                 name,
                                 style: GoogleFonts.plusJakartaSans(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  fontSize: 15,
                                   color: theme.colorScheme.onSurface,
                                 ),
                                 maxLines: 1,
@@ -1151,36 +1168,40 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                               ),
                             ),
                             if (isPrimaryAdmin) ...[
-                              const SizedBox(width: 6),
-                              const Icon(Icons.verified, size: 15, color: AppTheme.kPrimaryGold),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.verified, size: 14, color: AppTheme.kPrimaryGold),
                             ],
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           user.email ?? '',
                           style: GoogleFonts.manrope(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (isPrimaryAdmin) ...[
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'ADMINISTRADOR PRINCIPAL',
-                              style: GoogleFonts.outfit(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: AppTheme.kPrimaryGold,
-                                letterSpacing: 0.5,
+                          const SizedBox(height: 3),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'ADMINISTRADOR PRINCIPAL',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.kPrimaryGold,
+                                  letterSpacing: 0.4,
+                                ),
                               ),
                             ),
                           ),
@@ -1188,7 +1209,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   FilledButton.tonalIcon(
                     onPressed: () {
                       showEditProfileModal(context, ref);
@@ -1196,11 +1217,12 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                     style: FilledButton.styleFrom(
                       backgroundColor: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
                       foregroundColor: AppTheme.kPrimaryGold,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      visualDensity: VisualDensity.compact,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    icon: const Icon(Icons.edit_rounded, size: 15),
-                    label: Text('Editar', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
+                    icon: const Icon(Icons.edit_rounded, size: 14),
+                    label: Text('Editar', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ],
               ),
@@ -1217,8 +1239,9 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isTablet = MediaQuery.of(context).size.width >= 720;
+    final isNarrow = MediaQuery.of(context).size.width < 400;
     final navBarSummary = !isTablet
-        ? ' • Barra ${ref.watch(navBarStyleProvider) == NavBarStyle.floating ? "Flutuante" : "Fixa"}'
+        ? ' • ${ref.watch(navBarStyleProvider) == NavBarStyle.floating ? (isNarrow ? "Flutuante" : "Barra Flutuante") : (isNarrow ? "Fixa" : "Barra Fixa")}'
         : '';
 
     return Container(
@@ -1242,31 +1265,32 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
               });
             },
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.tune_rounded, color: AppTheme.kPrimaryGold, size: 22),
+                    child: const Icon(Icons.tune_rounded, color: AppTheme.kPrimaryGold, size: 20),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
                           children: [
                             Flexible(
                               child: Text(
-                                'Configurações do Sistema',
+                                isNarrow ? 'Aparência & Sistema' : 'Configurações do Sistema',
                                 style: GoogleFonts.outfit(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 15.5,
+                                  fontSize: 14.5,
                                   color: theme.colorScheme.onSurface,
                                 ),
                                 maxLines: 1,
@@ -1274,17 +1298,17 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                               ),
                             ),
                             if (MediaQuery.of(context).size.width >= 420) ...[
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                 decoration: BoxDecoration(
                                   color: AppTheme.kPrimaryGold.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(5),
                                 ),
                                 child: Text(
                                   'SISTEMA',
                                   style: GoogleFonts.outfit(
-                                    fontSize: 9,
+                                    fontSize: 8.5,
                                     fontWeight: FontWeight.w900,
                                     color: AppTheme.kPrimaryGold,
                                   ),
@@ -1293,11 +1317,11 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                             ],
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           'Fonte: ${settings.fontFamily} • ${settings.fontSize.toInt()}px$navBarSummary',
                           style: GoogleFonts.manrope(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                           maxLines: 1,
@@ -1306,21 +1330,49 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        _isSystemSettingsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                        size: 20,
-                        color: AppTheme.kPrimaryGold,
+                  const SizedBox(width: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Tooltip(
+                        message: 'Restaurar padrão',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => _restoreSystemDefaults(context),
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.restore_rounded,
+                                size: 16,
+                                color: AppTheme.kPrimaryGold,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            _isSystemSettingsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: AppTheme.kPrimaryGold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1468,25 +1520,26 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                           );
                         },
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(Icons.record_voice_over_rounded, color: Theme.of(context).colorScheme.onSurface, size: 22),
+                                child: Icon(Icons.record_voice_over_rounded, color: Theme.of(context).colorScheme.onSurface, size: 20),
                               ),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('Áudio e Leitura (TTS)', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 2),
-                                    Text('Configurar vozes, velocidade e idioma da leitura', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 12)),
+                                    Text('Áudio e Leitura (TTS)', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface, fontSize: 15, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 1),
+                                    Text('Configurar vozes, velocidade e idioma da leitura', style: GoogleFonts.outfit(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 11.5)),
                                   ],
                                 ),
                               ),
@@ -1498,16 +1551,302 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                     ),
                   ),
 
+                  const SizedBox(height: 12),
+
+                  // ── Barra de Áudio na Leitura (Ativar/Ocultar) ───────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: ref.watch(showReadingAudioBarProvider)
+                                ? AppTheme.kPrimaryGold.withValues(alpha: 0.2)
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.headphones_rounded,
+                            color: ref.watch(showReadingAudioBarProvider)
+                                ? AppTheme.kPrimaryGold
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Barra de Áudio na Leitura',
+                                style: GoogleFonts.outfit(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                'Oculte o player para maximizar o espaço de texto',
+                                style: GoogleFonts.manrope(
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: ref.watch(showReadingAudioBarProvider),
+                          activeThumbColor: AppTheme.kPrimaryGold,
+                          onChanged: (val) {
+                            ref.read(showReadingAudioBarProvider.notifier).setVisible(val);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Atalhos de Teclado & Mouse (Apenas Web / Desktop / Tablet) ───
+                  if (MediaQuery.sizeOf(context).width >= 720) ...[
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => showKeyboardShortcutsModal(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppTheme.kPrimaryGold.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(9),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.keyboard_outlined,
+                                  color: AppTheme.kPrimaryGold,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: [
+                                        Text(
+                                          'Atalhos de Teclado',
+                                          style: GoogleFonts.outfit(
+                                            color: Theme.of(context).colorScheme.onSurface,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.kPrimaryGold.withValues(alpha: 0.18),
+                                            borderRadius: BorderRadius.circular(5),
+                                          ),
+                                          child: Text(
+                                            'WEB / DESKTOP',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: AppTheme.kPrimaryGold,
+                                              fontSize: 8.5,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.4,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Comandos rápidos, setas e cópia de texto com mouse (tecla ?)',
+                                      style: GoogleFonts.manrope(
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.68),
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
                   if (!isTablet) ...[
                     const SizedBox(height: 24),
                     Text('ESTILO DA BARRA DE NAVEGAÇÃO', style: _sectionTitleStyle(context)),
                     const SizedBox(height: 12),
                     _buildNavBarStyleSelector(context),
                   ],
+
+                  const SizedBox(height: 24),
+                  // Botão de Restaurar Configurações Padrão
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _restoreSystemDefaults(context),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.kPrimaryGold.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppTheme.kPrimaryGold.withValues(alpha: 0.4),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.restore_rounded,
+                              color: AppTheme.kPrimaryGold,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Restaurar Configurações ao Padrão',
+                              style: GoogleFonts.outfit(
+                                color: AppTheme.kPrimaryGold,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  void _restoreSystemDefaults(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E2130),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.restore_rounded, color: AppTheme.kPrimaryGold, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Restaurar Padrão?',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Deseja restaurar as configurações do sistema (Fonte: Inter • 16px e Barra Flutuante) aos valores originais de fábrica?',
+          style: GoogleFonts.manrope(
+            fontSize: 14,
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.manrope(color: Colors.white60),
+            ),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.kPrimaryGold,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              ref.read(fontSettingsProvider.notifier).resetToDefault();
+              ref.read(navBarStyleProvider.notifier).setStyle(NavBarStyle.floating);
+              ref.read(showReadingAudioBarProvider.notifier).setVisible(true);
+              setState(() {});
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Row(
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: AppTheme.kPrimaryGold, size: 20),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text('Configurações do sistema restauradas para o padrão (Inter • 16px • Barra Flutuante).'),
+                      ),
+                    ],
+                  ),
+                  duration: const Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: const Color(0xFF1E2130),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: Text(
+              'Restaurar',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );
@@ -1590,16 +1929,17 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppTheme.kPrimaryGold.withValues(alpha: 0.22)
@@ -1608,7 +1948,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                       ),
                       child: Icon(
                         icon,
-                        size: 20,
+                        size: 18,
                         color: isSelected
                             ? AppTheme.kPrimaryGold
                             : theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -1622,15 +1962,15 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                       )
                     else if (badge != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
                           badge,
                           style: GoogleFonts.outfit(
-                            fontSize: 9,
+                            fontSize: 8.5,
                             fontWeight: FontWeight.w700,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
@@ -1638,24 +1978,28 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   title,
                   style: GoogleFonts.outfit(
-                    fontSize: 14,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.bold,
                     color: isSelected
                         ? AppTheme.kPrimaryGold
                         : theme.colorScheme.onSurface,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: GoogleFonts.manrope(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -1781,6 +2125,476 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
       fontSize: 12,
       fontWeight: FontWeight.w800,
       letterSpacing: 1.2,
+    );
+  }
+}
+
+/// Exibe o modal responsivo com o guia de teclas de atalho do KeryxApp.
+/// Pode ser acionado pressionando '?' ou 'Ctrl + /' ou 'Alt + A' no teclado em qualquer tela.
+Future<void> showKeyboardShortcutsModal(BuildContext context) async {
+  final mediaQuery = MediaQuery.of(context);
+  final isDesktopOrTablet = mediaQuery.size.width >= 700;
+
+  if (isDesktopOrTablet) {
+    await showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 680,
+            maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+          ),
+          child: const _KeyboardShortcutsContent(isDialog: true),
+        ),
+      ),
+    );
+  } else {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.90,
+          ),
+          child: const _KeyboardShortcutsContent(isDialog: false),
+        ),
+      ),
+    );
+  }
+}
+
+class _KeyboardShortcutsContent extends StatelessWidget {
+  final bool isDialog;
+
+  const _KeyboardShortcutsContent({
+    required this.isDialog,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final bgColor = isDark ? const Color(0xFF141724) : Colors.white;
+    final cardBg = isDark ? const Color(0xFF1A1F30) : const Color(0xFFF3F4F6);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.08);
+    final textColor = isDark ? Colors.white : const Color(0xFF1F2937);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(isDialog ? 24 : 20),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header com Ícone, Título e Botão Fechar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.kPrimaryGold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppTheme.kPrimaryGold.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.keyboard_outlined,
+                    color: AppTheme.kPrimaryGold,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Atalhos de Teclado',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Comandos rápidos para teclado e mouse no Desktop / Web',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12.5,
+                          color: subtitleColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: subtitleColor,
+                    size: 22,
+                  ),
+                  tooltip: 'Fechar (Esc)',
+                  style: IconButton.styleFrom(
+                    backgroundColor: cardBg,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, thickness: 1, color: borderColor),
+
+          // Lista de Atalhos por Categorias
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildCategory(
+                    context,
+                    title: 'Leitura Bíblica',
+                    icon: Icons.menu_book_rounded,
+                    items: const [
+                      _ShortcutItem(
+                        keys: ['←', '→'],
+                        alternateKeys: ['PgUp', 'PgDn'],
+                        description: 'Avançar ou voltar de capítulo',
+                      ),
+                      _ShortcutItem(
+                        keys: ['↑', '↓'],
+                        description: 'Rolar versículos suavemente',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Espaço'],
+                        description: 'Rolar tela para baixo (ou Pausar áudio)',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Home', 'End'],
+                        description: 'Ir para o primeiro ou último versículo',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Ctrl', 'C'],
+                        description: 'Copiar texto selecionado ou versículos marcados',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Ctrl', 'H'],
+                        description: 'Destacar versículo selecionado com marca-texto',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Ctrl', 'S'],
+                        description: 'Ativar / Desativar modo de concordância Strong',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Ctrl', 'P'],
+                        description: 'Tocar ou pausar leitura em áudio sincronizada',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Esc'],
+                        description: 'Limpar seleção de versículos',
+                      ),
+                    ],
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 20),
+
+                  _buildCategory(
+                    context,
+                    title: 'Tamanho do Texto & Zoom',
+                    icon: Icons.format_size_rounded,
+                    items: const [
+                      _ShortcutItem(
+                        keys: ['Ctrl', '+'],
+                        description: 'Aumentar tamanho da fonte (+1px)',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Ctrl', '-'],
+                        description: 'Diminuir tamanho da fonte (-1px)',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Ctrl', '0'],
+                        description: 'Restaurar tamanho de fonte padrão (16px)',
+                      ),
+                    ],
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 20),
+
+                  _buildCategory(
+                    context,
+                    title: 'Navegação Rápida entre Abas',
+                    icon: Icons.dashboard_outlined,
+                    items: const [
+                      _ShortcutItem(
+                        keys: ['Alt', '1'],
+                        description: 'Ir para Início (Home)',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Alt', '2'],
+                        description: 'Ir para Leitor da Bíblia',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Alt', '3'],
+                        description: 'Abrir Devocional Diário',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Alt', '4'],
+                        description: 'Abrir Plano de Estudo',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Alt', '5'],
+                        description: 'Abrir Assistente IATHeos',
+                      ),
+                    ],
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 20),
+
+                  _buildCategory(
+                    context,
+                    title: 'Uso do Mouse no Computador',
+                    icon: Icons.mouse_rounded,
+                    items: const [
+                      _ShortcutItem(
+                        keys: ['Clique & Arraste'],
+                        description: 'Seleciona qualquer trecho de texto livremente',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Clique Direito'],
+                        description: 'Menu contextual com opção nativa "Copiar"',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Duplo Clique'],
+                        description: 'Seleciona a palavra inteira',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Triplo Clique'],
+                        description: 'Seleciona o versículo ou parágrafo completo',
+                      ),
+                    ],
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 20),
+
+                  _buildCategory(
+                    context,
+                    title: 'Geral',
+                    icon: Icons.help_outline_rounded,
+                    items: const [
+                      _ShortcutItem(
+                        keys: ['?'],
+                        alternateKeys: ['Ctrl', '/'],
+                        description: 'Abrir este Guia de Atalhos (ou Alt + A)',
+                      ),
+                      _ShortcutItem(
+                        keys: ['Esc'],
+                        description: 'Fechar janelas, modais e caixas de diálogo',
+                      ),
+                    ],
+                    isDark: isDark,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategory(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<_ShortcutItem> items,
+    required bool isDark,
+  }) {
+    final titleColor = isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706);
+    final cardBg = isDark
+        ? Colors.white.withValues(alpha: 0.03)
+        : Colors.black.withValues(alpha: 0.02);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.black.withValues(alpha: 0.06);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: titleColor),
+              const SizedBox(width: 8),
+              Text(
+                title.toUpperCase(),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: titleColor,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (ctx, i) => Divider(
+              height: 16,
+              thickness: 1,
+              color: borderColor,
+            ),
+            itemBuilder: (ctx, i) {
+              final item = items[i];
+              return Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.description,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _buildKeysRow(item.keys, isDark),
+                  if (item.alternateKeys != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Text(
+                        'ou',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
+                      ),
+                    ),
+                    _buildKeysRow(item.alternateKeys!, isDark),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeysRow(List<String> keys, bool isDark) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < keys.length; i++) ...[
+          _KeyBadge(label: keys[i], isDark: isDark),
+          if (i < keys.length - 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: Text(
+                '+',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ShortcutItem {
+  final List<String> keys;
+  final List<String>? alternateKeys;
+  final String description;
+
+  const _ShortcutItem({
+    required this.keys,
+    this.alternateKeys,
+    required this.description,
+  });
+}
+
+class _KeyBadge extends StatelessWidget {
+  final String label;
+  final bool isDark;
+
+  const _KeyBadge({
+    required this.label,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? const Color(0xFF22283A) : const Color(0xFFE5E7EB);
+    final border = isDark ? const Color(0xFF333D56) : const Color(0xFFD1D5DB);
+    final text = isDark ? Colors.white : const Color(0xFF1F2937);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      constraints: const BoxConstraints(minWidth: 24),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: border, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+            offset: const Offset(0, 1.5),
+            blurRadius: 0,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: text,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ),
     );
   }
 }

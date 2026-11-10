@@ -1,13 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../features/auth/model/user_model.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth? _customAuth;
+  final FirebaseFirestore? _customFirestore;
+
+  AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+      : _customAuth = auth,
+        _customFirestore = firestore;
+
+  FirebaseAuth get _auth => _customAuth ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => _customFirestore ?? FirebaseFirestore.instance;
   
   // Instância do GoogleSignIn configurada para Android/iOS (no Web usamos apenas FirebaseAuth popup)
   final GoogleSignIn? _googleSignIn = kIsWeb
@@ -15,36 +22,88 @@ class AuthService {
       : GoogleSignIn(
           serverClientId: '809342545607-mdbs8b13gdo81et56rf4k9rf75ibkdcs.apps.googleusercontent.com',
         );
-  // Removido _isInitialized pois o plugin oficial não necessita/possui initialize()
+
+  /// Validação rigorosa de formato de e-mail seguro
+  static bool isValidEmail(String email) {
+    final trimmed = email.trim();
+    if (trimmed.isEmpty || trimmed.length > 254) return false;
+    final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+    return emailRegex.hasMatch(trimmed);
+  }
+
+  /// Validação de força mínima de senha
+  static bool isValidPassword(String password) {
+    return password.length >= 6;
+  }
+
+  /// Sanitização contra injeção de tags ou caracteres de controle em nomes de exibição
+  static String sanitizeDisplayName(String name) {
+    return name.trim().replaceAll(RegExp(r'[<>{}\\/]'), '');
+  }
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   User? get currentUser => _auth.currentUser;
 
   Future<UserCredential?> signUp(String email, String password, String name) async {
+    final trimmedEmail = email.trim();
+    final sanitizedName = sanitizeDisplayName(name);
+
+    if (!isValidEmail(trimmedEmail)) {
+      throw FirebaseAuthException(
+        code: 'invalid-email',
+        message: 'O endereço de e-mail informado é inválido.',
+      );
+    }
+    if (!isValidPassword(password)) {
+      throw FirebaseAuthException(
+        code: 'weak-password',
+        message: 'A senha deve conter no mínimo 6 caracteres.',
+      );
+    }
+    if (sanitizedName.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'invalid-name',
+        message: 'O nome de exibição não pode estar vazio.',
+      );
+    }
+
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
+        email: trimmedEmail,
         password: password,
       );
       
       if (userCredential.user != null) {
-        final displayName = name.trim();
-        await userCredential.user!.updateDisplayName(displayName);
+        await userCredential.user!.updateDisplayName(sanitizedName);
         await userCredential.user!.reload();
-        await _updateUserData(userCredential.user!, name: displayName);
+        await _updateUserData(userCredential.user!, name: sanitizedName);
       }
       return userCredential;
     } catch (e) {
-      print('Erro no cadastro: $e');
+      debugPrint('Erro no cadastro: $e');
       rethrow;
     }
   }
 
   Future<UserCredential?> signIn(String email, String password) async {
+    final trimmedEmail = email.trim();
+    if (!isValidEmail(trimmedEmail)) {
+      throw FirebaseAuthException(
+        code: 'invalid-email',
+        message: 'O endereço de e-mail informado é inválido.',
+      );
+    }
+    if (password.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'wrong-password',
+        message: 'A senha não pode estar em branco.',
+      );
+    }
+
     try {
       final cred = await _auth.signInWithEmailAndPassword(
-        email: email.trim(), 
+        email: trimmedEmail, 
         password: password.trim(),
       );
       if (cred.user != null) {
@@ -52,7 +111,7 @@ class AuthService {
       }
       return cred;
     } catch (e) {
-      print('Erro no login: $e');
+      debugPrint('Erro no login: $e');
       rethrow;
     }
   }
@@ -61,7 +120,7 @@ class AuthService {
     try {
       return await _auth.signInAnonymously();
     } catch (e) {
-      print('Erro no login anônimo: $e');
+      debugPrint('Erro no login anônimo: $e');
       rethrow;
     }
   }
@@ -97,7 +156,7 @@ class AuthService {
         return userCredential;
       }
     } catch (e) {
-      print('Erro ao entrar com Google: $e');
+      debugPrint('Erro ao entrar com Google: $e');
       rethrow;
     }
   }
@@ -107,7 +166,7 @@ class AuthService {
       final docRef = _firestore.collection('users').doc(user.uid);
       final doc = await docRef.get();
       
-      final displayName = name ?? user.displayName;
+      final displayName = name != null ? sanitizeDisplayName(name) : user.displayName;
       
       // Tentar pegar a foto do perfil principal ou dos provedores (Google)
       String? photoUrl = user.photoURL;
@@ -131,10 +190,6 @@ class AuthService {
         photoUrl: photoUrl,
       );
 
-      print('DEBUG: Atualizando Firestore para ${user.uid}');
-      print('DEBUG: Nome: $displayName');
-      print('DEBUG: Foto: $photoUrl');
-      
       final userMap = userModel.toJson();
       userMap['stats'] = userModel.stats.toJson();
       userMap['subscription'] = userModel.subscription.toJson();
@@ -175,10 +230,8 @@ class AuthService {
 
       // Salva os dados unindo o JSON padrão do UserModel, mas preservando o `createdAt` antigo
       await docRef.set(updateData, SetOptions(merge: true));
-      
-      print('DEBUG: Firestore atualizado com sucesso.');
     } catch (e) {
-      print('DEBUG: Erro ao atualizar Firestore: $e');
+      debugPrint('Erro ao atualizar Firestore: $e');
     }
   }
 
@@ -191,7 +244,7 @@ class AuthService {
       final user = _auth.currentUser;
       if (user == null) return;
 
-      final trimmedName = displayName?.trim();
+      final trimmedName = displayName != null ? sanitizeDisplayName(displayName) : null;
       final trimmedPhoto = photoUrl?.trim();
 
       if (trimmedName != null && trimmedName.isNotEmpty) {
@@ -218,17 +271,24 @@ class AuthService {
 
       await _firestore.collection('users').doc(user.uid).set(updates, SetOptions(merge: true));
     } catch (e) {
-      print('Erro ao atualizar perfil: $e');
+      debugPrint('Erro ao atualizar perfil: $e');
       rethrow;
     }
   }
 
   /// Envia e-mail de redefinição de senha (ou criação de senha para quem entrou com Google)
   Future<void> sendPasswordResetEmail(String email) async {
+    final trimmed = email.trim();
+    if (!isValidEmail(trimmed)) {
+      throw FirebaseAuthException(
+        code: 'invalid-email',
+        message: 'O endereço de e-mail informado é inválido.',
+      );
+    }
     try {
-      await _auth.sendPasswordResetEmail(email: email.trim());
+      await _auth.sendPasswordResetEmail(email: trimmed);
     } catch (e) {
-      print('Erro ao enviar e-mail de redefinição: $e');
+      debugPrint('Erro ao enviar e-mail de redefinição: $e');
       rethrow;
     }
   }
@@ -250,7 +310,7 @@ class AuthService {
     }
 
     final trimmed = newPassword.trim();
-    if (trimmed.length < 6) {
+    if (!isValidPassword(trimmed)) {
       throw Exception('A senha deve ter pelo menos 6 caracteres.');
     }
 
@@ -269,25 +329,38 @@ class AuthService {
       }
       await user.reload();
     } catch (e) {
-      print('Erro ao definir senha: $e');
+      debugPrint('Erro ao definir senha: $e');
       rethrow;
     }
   }
 
   Future<void> signOut() async {
     try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        // Revoga token de notificações push e atualiza timestamp de logout antes da desautenticação
+        try {
+          await _firestore.collection('users').doc(user.uid).update({
+            'fcmToken': FieldValue.delete(),
+            'lastSignOut': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('Aviso: Falha ao revogar fcmToken no Firestore antes do logout: $e');
+        }
+      }
+
       // No Web, o signOut do google_sign_in pode travar devido a políticas de CORS/COOP.
       // O Firebase signOut() já é suficiente para limpar a sessão do app no navegador.
       if (!kIsWeb) {
         await _googleSignIn?.signOut();
       }
     } catch (e) {
-      print('Erro ao deslogar Google: $e');
+      debugPrint('Erro ao deslogar Google: $e');
     }
     try {
       await _auth.signOut();
     } catch (e) {
-      print('Erro ao deslogar Firebase: $e');
+      debugPrint('Erro ao deslogar Firebase: $e');
     }
   }
 }

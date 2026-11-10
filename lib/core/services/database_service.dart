@@ -355,9 +355,9 @@ class DatabaseService {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('web_db_ready_$key', true);
         }
-        print("Banco de dados $key copiado para o armazenamento local.");
+        debugPrint("Banco de dados $key copiado para o armazenamento local.");
       } catch (e) {
-        print("Erro ao copiar banco de dados dos assets ($key): $e");
+        debugPrint("Erro ao copiar banco de dados dos assets ($key): $e");
         rethrow;
       }
     }
@@ -636,7 +636,7 @@ class DatabaseService {
           final factory = databaseFactoryFfiWeb;
           await factory.writeDatabaseBytes(path, Uint8List.fromList(bytes));
         }
-        print("Banco de comentários $filename copiado.");
+        debugPrint("Banco de comentários $filename copiado.");
       } catch (e) {
         debugPrint('⚠️ Erro ao carregar commentary: $e');
         return null;
@@ -1078,9 +1078,9 @@ class DatabaseService {
           final factory = databaseFactoryFfiWeb;
           await factory.writeDatabaseBytes(path, Uint8List.fromList(bytes));
         }
-        print("Banco de dicionário $filename copiado.");
+        debugPrint("Banco de dicionário $filename copiado.");
       } catch (e) {
-        print("Erro ao copiar dicionário dos assets ($filename): $e");
+        debugPrint("Erro ao copiar dicionário dos assets ($filename): $e");
         rethrow;
       }
     }
@@ -1141,7 +1141,7 @@ class DatabaseService {
 
       return null;
     } catch (e) {
-      print("Erro ao buscar verbete: $e");
+      debugPrint("Erro ao buscar verbete: $e");
       return null;
     }
   }
@@ -1201,7 +1201,7 @@ class DatabaseService {
         limit: 200,
       );
     } catch (e) {
-      print("Erro ao listar palavras por letra: $e");
+      debugPrint("Erro ao listar palavras por letra: $e");
       return [];
     }
   }
@@ -1262,7 +1262,7 @@ class DatabaseService {
         limit: 100,
       );
     } catch (e) {
-      print("Erro ao buscar no dicionário: $e");
+      debugPrint("Erro ao buscar no dicionário: $e");
       return [];
     }
   }

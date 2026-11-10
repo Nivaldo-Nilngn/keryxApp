@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'app_fonts.dart';
 import '../../features/bible/view_model/bible_state.dart';
@@ -12,18 +13,42 @@ class AppTheme {
     color: kBackgroundDark,
   );
 
-  static const ScrollbarThemeData _hiddenScrollbarTheme = ScrollbarThemeData(
-    thumbVisibility: WidgetStatePropertyAll(false),
-    trackVisibility: WidgetStatePropertyAll(false),
-    thickness: WidgetStatePropertyAll(0.0),
-    interactive: false,
-  );
+  static ScrollbarThemeData _createScrollbarTheme(bool isDark) {
+    if (kIsWeb) {
+      return ScrollbarThemeData(
+        thumbVisibility: const WidgetStatePropertyAll(false),
+        trackVisibility: const WidgetStatePropertyAll(false),
+        thickness: const WidgetStatePropertyAll(6.0),
+        radius: const Radius.circular(3),
+        interactive: true,
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return isDark
+                ? Colors.white.withValues(alpha: 0.45)
+                : Colors.black.withValues(alpha: 0.45);
+          }
+          return isDark
+              ? Colors.white.withValues(alpha: 0.22)
+              : Colors.black.withValues(alpha: 0.22);
+        }),
+      );
+    }
+    return const ScrollbarThemeData(
+      thumbVisibility: WidgetStatePropertyAll(false),
+      trackVisibility: WidgetStatePropertyAll(false),
+      thickness: WidgetStatePropertyAll(0.0),
+      interactive: false,
+    );
+  }
 
   // ── Tema Claro ─────────────────────────────────────────
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    scrollbarTheme: _hiddenScrollbarTheme,
+    scrollbarTheme: _createScrollbarTheme(false),
     colorScheme: ColorScheme.fromSeed(
       seedColor: const Color(0xFF4F46E5),
       brightness: Brightness.light,
@@ -53,7 +78,7 @@ class AppTheme {
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    scrollbarTheme: _hiddenScrollbarTheme,
+    scrollbarTheme: _createScrollbarTheme(true),
     colorScheme: const ColorScheme.dark(
       primary: kPrimaryGold,
       surface: kBackgroundDark,
@@ -90,7 +115,7 @@ class AppTheme {
   static final ThemeData sepiaTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    scrollbarTheme: _hiddenScrollbarTheme,
+    scrollbarTheme: _createScrollbarTheme(false),
     colorScheme: ColorScheme.fromSeed(
       seedColor: kPrimaryGold,
       brightness: Brightness.light,
@@ -120,7 +145,7 @@ class AppTheme {
   static final ThemeData paperTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    scrollbarTheme: _hiddenScrollbarTheme,
+    scrollbarTheme: _createScrollbarTheme(false),
     colorScheme: ColorScheme.fromSeed(
       seedColor: const Color(0xFFB45309),
       brightness: Brightness.light,

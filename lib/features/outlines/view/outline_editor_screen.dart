@@ -343,6 +343,7 @@ class _OutlineEditorScreenState extends ConsumerState<OutlineEditorScreen> {
 
   Future<void> _showPdfSelector() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final List<String> library = prefs.getStringList('biblioteca_books_v1') ?? [];
     
     if (library.isEmpty) {

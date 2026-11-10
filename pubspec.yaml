@@ -1,7 +1,7 @@
 name: keryx_app
 description: "Bíblia, livros e sermões em um só lugar."
 publish_to: 'none'
-version: 2.0.11+20
+version: 2.0.12+21
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
@@ -72,6 +72,7 @@ dependencies:
   firebase_messaging: ^15.2.10
   flutter_local_notifications: ^22.3.3
   timezone: ^0.11.2
+  screenshot: ^3.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

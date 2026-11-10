@@ -5,6 +5,7 @@ import 'package:keryx_app/core/services/tts/tts_player_provider.dart';
 
 import 'dart:ui';
 import 'package:keryx_app/core/theme/app_fonts.dart';
+import 'package:keryx_app/core/state/reading_audio_bar_provider.dart';
 
 final autoScrollProvider = StateProvider<bool>((ref) => true);
 final highlightVerseProvider = StateProvider<bool>((ref) => true);
@@ -246,6 +247,8 @@ class TtsSettingsSheet extends ConsumerWidget {
                       Icons.queue_play_next_rounded,
                       continuousReadingProvider,
                     ),
+                    const SizedBox(height: 12),
+                    _buildAudioBarSwitch(context, ref),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -266,6 +269,7 @@ class TtsSettingsSheet extends ConsumerWidget {
                         await ref.read(ttsRateProvider.notifier).setRate(0.45);
                         await ref.read(ttsPitchProvider.notifier).setPitch(0.9);
                         restartCurrentVerseIfNeeded();
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Padrão de leitura restaurado!')));
                       },
                       icon: const Icon(Icons.restore_rounded),
@@ -352,8 +356,69 @@ class TtsSettingsSheet extends ConsumerWidget {
           ),
           Switch(
             value: isEnabled,
-            activeColor: const Color(0xFF4ADE80),
+            activeThumbColor: const Color(0xFF4ADE80),
             onChanged: (val) => ref.read(provider.notifier).state = val,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAudioBarSwitch(BuildContext context, WidgetRef ref) {
+    final isEnabled = ref.watch(showReadingAudioBarProvider);
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: onSurface.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: onSurface.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isEnabled 
+                  ? const Color(0xFF4ADE80).withValues(alpha: 0.2) 
+                  : onSurface.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.headphones_rounded, 
+              color: isEnabled ? const Color(0xFF4ADE80) : onSurface.withValues(alpha: 0.5), 
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Barra de Áudio na Leitura',
+                  style: GoogleFonts.outfit(
+                    color: onSurface,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Exibe o reprodutor fixo na base da tela da Bíblia',
+                  style: GoogleFonts.outfit(
+                    color: onSurface.withValues(alpha: 0.5),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: isEnabled,
+            activeThumbColor: const Color(0xFF4ADE80),
+            onChanged: (val) => ref.read(showReadingAudioBarProvider.notifier).setVisible(val),
           ),
         ],
       ),

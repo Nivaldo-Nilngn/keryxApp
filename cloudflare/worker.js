@@ -4,15 +4,15 @@
  */
 
 const DEFAULT_CONFIG = {
-  latest_version: 20,
-  version_name: "2.0.11",
-  release_date: "2026-11-08",
-  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.11/keryxApp.apk",
+  latest_version: 21,
+  version_name: "2.0.12",
+  release_date: "2026-11-09",
+  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.12/keryxApp.apk",
   ios_url: "https://keryxapp.pages.dev",
-  release_notes: "Versão 2.0.11: Tipografia e escala de texto aplicadas a 100% do aplicativo para máxima acessibilidade; fontes customizadas e Google Fonts em tempo real; novo design comemorativo da tela de novidades com tópicos escaneáveis; botão de fechar [X] e altura total nas configurações; correções de alinhamento e overflows em tablets e no chat IATheos.",
+  release_notes: "Versão 2.0.12: Novo Editor Visual de Versículos em Story/Status 9:16 com acervo de 80+ imagens HD; otimizações de layout no leitor e barra flutuante; atalho de teclado oculto em smartphones; correções de permissões do Firestore e máxima fluidez multiplataforma.",
   force_update: false,
   min_version: 1,
-  sha256: "c6c9d0e68143092dbe83e4130ca795ab529a41c917fca5138bdfa0d7900c91de"
+  sha256: "d3152744fa698ea938c68173b0cf022fedb9b60dd0a1ee313e494aeb8e31a279"
 };
 
 export default {

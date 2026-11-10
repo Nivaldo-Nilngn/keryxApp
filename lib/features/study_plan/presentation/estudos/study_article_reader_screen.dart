@@ -65,9 +65,11 @@ class _StudyArticleReaderScreenState
   }
 
   void _shareStudy() {
-    Share.share(
-      '${widget.study.title}\n\nLeia este estudo teológico completo no KeryxApp: ${widget.study.slug}',
-      subject: widget.study.title,
+    SharePlus.instance.share(
+      ShareParams(
+        text: '${widget.study.title}\n\nLeia este estudo teológico completo no KeryxApp: ${widget.study.slug}',
+        subject: widget.study.title,
+      ),
     );
   }
 

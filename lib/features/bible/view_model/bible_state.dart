@@ -4,6 +4,7 @@ import 'package:keryx_app/features/bible/model/bible_model.dart';
 import 'package:keryx_app/core/services/bible_service.dart';
 import 'package:keryx_app/core/services/usx_service.dart';
 import 'package:keryx_app/core/services/ai_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
 import 'package:keryx_app/core/constants/bible_metadata.dart';
@@ -25,8 +26,18 @@ final bibleServiceProvider = Provider<BibleService>((ref) => BibleService());
 // Provider do serviço USX (Premium)
 final usxServiceProvider = Provider<UsxService>((ref) => UsxService());
 
-// Provider do serviço de IA
-final aiServiceProvider = Provider<AiService>((ref) => AiService());
+// Provider do serviço de IA com Bearer Token dinâmico do Firebase Auth
+final aiServiceProvider = Provider<AiService>((ref) {
+  return AiService(
+    authTokenProvider: () async {
+      try {
+        return await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (_) {
+        return null;
+      }
+    },
+  );
+});
 
 // Versão selecionada pelo usuário (ex: 'NVI', 'ACF', 'ARC')
 class SelectedVersionNotifier extends StateNotifier<String> {

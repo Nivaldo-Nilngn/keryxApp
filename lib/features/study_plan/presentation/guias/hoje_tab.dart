@@ -53,9 +53,10 @@ class HojeTab extends ConsumerWidget {
       ),
       data: (planIndex) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref
-              .read(studyPlanBibleServiceProvider)
-              .prefetchUpcomingDays(planIndex, todayInfo.day, daysAhead: 3);
+          final bibleService = ref.read(studyPlanBibleServiceProvider);
+          if (!bibleService.isDayPrefetched(todayInfo.day)) {
+            bibleService.prefetchUpcomingDays(planIndex, todayInfo.day);
+          }
         });
 
         final planDay = planIndex.dayAt(todayInfo.day);
@@ -101,58 +102,76 @@ class HojeTab extends ConsumerWidget {
 
         final tipCard = _buildTipCard(context, currentPlanId);
 
-        return SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: isTablet ? 32.0 : 16.0,
-            right: isTablet ? 32.0 : 16.0,
-            top: 16.0,
-            bottom: isTablet ? 32.0 : 155.0, // Espaço seguro para CustomBottomNav flutuante no mobile
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              planSwitcher,
-              if (isTablet)
+        Widget buildDashboardCards(double width) {
+          if (width >= 960) {
+            // Widescreen: 3 cards lado a lado harmoniosos e espaçosos
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: quickStatsCard),
+                const SizedBox(width: 16),
+                Expanded(child: notesCard),
+                const SizedBox(width: 16),
+                Expanded(child: tipCard),
+              ],
+            );
+          } else if (width >= 640) {
+            // Tablet / Desktop com barra lateral expandida: Progresso full width, Reflexão e Dica lado a lado
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                quickStatsCard,
+                const SizedBox(height: 16),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Coluna Esquerda: Leitura Principal do Dia
-                    Expanded(
-                      flex: 6,
-                      child: mainCard,
-                    ),
-                    const SizedBox(width: 24),
-                    // Coluna Direita: Anotações, Progresso e Dica
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          notesCard,
-                          const SizedBox(height: 16),
-                          quickStatsCard,
-                          const SizedBox(height: 16),
-                          tipCard,
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    mainCard,
-                    const SizedBox(height: 16),
-                    notesCard,
-                    const SizedBox(height: 16),
-                    quickStatsCard,
-                    const SizedBox(height: 16),
-                    tipCard,
+                    Expanded(child: notesCard),
+                    const SizedBox(width: 16),
+                    Expanded(child: tipCard),
                   ],
                 ),
-            ],
-          ),
+              ],
+            );
+          } else {
+            // Mobile: empilhado limpo e fluido
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                quickStatsCard,
+                const SizedBox(height: 16),
+                notesCard,
+                const SizedBox(height: 16),
+                tipCard,
+              ],
+            );
+          }
+        }
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: isTablet ? 32.0 : 16.0,
+                right: isTablet ? 32.0 : 16.0,
+                top: isTablet ? 24.0 : 16.0,
+                bottom: isTablet ? 36.0 : 155.0,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!isTablet) planSwitcher,
+                      mainCard,
+                      const SizedBox(height: 20),
+                      buildDashboardCards(constraints.maxWidth),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -936,18 +955,16 @@ class HojeTab extends ConsumerWidget {
               Expanded(
                 child: Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 6,
-                  runSpacing: 4,
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
+                    // Seletor de Dia / Semana
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
                         color: badgeBg,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: badgeBorder,
-                        ),
+                        border: Border.all(color: badgeBorder),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -961,8 +978,7 @@ class HojeTab extends ConsumerWidget {
                                     .setCurrentDay(todayInfo.day - 1);
                               },
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 child: Icon(
                                   Icons.chevron_left_rounded,
                                   size: 16,
@@ -971,13 +987,12 @@ class HojeTab extends ConsumerWidget {
                               ),
                             ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             child: Text(
                               'SEMANA ${todayInfo.week} • DIA ${todayInfo.dayOfWeek}',
                               style: GoogleFonts.plusJakartaSans(
                                 color: badgeText,
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
                               ),
@@ -992,8 +1007,7 @@ class HojeTab extends ConsumerWidget {
                                     .setCurrentDay(todayInfo.day + 1);
                               },
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 child: Icon(
                                   Icons.chevron_right_rounded,
                                   size: 16,
@@ -1004,6 +1018,49 @@ class HojeTab extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    // Status da Leitura
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                            : (progress.isStarted
+                                ? (isDark ? AppTheme.kPrimaryGold.withValues(alpha: 0.15) : const Color(0xFFFEF3C7))
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isCompleted
+                              ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                              : (progress.isStarted
+                                  ? (isDark ? AppTheme.kPrimaryGold.withValues(alpha: 0.4) : const Color(0xFFFDE68A))
+                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isCompleted) ...[
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 13),
+                            const SizedBox(width: 4),
+                          ],
+                          Text(
+                            isCompleted
+                                ? 'Concluído'
+                                : (progress.isStarted ? 'Em andamento' : 'Não iniciado'),
+                            style: GoogleFonts.plusJakartaSans(
+                              color: isCompleted
+                                  ? const Color(0xFF10B981)
+                                  : (progress.isStarted
+                                      ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309))
+                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Atalho para primeiro dia pendente se aplicável
                     Builder(
                       builder: (context) {
                         int firstPending = 1;
@@ -1024,8 +1081,7 @@ class HojeTab extends ConsumerWidget {
                                   .setCurrentDay(firstPending);
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? AppTheme.kPrimaryGold.withValues(alpha: 0.15)
@@ -1043,19 +1099,15 @@ class HojeTab extends ConsumerWidget {
                                   Icon(
                                     Icons.my_location_rounded,
                                     size: 12,
-                                    color: isDark
-                                        ? AppTheme.kPrimaryGold
-                                        : const Color(0xFFB45309),
+                                    color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     'Ir para Dia $firstPending',
                                     style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 10,
+                                      fontSize: 10.5,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark
-                                          ? AppTheme.kPrimaryGold
-                                          : const Color(0xFFB45309),
+                                      color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309),
                                     ),
                                   ),
                                 ],
@@ -1066,151 +1118,65 @@ class HojeTab extends ConsumerWidget {
                         return const SizedBox.shrink();
                       },
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isCompleted
-                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                            : (progress.isStarted
-                                ? (isDark ? AppTheme.kPrimaryGold.withValues(alpha: 0.15) : const Color(0xFFFEF3C7))
-                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isCompleted
-                              ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                              : (progress.isStarted
-                                  ? (isDark ? AppTheme.kPrimaryGold.withValues(alpha: 0.4) : const Color(0xFFFDE68A))
-                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isCompleted) ...[
-                            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 12),
-                            const SizedBox(width: 4),
-                          ],
-                          Text(
-                            isCompleted
-                                ? 'Concluído'
-                                : (progress.isStarted ? 'Em andamento' : 'Não iniciado'),
-                            style: GoogleFonts.plusJakartaSans(
-                              color: isCompleted
-                                  ? const Color(0xFF10B981)
-                                  : (progress.isStarted
-                                      ? (isDark ? AppTheme.kPrimaryGold : const Color(0xFFB45309))
-                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF97316).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: const Color(0xFFF97316).withValues(alpha: 0.25),
-                      ),
-                    ),
+              const SizedBox(width: 8),
+              // Menu discreto de opções
+              PopupMenuButton<String>(
+                tooltip: 'Opções do Plano',
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                color: Theme.of(context).colorScheme.surfaceContainer,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                onSelected: (value) {
+                  if (value == 'reset') {
+                    _confirmResetPlan(context, ref, planIndex.plan.title);
+                  } else if (value == 'delete') {
+                    _confirmDeletePlan(
+                        context, ref, currentPlanId, planIndex.plan.title);
+                  }
+                },
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'reset',
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.local_fire_department_rounded,
-                          color: Color(0xFFF97316),
-                          size: 16,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${progress.streak} dias',
-                          style: GoogleFonts.manrope(
-                            color: const Color(0xFFF97316),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
+                        Icon(Icons.restart_alt_rounded, size: 18),
+                        SizedBox(width: 10),
+                        Text('Reiniciar Progresso'),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 2),
-                  // Menu discreto de opções (substitui o botão de lixeira agressivo)
-                  PopupMenuButton<String>(
-                    tooltip: 'Opções do Plano',
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline_rounded,
+                            color: Colors.redAccent, size: 18),
+                        SizedBox(width: 10),
+                        Text('Excluir este Plano',
+                            style: TextStyle(color: Colors.redAccent)),
+                      ],
                     ),
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    onSelected: (value) {
-                      if (value == 'reset') {
-                        _confirmResetPlan(context, ref, planIndex.plan.title);
-                      } else if (value == 'delete') {
-                        _confirmDeletePlan(
-                            context, ref, currentPlanId, planIndex.plan.title);
-                      }
-                    },
-                    itemBuilder: (ctx) => [
-                      const PopupMenuItem(
-                        value: 'reset',
-                        child: Row(
-                          children: [
-                            Icon(Icons.restart_alt_rounded, size: 18),
-                            SizedBox(width: 10),
-                            Text('Reiniciar Progresso'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline_rounded,
-                                color: Colors.redAccent, size: 18),
-                            SizedBox(width: 10),
-                            Text('Excluir este Plano',
-                                style: TextStyle(color: Colors.redAccent)),
-                          ],
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Título e Categoria do Plano Selecionado
-          Text(
-            planIndex.plan.title.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(
-              color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 4),
+          // Título Majestoso da Passagem
           Text(
             planDay.formattedSummary,
             style: GoogleFonts.plusJakartaSans(
               color: textColor,
-              fontSize: isTablet ? 28 : 23,
+              fontSize: isTablet ? 32 : 24,
               fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
+              letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 4),
@@ -1218,274 +1184,201 @@ class HojeTab extends ConsumerWidget {
             'Dia ${todayInfo.day} de ${planIndex.totalDays} • Leitura Bíblica Diária',
             style: GoogleFonts.manrope(
               color: subtitleColor,
-              fontSize: 13,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Snippet informativo de suporte de leitura
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: (isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706)).withValues(alpha: 0.18),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.auto_stories_rounded,
+                  size: 18,
+                  color: isDark ? AppTheme.kPrimaryGold : const Color(0xFFD97706),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Leitura bíblica no leitor interativo com léxico Strong (hebraico/grego), áudio bíblico e anotações.',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12.5,
+                      height: 1.35,
+                      color: subtitleColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),
 
-          // Hero Card: Passagem Bíblica clicável que convida à leitura
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                ref.read(studyPlanProgressProvider.notifier).startPlan();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => StudyPlanReaderScreen(
-                      planDay: planDay,
-                      globalDayNumber: todayInfo.day,
-                    ),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.04)
-                      : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isCompleted
-                        ? const Color(0xFF10B981).withValues(alpha: 0.35)
-                        : (isDark
-                            ? AppTheme.kPrimaryGold.withValues(alpha: 0.25)
-                            : const Color(0xFFD97706).withValues(alpha: 0.2)),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isCompleted
-                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                            : (isDark
-                                ? AppTheme.kPrimaryGold.withValues(alpha: 0.15)
-                                : const Color(0xFFFEF3C7)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        isCompleted
-                            ? Icons.check_circle_rounded
-                            : Icons.auto_stories_rounded,
-                        color: isCompleted
-                            ? const Color(0xFF10B981)
-                            : (isDark
-                                ? AppTheme.kPrimaryGold
-                                : const Color(0xFFD97706)),
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'TEXTO BÍBLICO DO DIA',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.8,
-                                  color: isDark
-                                      ? AppTheme.kPrimaryGold
-                                      : const Color(0xFFD97706),
-                                ),
-                              ),
-                              if (isCompleted) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981)
-                                        .withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    'LIDO',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF10B981),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            planDay.formattedSummary,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Toque para abrir no leitor com Strong',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11.5,
-                              color: subtitleColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: isDark
-                          ? AppTheme.kPrimaryGold
-                          : const Color(0xFFD97706),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
+          // Ações Principais (Lado a lado em telas amplas, empilhadas em mobile)
+          LayoutBuilder(
+            builder: (context, boxConstraints) {
+              final isWideButton = boxConstraints.maxWidth >= 540;
 
-          // Botão Primário: Iniciar / Continuar Leitura com Strong
-          ElevatedButton.icon(
-            onPressed: () {
-              ref.read(studyPlanProgressProvider.notifier).startPlan();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => StudyPlanReaderScreen(
-                    planDay: planDay,
-                    globalDayNumber: todayInfo.day,
-                  ),
-                ),
-              );
-            },
-            icon: Icon(
-              isCompleted ? Icons.visibility_rounded : Icons.menu_book_rounded,
-              size: 20,
-            ),
-            label: Text(
-              isCompleted
-                  ? 'Revisar Leitura com Strong'
-                  : (progress.isStarted
-                      ? 'Continuar Leitura com Strong'
-                      : 'Iniciar Leitura com Strong'),
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? AppTheme.kPrimaryGold : const Color(0xFFF59E0B),
-              foregroundColor: const Color(0xFF111223),
-              minimumSize: Size.fromHeight(isTablet ? 52 : 48),
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Botão Secundário: Marcar / Alternar Concluído
-          Consumer(
-            builder: (context, ref, _) {
-              final currentProgress = ref.watch(studyPlanProgressProvider);
-              final isCurrentDayDone =
-                  currentProgress.completedDays.contains(todayInfo.day);
-
-              if (isCurrentDayDone) {
-                return OutlinedButton.icon(
-                  onPressed: () {
-                    ref
-                        .read(studyPlanProgressProvider.notifier)
-                        .toggleDay(todayInfo.day,
-                            totalDays: planIndex.totalDays);
-                    showStudyPlanCelebrationSnackbar(
-                      context: context,
-                      dayNumber: todayInfo.day,
-                      wasCompleted: true,
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.check_circle_rounded,
-                    size: 20,
-                    color: Color(0xFF10B981),
-                  ),
-                  label: Text(
-                    'Leitura Concluída Hoje ✓',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: const Color(0xFF10B981),
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor:
-                        const Color(0xFF10B981).withValues(alpha: 0.1),
-                    side: const BorderSide(
-                      color: Color(0xFF10B981),
-                      width: 1.2,
-                    ),
-                    minimumSize: Size.fromHeight(isTablet ? 48 : 46),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                );
-              }
-
-              return OutlinedButton.icon(
+              final primaryButton = ElevatedButton.icon(
                 onPressed: () {
-                  final nextDay = todayInfo.day < planIndex.totalDays
-                      ? todayInfo.day + 1
-                      : null;
-                  ref
-                      .read(studyPlanProgressProvider.notifier)
-                      .toggleDay(todayInfo.day,
-                          totalDays: planIndex.totalDays);
-                  showStudyPlanCelebrationSnackbar(
-                    context: context,
-                    dayNumber: todayInfo.day,
-                    wasCompleted: false,
-                    nextDay: nextDay,
+                  ref.read(studyPlanProgressProvider.notifier).startPlan();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StudyPlanReaderScreen(
+                        planDay: planDay,
+                        globalDayNumber: todayInfo.day,
+                      ),
+                    ),
                   );
                 },
                 icon: Icon(
-                  Icons.radio_button_unchecked_rounded,
+                  isCompleted ? Icons.visibility_rounded : Icons.menu_book_rounded,
                   size: 20,
-                  color:
-                      isDark ? Colors.white70 : textColor.withValues(alpha: 0.6),
                 ),
                 label: Text(
-                  'Marcar como Concluído',
+                  isCompleted
+                      ? 'Revisar Leitura com Strong'
+                      : (progress.isStarted
+                          ? 'Continuar Leitura com Strong'
+                          : 'Iniciar Leitura com Strong'),
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: isDark ? Colors.white : textColor,
+                    fontSize: 14.5,
                   ),
                 ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.25)
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.2),
-                  ),
-                  minimumSize: Size.fromHeight(isTablet ? 48 : 46),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? AppTheme.kPrimaryGold : const Color(0xFFF59E0B),
+                  foregroundColor: const Color(0xFF111223),
+                  minimumSize: const Size.fromHeight(50),
+                  elevation: 2,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
+              );
+
+              final secondaryButton = Consumer(
+                builder: (context, ref, _) {
+                  final currentProgress = ref.watch(studyPlanProgressProvider);
+                  final isCurrentDayDone =
+                      currentProgress.completedDays.contains(todayInfo.day);
+
+                  if (isCurrentDayDone) {
+                    return OutlinedButton.icon(
+                      onPressed: () {
+                        ref
+                            .read(studyPlanProgressProvider.notifier)
+                            .toggleDay(todayInfo.day,
+                                totalDays: planIndex.totalDays);
+                        showStudyPlanCelebrationSnackbar(
+                          context: context,
+                          dayNumber: todayInfo.day,
+                          wasCompleted: true,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.check_circle_rounded,
+                        size: 20,
+                        color: Color(0xFF10B981),
+                      ),
+                      label: Text(
+                        'Leitura Concluída Hoje ✓',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: const Color(0xFF10B981),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor:
+                            const Color(0xFF10B981).withValues(alpha: 0.1),
+                        side: const BorderSide(
+                          color: Color(0xFF10B981),
+                          width: 1.2,
+                        ),
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return OutlinedButton.icon(
+                    onPressed: () {
+                      final nextDay = todayInfo.day < planIndex.totalDays
+                          ? todayInfo.day + 1
+                          : null;
+                      ref
+                          .read(studyPlanProgressProvider.notifier)
+                          .toggleDay(todayInfo.day,
+                              totalDays: planIndex.totalDays);
+                      showStudyPlanCelebrationSnackbar(
+                        context: context,
+                        dayNumber: todayInfo.day,
+                        wasCompleted: false,
+                        nextDay: nextDay,
+                      );
+                    },
+                    icon: Icon(
+                      Icons.radio_button_unchecked_rounded,
+                      size: 20,
+                      color:
+                          isDark ? Colors.white70 : textColor.withValues(alpha: 0.6),
+                    ),
+                    label: Text(
+                      'Marcar como Concluído',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isDark ? Colors.white : textColor,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.25)
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.2),
+                      ),
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  );
+                },
+              );
+
+              if (isWideButton) {
+                return Row(
+                  children: [
+                    Expanded(flex: 6, child: primaryButton),
+                    const SizedBox(width: 14),
+                    Expanded(flex: 5, child: secondaryButton),
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  primaryButton,
+                  const SizedBox(height: 10),
+                  secondaryButton,
+                ],
               );
             },
           ),
@@ -1814,16 +1707,19 @@ class HojeTab extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       'Dica de Estudo',
                       style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(

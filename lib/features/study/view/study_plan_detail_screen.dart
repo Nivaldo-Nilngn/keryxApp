@@ -182,6 +182,7 @@ class _StudyPlanDetailScreenState extends ConsumerState<StudyPlanDetailScreen> {
         onPressed: () async {
           if (authUser == null) return;
           await ref.read(studyPlanRepositoryProvider).enrollInPlan(authUser.uid, plan);
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Plano "${plan.title}" iniciado!')),
           );

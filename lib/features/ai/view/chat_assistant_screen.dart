@@ -772,23 +772,25 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
     );
 
     if (isTablet) {
-      return Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: InstagramTabletSidebar(
-          currentIndex: 10, // IATheos
-          isRoute: true,
-          body: scaffold,
-          onSelectIndex: (index) {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-            ref.read(navigationProvider.notifier).setIndex(index);
-          },
+      return SelectionArea(
+        child: Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          body: InstagramTabletSidebar(
+            currentIndex: 10, // IATheos
+            isRoute: true,
+            body: scaffold,
+            onSelectIndex: (index) {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+              ref.read(navigationProvider.notifier).setIndex(index);
+            },
+          ),
         ),
       );
     }
 
-    return scaffold;
+    return SelectionArea(child: scaffold);
   }
 
   /// Estado Vazio Moderno estilo ChatGPT / Perplexity com Avatar Celestial,

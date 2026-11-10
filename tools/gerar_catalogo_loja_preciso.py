@@ -13,7 +13,23 @@ import sqlite3
 import unicodedata
 import urllib.request
 
-TOKEN = "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"
+def _get_gh_token():
+    token = os.environ.get("GH_TOKEN", "")
+    if token:
+        return token
+    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('GH_TOKEN='):
+                        return line.split('=', 1)[1].strip().strip('"\'')
+        except Exception:
+            pass
+    return ""
+
+TOKEN = _get_gh_token()
 REPO = "Nivaldo-Nilngn/Loja-Keryx"
 
 BASE_DIR = '/home/nivaldo/Área de trabalho/B2_Downloads'
