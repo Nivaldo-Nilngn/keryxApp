@@ -14,6 +14,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keryx_app/core/services/graph_service.dart';
 import 'package:keryx_app/core/services/telegram/telegram_http_download_service.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modelo: Marcador de página
@@ -909,10 +910,13 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       appBar: _isFullScreen ? null : AppBar(
         backgroundColor: const Color(0xFF0E0F22),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        automaticallyImplyLeading: false,
+        leading: shouldHideBackButton(context)
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

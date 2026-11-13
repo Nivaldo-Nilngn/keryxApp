@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:keryx_app/features/outlines/model/outline_model.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 
 class OutlineViewerScreen extends ConsumerWidget {
@@ -16,7 +17,13 @@ class OutlineViewerScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.blueAccent), onPressed: () => Navigator.pop(context)),
+        automaticallyImplyLeading: false,
+        leading: shouldHideBackButton(context)
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.blueAccent),
+                onPressed: () => Navigator.pop(context),
+              ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -11,6 +11,7 @@ import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/ai_token_state.dart';
 import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 /// Modos / Especialidades de Estudo Teológico da IATheos
 enum TheologicalMode {
@@ -561,23 +562,28 @@ class _ChatAssistantScreenState extends ConsumerState<ChatAssistantScreen> {
     final tokens = ref.watch(aiTokenProvider);
     final isTablet = MediaQuery.of(context).size.width >= 720;
 
+    final hideBack = isTablet || shouldHideBackButton(context);
+
     final scaffold = Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         centerTitle: false,
-        titleSpacing: 0,
-        leadingWidth: 42,
-        leading: IconButton(
-          tooltip: 'Voltar',
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints.tightFor(width: 42, height: 42),
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: onSurface,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
+        titleSpacing: hideBack ? 16.0 : 0,
+        leadingWidth: hideBack ? null : 42,
+        leading: hideBack
+            ? null
+            : IconButton(
+                tooltip: 'Voltar',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 42, height: 42),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: onSurface,
+                  size: 20,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Row(

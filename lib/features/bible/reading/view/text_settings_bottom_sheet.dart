@@ -60,18 +60,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
     {'value': 0xFF18181B, 'color': Color(0xFF18181B), 'label': 'Preto'},
   ];
 
-  static const List<String> _popularFonts = [
-    'Outfit',
-    'Inter',
-    'Roboto',
-    'Ubuntu',
-    'Merriweather',
-    'Lora',
-    'Poppins',
-    'Playfair Display',
-    'Lato',
-    'Open Sans',
-  ];
+  static const List<String> _popularFonts = CustomFontLoader.googleFonts;
 
   // Presets rápidos de tamanho de fonte para eficiência de uso
   static const List<Map<String, dynamic>> _fontSizePresets = [
@@ -230,12 +219,16 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
-              ref.read(fontSettingsProvider.notifier).resetToDefault();
+              _resetToDefault();
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Configurações originais restauradas!'),
-                  duration: Duration(seconds: 2),
+                SnackBar(
+                  content: Text(
+                    widget.isDevocional
+                        ? 'Configurações do devocional restauradas para o padrão!'
+                        : 'Configurações da Bíblia restauradas para o padrão!',
+                  ),
+                  duration: const Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
                 ),
               );
@@ -250,9 +243,59 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
     );
   }
 
+  void _updateFontSize(double size) {
+    if (widget.isDevocional) {
+      ref.read(devocionalFontSettingsProvider.notifier).setFontSize(size);
+    } else {
+      ref.read(bibleFontSettingsProvider.notifier).setFontSize(size);
+    }
+  }
+
+  void _updateFontFamily(String family) {
+    if (widget.isDevocional) {
+      ref.read(devocionalFontSettingsProvider.notifier).setFontFamily(family);
+    } else {
+      ref.read(bibleFontSettingsProvider.notifier).setFontFamily(family);
+    }
+  }
+
+  void _updateTextColor(int? colorVal) {
+    if (widget.isDevocional) {
+      ref.read(devocionalFontSettingsProvider.notifier).setTextColor(colorVal);
+    } else {
+      ref.read(bibleFontSettingsProvider.notifier).setTextColor(colorVal);
+    }
+  }
+
+  void _updateBadgeColor(int? colorVal) {
+    if (widget.isDevocional) {
+      ref.read(devocionalFontSettingsProvider.notifier).setBadgeColor(colorVal);
+    } else {
+      ref.read(bibleFontSettingsProvider.notifier).setBadgeColor(colorVal);
+    }
+  }
+
+  void _resetToDefault() {
+    if (widget.isDevocional) {
+      ref.read(devocionalFontSettingsProvider.notifier).resetToDefault();
+    } else {
+      ref.read(bibleFontSettingsProvider.notifier).resetToDefault();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final fontSettings = ref.watch(fontSettingsProvider);
+    final fontSettings = widget.isDevocional
+        ? () {
+            final dev = ref.watch(devocionalFontSettingsProvider);
+            return FontSettings(
+              fontFamily: dev.fontFamily,
+              fontSize: dev.fontSize,
+              textColor: dev.textColor,
+              badgeColor: dev.badgeColor,
+            );
+          }()
+        : ref.watch(fontSettingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF181824) : Colors.white;
     final cardBg = isDark ? const Color(0xFF222234) : const Color(0xFFF3F4F6);
@@ -296,7 +339,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
           isSelected: isSelected,
           isTablet: isTablet,
           tooltip: preset['label'] as String?,
-          onTap: () => ref.read(fontSettingsProvider.notifier).setBadgeColor(val),
+          onTap: () => _updateBadgeColor(val),
           child: Text(
             '1',
             style: GoogleFonts.outfit(
@@ -320,7 +363,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
             title: widget.isDevocional ? 'Cor de Destaque do Devocional' : 'Cor do Balão Numérico',
           );
           if (picked != null) {
-            ref.read(fontSettingsProvider.notifier).setBadgeColor(picked.toARGB32());
+            _updateBadgeColor(picked.toARGB32());
           }
         },
       ),
@@ -345,7 +388,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
           innerBorder: isAuto || color == Colors.white || color == const Color(0xFFF1F5F9) || color == const Color(0xFFFEF3C7)
               ? Border.all(color: isDark ? Colors.white24 : Colors.black26, width: 1)
               : null,
-          onTap: () => ref.read(fontSettingsProvider.notifier).setTextColor(val),
+          onTap: () => _updateTextColor(val),
           child: isAuto
               ? Icon(
                   Icons.brightness_auto_rounded,
@@ -370,7 +413,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
             referenceBackgroundColor: isDark ? const Color(0xFF0F0F1E) : Colors.white,
           );
           if (picked != null) {
-            ref.read(fontSettingsProvider.notifier).setTextColor(picked.toARGB32());
+            _updateTextColor(picked.toARGB32());
           }
         },
       ),
@@ -1607,7 +1650,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                 icon: const Icon(Icons.remove_circle_outline_rounded, size: 22),
                 tooltip: 'Diminuir fonte',
                 onPressed: fontSettings.fontSize > 12
-                    ? () => ref.read(fontSettingsProvider.notifier).setFontSize(fontSettings.fontSize - 1)
+                    ? () => _updateFontSize(fontSettings.fontSize - 1)
                     : null,
               ),
               Expanded(
@@ -1626,7 +1669,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                     max: 36,
                     divisions: 24,
                     onChanged: (val) {
-                      ref.read(fontSettingsProvider.notifier).setFontSize(val);
+                      _updateFontSize(val);
                     },
                   ),
                 ),
@@ -1635,7 +1678,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                 icon: const Icon(Icons.add_circle_outline_rounded, size: 22),
                 tooltip: 'Aumentar fonte',
                 onPressed: fontSettings.fontSize < 36
-                    ? () => ref.read(fontSettingsProvider.notifier).setFontSize(fontSettings.fontSize + 1)
+                    ? () => _updateFontSize(fontSettings.fontSize + 1)
                     : null,
               ),
             ],
@@ -1652,7 +1695,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2.5),
                   child: InkWell(
-                    onTap: () => ref.read(fontSettingsProvider.notifier).setFontSize(size),
+                    onTap: () => _updateFontSize(size),
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1797,7 +1840,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                       onTap: () async {
                         final newFont = await CustomFontLoader.importCustomFont();
                         if (newFont != null) {
-                          ref.read(fontSettingsProvider.notifier).setFontFamily(newFont);
+                          _updateFontFamily(newFont);
                         }
                       },
                       borderRadius: BorderRadius.circular(12),
@@ -1834,7 +1877,7 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                   padding: const EdgeInsets.only(right: 8),
                   child: InkWell(
                     onTap: () {
-                      ref.read(fontSettingsProvider.notifier).setFontFamily(family);
+                      _updateFontFamily(family);
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: AnimatedContainer(
@@ -1866,7 +1909,9 @@ class _TextSettingsBottomSheetState extends ConsumerState<TextSettingsBottomShee
                           family,
                           fontSize: 13,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+                          color: isSelected
+                              ? (primaryColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white)
+                              : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),

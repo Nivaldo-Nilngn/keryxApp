@@ -111,7 +111,18 @@ class DatabaseService {
       final factory = databaseFactoryFfiWeb;
       if (!await factory.databaseExists(path)) return false;
       final bytes = await factory.readDatabaseBytes(path);
-      return isValidSqliteBytes(bytes);
+      if (!isValidSqliteBytes(bytes)) return false;
+      // Validação real tentando executar consulta teste na engine SQLite
+      final testDb = await factory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(readOnly: true),
+      );
+      try {
+        await testDb.rawQuery('SELECT 1;');
+      } finally {
+        await testDb.close();
+      }
+      return true;
     } catch (_) {
       return false;
     }
@@ -480,7 +491,7 @@ class DatabaseService {
         } else {
           // No Web, usamos o factory para escrever no IndexedDB virtual filesystem
           final factory = databaseFactoryFfiWeb;
-          await factory.writeDatabaseBytes(path, validBytes);
+          await factory.writeDatabaseBytes(path, Uint8List.fromList(validBytes));
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('web_db_ready_$key', true);
         }
@@ -491,39 +502,42 @@ class DatabaseService {
       }
     }
 
-    // Garante índices de performance na base bíblica (executado uma única vez)
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool('db_indexed_$key') != true) {
-        final writableDb = kIsWeb
-            ? await databaseFactoryFfiWeb.openDatabase(path)
-            : await openDatabase(path);
-        final tables = (await writableDb.rawQuery(
-          "SELECT name FROM sqlite_master WHERE type='table'",
-        )).map((t) => (t['name'] as String).toLowerCase()).toSet();
+    // Garante índices de performance na base bíblica (executado uma única vez, apenas em Mobile/Desktop)
+    if (!kIsWeb) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('db_indexed_$key') != true) {
+          final writableDb = await openDatabase(path);
+          try {
+            final tables = (await writableDb.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table'",
+            )).map((t) => (t['name'] as String).toLowerCase()).toSet();
 
-        if (tables.contains('verses')) {
-          await writableDb.execute(
-            'CREATE INDEX IF NOT EXISTS idx_verses_book_chap ON verses (book_number, chapter);',
-          );
-        } else if (tables.contains('verse')) {
-          await writableDb.execute(
-            'CREATE INDEX IF NOT EXISTS idx_verse_book_chap ON verse (book_id, chapter);',
-          );
-        } else if (tables.contains('versiculos')) {
-          await writableDb.execute(
-            'CREATE INDEX IF NOT EXISTS idx_versiculos_liv_cap ON versiculos (ver_liv_id, ver_capitulo);',
-          );
-        } else if (tables.contains('bible')) {
-          await writableDb.execute(
-            'CREATE INDEX IF NOT EXISTS idx_bible_book_chap ON Bible (Book, Chapter);',
-          );
+            if (tables.contains('verses')) {
+              await writableDb.execute(
+                'CREATE INDEX IF NOT EXISTS idx_verses_book_chap ON verses (book_number, chapter);',
+              );
+            } else if (tables.contains('verse')) {
+              await writableDb.execute(
+                'CREATE INDEX IF NOT EXISTS idx_verse_book_chap ON verse (book_id, chapter);',
+              );
+            } else if (tables.contains('versiculos')) {
+              await writableDb.execute(
+                'CREATE INDEX IF NOT EXISTS idx_versiculos_liv_cap ON versiculos (ver_liv_id, ver_capitulo);',
+              );
+            } else if (tables.contains('bible')) {
+              await writableDb.execute(
+                'CREATE INDEX IF NOT EXISTS idx_bible_book_chap ON Bible (Book, Chapter);',
+              );
+            }
+          } finally {
+            await writableDb.close();
+          }
+          await prefs.setBool('db_indexed_$key', true);
         }
-        await writableDb.close();
-        await prefs.setBool('db_indexed_$key', true);
+      } catch (e) {
+        debugPrint('Aviso ao indexar Bíblia $key: $e');
       }
-    } catch (e) {
-      debugPrint('Aviso ao indexar Bíblia $key: $e');
     }
 
     // Abre o banco de dados com auto-recuperação resiliente

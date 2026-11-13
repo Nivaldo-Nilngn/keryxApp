@@ -205,14 +205,14 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
     });
 
     final appThemeMode = ref.watch(themeModeProvider);
-    final fontSettings = ref.watch(fontSettingsProvider);
+    final systemFontSettings = ref.watch(systemFontSettingsProvider);
 
     // Garante sincronização da fonte global do sistema
-    GoogleFonts.setGlobalFontFamilyOverride(fontSettings.fontFamily);
+    GoogleFonts.setGlobalFontFamilyOverride(systemFontSettings.fontFamily);
 
     final themeData = AppTheme.getTheme(
       mode: appThemeMode,
-      fontFamily: fontSettings.fontFamily,
+      fontFamily: systemFontSettings.fontFamily,
     );
 
     return MaterialApp(
@@ -223,16 +223,16 @@ class _KeryxAppState extends ConsumerState<KeryxApp> with WidgetsBindingObserver
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
 
-        // Tamanho de fonte selecionado nas configurações do sistema:
+        // Tamanho de fonte selecionado nas configurações globais do sistema:
         // 16.0px é a base padrão (1.0).
         // Se o usuário selecionar 12px -> 0.75
         // Se o usuário selecionar 20px -> 1.25
         // Se o usuário selecionar 24px -> 1.50
-        final userFontScale = (fontSettings.fontSize / 16.0).clamp(0.70, 2.2);
+        final userFontScale = (systemFontSettings.fontSize / 16.0).clamp(0.70, 2.2);
         final systemScale = mediaQuery.textScaler.scale(1.0);
         final effectiveScale = (systemScale * userFontScale).clamp(0.70, 2.5);
 
-        final String activeFont = fontSettings.fontFamily;
+        final String activeFont = systemFontSettings.fontFamily;
         final TextStyle dynamicDefaultStyle = CustomFontLoader.loadedFontFamilies.contains(activeFont)
             ? TextStyle(fontFamily: activeFont)
             : GoogleFonts.getFont(activeFont);
@@ -509,9 +509,9 @@ class _GlobalShortcutsHandlerState extends ConsumerState<GlobalShortcutsHandler>
   }
 
   void _adjustFontSize(double delta) {
-    final current = ref.read(fontSettingsProvider).fontSize;
+    final current = ref.read(systemFontSettingsProvider).fontSize;
     final newSize = (current + delta).clamp(12.0, 32.0);
-    ref.read(fontSettingsProvider.notifier).setFontSize(newSize);
+    ref.read(systemFontSettingsProvider.notifier).setFontSize(newSize);
 
     // Feedback visual sutil
     final messenger = ref.read(scaffoldMessengerKeyProvider).currentState;
@@ -527,7 +527,7 @@ class _GlobalShortcutsHandlerState extends ConsumerState<GlobalShortcutsHandler>
   }
 
   void _resetFontSize() {
-    ref.read(fontSettingsProvider.notifier).setFontSize(16.0);
+    ref.read(systemFontSettingsProvider.notifier).setFontSize(16.0);
     final messenger = ref.read(scaffoldMessengerKeyProvider).currentState;
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(

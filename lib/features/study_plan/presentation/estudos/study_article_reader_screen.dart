@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../application/study_plan_providers.dart';
 import '../../domain/biblical_study.dart';
 import '../../data/biblical_studies_repository.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 class StudyArticleReaderScreen extends ConsumerStatefulWidget {
   final BiblicalStudy study;
@@ -311,12 +312,15 @@ class _StudyArticleReaderScreenState
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        titleSpacing: 0,
-        leading: IconButton(
-          tooltip: 'Voltar',
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        titleSpacing: shouldHideBackButton(context) ? 16.0 : 0,
+        automaticallyImplyLeading: false,
+        leading: shouldHideBackButton(context)
+            ? null
+            : IconButton(
+                tooltip: 'Voltar',
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
         title: Text(
           widget.study.title,
           maxLines: 1,

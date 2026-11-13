@@ -5,6 +5,44 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.14',
+      buildNumber: 23,
+      title: 'Navegação Adaptativa, Isolamento de Fontes e Auto-Cura SQLite Web',
+      releaseDate: '13 de Novembro de 2026',
+      highlight:
+          'Eliminação de colisões na navegação em tablets e telas largas, detecção dos 3 botões do sistema na Safe Area para evitar setas redundantes, isolamento contextual de fontes por tela e correção definitiva do worker SQLite no Web.',
+      items: [
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Navegação Adaptativa e Detecção de Botões do Sistema',
+          description:
+              'Detecção inteligente dos 3 botões clássicos de navegação do dispositivo na Safe Area para ocultar setas de voltar desnecessárias, além de eliminação de colisões com o botão de recolher da barra lateral.',
+          customIcon: Icons.navigation_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Isolamento de Tipografia por Contexto',
+          description:
+              'Ajustes de fonte e tamanho na Bíblia agora afetam exclusivamente a leitura bíblica, enquanto no Devocional afetam apenas o devocional, mantendo as preferências do sistema globais e isoladas.',
+          customIcon: Icons.format_size_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Expansão do Catálogo Tipográfico',
+          description:
+              'Todas as 24 famílias de fontes modernas e serifadas agora estão integradas e disponíveis uniformemente em todas as telas de leitura e configuração.',
+          customIcon: Icons.font_download_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Correção Definitiva SQLite Web & Concordância Strong',
+          description:
+              'Atualização do web worker (sqflite_sw.js 1.2.0), validação real com teste de query e eliminação de escritas indevidas em bases read-only no ambiente Web.',
+          customIcon: Icons.build_circle_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.13',
       buildNumber: 22,
       title: 'Auto-cura da Concordância Strong (ARA_S) e Encaixe Dinâmico da Barra de Seleção',

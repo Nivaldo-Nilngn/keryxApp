@@ -24,6 +24,7 @@ import 'package:keryx_app/features/access_control/service/access_control_service
 import 'package:keryx_app/features/access_control/view/user_management_screen.dart';
 import 'reset_data_modal.dart';
 import 'edit_profile_modal.dart';
+import '../utils/navigation_utils.dart';
 
 class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
@@ -86,11 +87,11 @@ class KeryxTopBar extends ConsumerWidget implements PreferredSizeWidget {
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
           toolbarHeight: height,
-          automaticallyImplyLeading: showBackButton,
+          automaticallyImplyLeading: false,
           centerTitle: false,
-          titleSpacing: showBackButton ? 0 : 16.0,
-          leadingWidth: leading != null ? 80 : 56,
-          leading: leading ?? (showBackButton ? IconButton(
+          titleSpacing: (showBackButton && !shouldHideBackButton(context)) ? 0 : 16.0,
+          leadingWidth: leading != null ? 80 : ((showBackButton && !shouldHideBackButton(context)) ? 56 : 0),
+          leading: leading ?? ((showBackButton && !shouldHideBackButton(context)) ? IconButton(
             tooltip: 'Voltar',
             icon: Icon(Icons.arrow_back_ios_new_rounded, color: Theme.of(context).colorScheme.onSurface, size: 20),
             onPressed: onBack ?? () => Navigator.pop(context),
@@ -875,7 +876,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(fontSettingsProvider);
+    final settings = ref.watch(systemFontSettingsProvider);
     final authState = ref.watch(authStateProvider);
     final user = authState.value;
     final theme = Theme.of(context);
@@ -1235,7 +1236,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
     );
   }
 
-  Widget _buildSystemSettingsSection(BuildContext context, FontSettings settings) {
+  Widget _buildSystemSettingsSection(BuildContext context, SystemFontSettings settings) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isTablet = MediaQuery.of(context).size.width >= 720;
@@ -1407,7 +1408,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                             value: settings.fontSize,
                             min: 12,
                             max: 36,
-                            onChanged: (val) => ref.read(fontSettingsProvider.notifier).setFontSize(val),
+                            onChanged: (val) => ref.read(systemFontSettingsProvider.notifier).setFontSize(val),
                           ),
                         ),
                       ),
@@ -1434,7 +1435,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                                 onTap: () async {
                                   final newFont = await CustomFontLoader.importCustomFont();
                                   if (newFont != null) {
-                                    ref.read(fontSettingsProvider.notifier).setFontFamily(newFont);
+                                    ref.read(systemFontSettingsProvider.notifier).setFontFamily(newFont);
                                   }
                                 },
                                 borderRadius: BorderRadius.circular(12),
@@ -1455,7 +1456,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
                                 ),
                               )
                             : GestureDetector(
-                                onTap: () => ref.read(fontSettingsProvider.notifier).setFontFamily(f),
+                                onTap: () => ref.read(systemFontSettingsProvider.notifier).setFontFamily(f),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -1818,7 +1819,7 @@ class _UnifiedSettingsSheetState extends ConsumerState<UnifiedSettingsSheet> {
             ),
             onPressed: () {
               Navigator.pop(dialogCtx);
-              ref.read(fontSettingsProvider.notifier).resetToDefault();
+              ref.read(systemFontSettingsProvider.notifier).resetToDefault();
               ref.read(navBarStyleProvider.notifier).setStyle(NavBarStyle.floating);
               ref.read(showReadingAudioBarProvider.notifier).setVisible(true);
               setState(() {});

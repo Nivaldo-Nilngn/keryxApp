@@ -10,6 +10,7 @@ import 'package:keryx_app/features/community/view/widgets/create_story_bottom_sh
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
@@ -216,7 +217,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 backgroundColor: isDark ? const Color(0xFF101018) : const Color(0xFFF9FAFB),
                 surfaceTintColor: Colors.transparent,
                 automaticallyImplyLeading: false,
-                leading: (widget.isEmbedded && isTablet)
+                leading: (shouldHideBackButton(context) || (widget.isEmbedded && isTablet))
                     ? null
                     : IconButton(
                         icon: Icon(

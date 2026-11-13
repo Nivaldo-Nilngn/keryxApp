@@ -15,6 +15,9 @@ import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/features/bible/reading/view/reading_screen.dart';
 import 'package:keryx_app/features/bible/reading/view/text_settings_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/view/tts_settings_sheet.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/state/navigation_state.dart';
 
 class DevocionalScreen extends ConsumerStatefulWidget {
   final DevocionalData devocional;
@@ -283,8 +286,8 @@ ${widget.devocional.content}
 
   @override
   Widget build(BuildContext context) {
-    // Escuta as configurações de leitura (fontSettingsProvider)
-    final fontSettings = ref.watch(fontSettingsProvider);
+    // Escuta as configurações exclusivas do Devocional (isoladas da Bíblia e do Sistema)
+    final fontSettings = ref.watch(devocionalFontSettingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Cores dinâmicas de acordo com as configurações de leitura
@@ -299,28 +302,39 @@ ${widget.devocional.content}
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final bottomPadding = bottomInset + 40.0;
 
-    return SelectionArea(
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+    final showBack = !isTablet && !shouldHideBackButton(context);
+
+    final scaffold = Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 1,
         shadowColor: Colors.black.withValues(alpha: 0.1),
         surfaceTintColor: Colors.transparent,
-        titleSpacing: 0,
-        leadingWidth: 44,
-        leading: IconButton(
-          tooltip: 'Voltar',
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Theme.of(context).colorScheme.onSurface,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
+        titleSpacing: showBack ? 0 : 16.0,
+        leadingWidth: showBack ? 44 : 0,
+        leading: showBack
+            ? IconButton(
+                tooltip: 'Voltar',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  size: 20,
+                ),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    ref.read(navigationProvider.notifier).setIndex(0);
+                  }
+                },
+              )
+            : null,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -434,10 +448,14 @@ ${widget.devocional.content}
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 820),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(20, 20, 20, bottomPadding),
-              child: Column(
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.noScaling,
+              ),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(20, 20, 20, bottomPadding),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 1. Tag de Categoria com Linha Divisória Sutil
@@ -650,18 +668,39 @@ ${widget.devocional.content}
                 ],
               ),
             ),
+            ),
           ),
         ),
       ),
-    ),
     );
+
+    if (isTablet) {
+      return SelectionArea(
+        child: Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: InstagramTabletSidebar(
+            currentIndex: 11, // Devocional Diário
+            isRoute: true,
+            body: scaffold,
+            onSelectIndex: (index) {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+              ref.read(navigationProvider.notifier).setIndex(index);
+            },
+          ),
+        ),
+      );
+    }
+
+    return SelectionArea(child: scaffold);
   }
 
   Widget _buildContentWithLinks(
     BuildContext context,
     WidgetRef ref,
     String content,
-    FontSettings fontSettings,
+    DevocionalFontSettings fontSettings,
     Color contentTextColor,
     Color linkColor,
   ) {
@@ -705,7 +744,7 @@ ${widget.devocional.content}
     BuildContext context,
     WidgetRef ref,
     String paragraph,
-    FontSettings fontSettings,
+    DevocionalFontSettings fontSettings,
     Color contentTextColor,
     Color linkColor,
   ) {
@@ -771,7 +810,7 @@ ${widget.devocional.content}
     BuildContext context,
     WidgetRef ref,
     String reference,
-    FontSettings fontSettings, {
+    DevocionalFontSettings fontSettings, {
     required Color accentColor,
   }) {
     showDialog(

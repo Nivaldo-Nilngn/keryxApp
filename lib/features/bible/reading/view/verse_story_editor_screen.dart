@@ -7,6 +7,7 @@ import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
+import 'package:keryx_app/core/services/custom_font_loader.dart';
 
 /// Modelo de categoria do acervo de imagens para Stories
 class VerseBackgroundCategory {
@@ -524,12 +525,9 @@ class _VerseStoryEditorScreenState extends State<VerseStoryEditorScreen> {
   String _selectedFontFamily = 'Playfair Display';
   bool _showWatermark = true;
 
-  final List<String> _fontOptions = [
-    'Playfair Display',
-    'Outfit',
-    'Inter',
-    'Cinzel',
-    'Caveat',
+  List<String> get _fontOptions => [
+    ...CustomFontLoader.googleFonts,
+    ...CustomFontLoader.loadedFontFamilies.where((f) => !CustomFontLoader.googleFonts.contains(f)),
   ];
 
   @override
@@ -549,43 +547,32 @@ class _VerseStoryEditorScreenState extends State<VerseStoryEditorScreen> {
   }
 
   TextStyle _getStoryTextStyle() {
-    switch (_selectedFontFamily) {
-      case 'Playfair Display':
-        return GoogleFonts.playfairDisplay(
-          fontSize: _fontSize,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-          height: 1.45,
-        );
-      case 'Cinzel':
-        return GoogleFonts.cinzel(
-          fontSize: _fontSize,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-          height: 1.45,
-        );
-      case 'Caveat':
-        return GoogleFonts.caveat(
-          fontSize: _fontSize + 4,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          height: 1.35,
-        );
-      case 'Inter':
-        return GoogleFonts.inter(
-          fontSize: _fontSize,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-          height: 1.45,
-        );
-      case 'Outfit':
-      default:
-        return GoogleFonts.outfit(
-          fontSize: _fontSize,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-          height: 1.45,
-        );
+    if (CustomFontLoader.loadedFontFamilies.contains(_selectedFontFamily)) {
+      return TextStyle(
+        fontFamily: _selectedFontFamily,
+        fontSize: _fontSize,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        height: 1.45,
+      );
+    }
+    try {
+      return GoogleFonts.getFont(
+        _selectedFontFamily,
+        fontSize: _selectedFontFamily == 'Caveat' ? _fontSize + 4 : _fontSize,
+        fontWeight: (_selectedFontFamily == 'Caveat' || _selectedFontFamily == 'Cinzel')
+            ? FontWeight.bold
+            : FontWeight.w600,
+        color: Colors.white,
+        height: _selectedFontFamily == 'Caveat' ? 1.35 : 1.45,
+      );
+    } catch (_) {
+      return GoogleFonts.outfit(
+        fontSize: _fontSize,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        height: 1.45,
+      );
     }
   }
 
@@ -1045,11 +1032,30 @@ class _VerseStoryEditorScreenState extends State<VerseStoryEditorScreen> {
                       child: Center(
                         child: Text(
                           font,
-                          style: GoogleFonts.outfit(
-                            color: isSelected ? AppTheme.kPrimaryGold : Colors.white70,
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          ),
+                          style: (() {
+                            if (CustomFontLoader.loadedFontFamilies.contains(font)) {
+                              return TextStyle(
+                                fontFamily: font,
+                                color: isSelected ? AppTheme.kPrimaryGold : Colors.white70,
+                                fontSize: 12,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              );
+                            }
+                            try {
+                              return GoogleFonts.getFont(
+                                font,
+                                color: isSelected ? AppTheme.kPrimaryGold : Colors.white70,
+                                fontSize: 12,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              );
+                            } catch (_) {
+                              return GoogleFonts.outfit(
+                                color: isSelected ? AppTheme.kPrimaryGold : Colors.white70,
+                                fontSize: 12,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              );
+                            }
+                          })(),
                         ),
                       ),
                     ),

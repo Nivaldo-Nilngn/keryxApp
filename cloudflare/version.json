@@ -1,11 +1,11 @@
 {
-  "latest_version": 22,
-  "version_name": "2.0.13",
-  "release_date": "2026-11-12",
-  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.13/keryxApp.apk",
+  "latest_version": 23,
+  "version_name": "2.0.14",
+  "release_date": "2026-11-13",
+  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.14/keryxApp.apk",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.13: Correção e auto-cura completa da concordância exaustiva Strong (ARA_S); novo encaixe inteligente da barra de seleção ao rodapé com suporte à safe-area quando sem áudio; deploy web atualizado e melhorias de performance.",
+  "release_notes": "Versão 2.0.14: Navegação adaptativa com detecção dos botões na Safe Area; eliminação de colisões com a sidebar; isolamento contextual de fontes na Bíblia e Devocional; expansão para 24 famílias tipográficas; correção definitiva do worker SQLite no Web e auto-cura da concordância Strong.",
   "force_update": false,
   "min_version": 1,
-  "sha256": "cb2c852565c2285902083dae9f0f4b26718b9ce701bf21bde6364559c455187c"
+  "sha256": "f908f2fa9cb658377f90e65cc2fb6dd2adfa98e01791d16adc57d62c38d769cd"
 }

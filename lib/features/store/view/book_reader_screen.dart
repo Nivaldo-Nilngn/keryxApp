@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:keryx_app/features/store/repository/b2_service.dart';
 import 'package:keryx_app/core/widgets/custom_bottom_nav.dart';
 import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 // ── Paleta ──────────────────────────────────────────────────────────────────
 // Utiliza-se Theme.of(context) em vez de cores hardcoded para suportar temas claro e escuro.
@@ -563,15 +564,16 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
             Column(
               children: [
             // ── App Bar ────────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-                child: Row(children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: Theme.of(context).colorScheme.onSurface),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ]),
-              ),
+              if (!shouldHideBackButton(context))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                  child: Row(children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: Theme.of(context).colorScheme.onSurface),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ]),
+                ),
               // ── Título ─────────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),

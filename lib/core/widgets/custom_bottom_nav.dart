@@ -6,6 +6,7 @@ import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/core/state/nav_bar_style_provider.dart';
+import '../utils/navigation_utils.dart';
 
 /// Barra de navegação unificada para todo o aplicativo, 
 /// garantindo consistência no design.
@@ -128,7 +129,7 @@ class KeryxBottomNav extends ConsumerWidget {
     }
 
     final navItems = [
-      if (!isHome && onBack != null)
+      if (!isHome && onBack != null && !shouldHideBackButton(context))
         _buildItem(
           context,
           Icons.arrow_back_ios_new_rounded,

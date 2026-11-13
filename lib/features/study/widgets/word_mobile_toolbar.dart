@@ -932,7 +932,16 @@ class _WordMobileLowerRibbonState extends State<WordMobileLowerRibbon> {
                     children: WordMobileTheme.availableFonts.map((font) {
                       final isSelected = font == _currentFont;
                       return ListTile(
-                        title: Text(font, style: TextStyle(fontFamily: font, fontSize: 16)),
+                        title: Text(
+                          font,
+                          style: (() {
+                            try {
+                              return GoogleFonts.getFont(font, fontSize: 16);
+                            } catch (_) {
+                              return TextStyle(fontFamily: font, fontSize: 16);
+                            }
+                          })(),
+                        ),
                         trailing: isSelected ? const Icon(Icons.check, color: WordMobileTheme.primaryBlue) : null,
                         onTap: () {
                           setState(() => _currentFont = font);

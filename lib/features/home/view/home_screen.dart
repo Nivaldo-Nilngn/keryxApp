@@ -1187,7 +1187,7 @@ class _HomeDevotional extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final devocionalAsync = ref.watch(devocionalDiarioProvider);
-    final fontSettings = ref.watch(fontSettingsProvider);
+    final fontSettings = ref.watch(devocionalFontSettingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final accentColor = fontSettings.badgeColor != null

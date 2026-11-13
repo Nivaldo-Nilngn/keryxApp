@@ -13,6 +13,8 @@ import 'package:keryx_app/features/bible/model/bible_model.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
 import 'package:keryx_app/features/bible/reading/view/text_settings_bottom_sheet.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/state/navigation_state.dart';
 
 void showStrongBottomSheet(
   BuildContext context,
@@ -265,17 +267,28 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
     final sc1 = ScrollController();
     final sc2 = ScrollController();
 
-    return Scaffold(
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+
+    final scaffold = Scaffold(
       backgroundColor: _surfaceBase,
       appBar: AppBar(
         backgroundColor: _surfaceBase,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: _textPrimary, size: 24),
-          onPressed: () => Navigator.pop(context),
-          tooltip: 'Voltar',
-        ),
+        automaticallyImplyLeading: false,
+        leading: (isTablet || shouldHideBackButton(context))
+            ? null
+            : IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: _textPrimary, size: 24),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    ref.read(navigationProvider.notifier).setIndex(1);
+                  }
+                },
+                tooltip: 'Voltar para a Bíblia',
+              ),
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -327,6 +340,18 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
             tooltip: 'Configurações de Leitura & Strong',
             onPressed: () => showTextSettingsBottomSheet(context, isStrongVersion: true),
           ),
+          if (isTablet)
+            IconButton(
+              icon: Icon(Icons.close_rounded, color: _textPrimary, size: 24),
+              tooltip: 'Fechar e voltar para a Bíblia',
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  ref.read(navigationProvider.notifier).setIndex(1);
+                }
+              },
+            ),
           const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
@@ -414,6 +439,27 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
               ],
             ),
     );
+
+    if (isTablet) {
+      return SelectionArea(
+        child: Scaffold(
+          backgroundColor: _surfaceBase,
+          body: InstagramTabletSidebar(
+            currentIndex: 1, // Bíblia
+            isRoute: true,
+            body: scaffold,
+            onSelectIndex: (index) {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+              ref.read(navigationProvider.notifier).setIndex(index);
+            },
+          ),
+        ),
+      );
+    }
+
+    return SelectionArea(child: scaffold);
   }
 
 

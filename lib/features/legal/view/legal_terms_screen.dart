@@ -4,6 +4,7 @@ import 'package:keryx_app/core/theme/app_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:keryx_app/core/theme/app_theme.dart';
 import 'package:keryx_app/core/services/auth_service.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 class LegalTermsScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -167,14 +168,17 @@ class _LegalTermsScreenState extends ConsumerState<LegalTermsScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
+        leading: shouldHideBackButton(context)
+            ? null
+            : IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
         title: Text(
           'Central de Privacidade & Termos',
           style: GoogleFonts.plusJakartaSans(

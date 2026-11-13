@@ -931,11 +931,14 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
         appBar: AppBar(
           backgroundColor: WordMobileTheme.primaryBlue,
           elevation: 1,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-            tooltip: 'Voltar',
-            onPressed: () => Navigator.maybePop(context),
-          ),
+          automaticallyImplyLeading: false,
+          leading: shouldHideBackButton(context)
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  tooltip: 'Voltar',
+                  onPressed: () => Navigator.maybePop(context),
+                ),
           title: TextField(
             controller: _titleCtrl,
             focusNode: _titleFocus,

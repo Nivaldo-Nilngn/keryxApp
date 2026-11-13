@@ -9,6 +9,7 @@ import 'package:keryx_app/features/bible/view_model/bible_state.dart';
 import 'package:keryx_app/core/services/tts/tts_service.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 class DictionaryDetailScreen extends ConsumerStatefulWidget {
   final String word;
@@ -106,31 +107,33 @@ class _DictionaryDetailScreenState extends ConsumerState<DictionaryDetailScreen>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.arrow_back, color: Colors.white, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Voltar',
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+              if (!shouldHideBackButton(context)) ...[
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.arrow_back, color: Colors.white, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Voltar',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
               Row(
                 children: [
                   Container(

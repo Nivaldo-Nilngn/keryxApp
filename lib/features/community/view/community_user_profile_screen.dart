@@ -18,6 +18,7 @@ import 'package:keryx_app/features/community/view/widgets/create_post_bottom_she
 import 'package:keryx_app/features/community/model/user_stories_group.dart';
 import 'package:keryx_app/features/community/view/widgets/story_viewer_screen.dart';
 import 'package:keryx_app/features/community/view/widgets/create_story_bottom_sheet.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 /// Tela de Perfil e Publicações do Usuário — Estilo Instagram
 class CommunityUserProfileScreen extends ConsumerStatefulWidget {
@@ -288,14 +289,17 @@ class _CommunityUserProfileScreenState
             elevation: 0,
             backgroundColor: bg,
             surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 20,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
+            automaticallyImplyLeading: false,
+            leading: shouldHideBackButton(context)
+                ? null
+                : IconButton(
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
             title: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

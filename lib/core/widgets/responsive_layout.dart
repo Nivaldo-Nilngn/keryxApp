@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../utils/navigation_utils.dart' as nav_utils;
+export '../utils/navigation_utils.dart';
 
 enum ScreenSize { compact, medium, expanded }
 
@@ -33,6 +35,9 @@ class ResponsiveLayout extends StatelessWidget {
 
   static bool isExpanded(BuildContext context) =>
       getScreenSize(context) == ScreenSize.expanded;
+
+  static bool shouldHideBackButton(BuildContext context) =>
+      nav_utils.shouldHideBackButton(context);
 
   @override
   Widget build(BuildContext context) {

@@ -8,6 +8,7 @@ import 'package:keryx_app/core/constants/bible_metadata.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keryx_app/core/services/ai_service.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 import 'dart:convert';
   
 
@@ -85,7 +86,13 @@ class _OutlineEditorScreenState extends ConsumerState<OutlineEditorScreen> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.blueAccent), onPressed: () => Navigator.pop(context)),
+        automaticallyImplyLeading: false,
+        leading: shouldHideBackButton(context)
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.blueAccent),
+                onPressed: () => Navigator.pop(context),
+              ),
         title: Row(
           children: [
             const Icon(Icons.auto_awesome, color: Color(0xFFF59E0B), size: 24),

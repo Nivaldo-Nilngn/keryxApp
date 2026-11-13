@@ -11,6 +11,8 @@ import 'package:keryx_app/core/widgets/responsive_layout.dart';
 import 'package:keryx_app/features/bible/model/bible_model.dart';
 import 'package:keryx_app/features/bible/reading/view/text_settings_bottom_sheet.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/state/navigation_state.dart';
 import 'package:keryx_app/features/store/model/store_item.dart';
 import 'package:keryx_app/features/store/view_model/store_view_model.dart';
 
@@ -151,17 +153,28 @@ class VerseComparisonScreen extends ConsumerWidget {
       )),
     );
 
-    return Scaffold(
+    final isTablet = MediaQuery.sizeOf(context).width >= 720;
+
+    final scaffold = Scaffold(
       backgroundColor: surfaceBase,
       appBar: AppBar(
         backgroundColor: surfaceBase,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: textPrimary, size: 24),
-          onPressed: () => Navigator.pop(context),
-          tooltip: 'Voltar',
-        ),
+        automaticallyImplyLeading: false,
+        leading: (isTablet || shouldHideBackButton(context))
+            ? null
+            : IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: textPrimary, size: 24),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    ref.read(navigationProvider.notifier).setIndex(1);
+                  }
+                },
+                tooltip: 'Voltar para a Bíblia',
+              ),
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -216,6 +229,20 @@ class VerseComparisonScreen extends ConsumerWidget {
             tooltip: 'Configurações de Leitura & Fonte',
             onPressed: () => showTextSettingsBottomSheet(context),
           ),
+          // Em tablets e desktops com menu lateral, o botão de fechar fica na direita
+          // para nunca colidir com a seta [<] ou [>] de expansão da barra lateral
+          if (isTablet)
+            IconButton(
+              icon: Icon(Icons.close_rounded, color: textPrimary, size: 24),
+              tooltip: 'Fechar e voltar para a Bíblia',
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  ref.read(navigationProvider.notifier).setIndex(1);
+                }
+              },
+            ),
           const SizedBox(width: 4),
         ],
       ),
@@ -280,6 +307,27 @@ class VerseComparisonScreen extends ConsumerWidget {
         },
       ),
     );
+
+    if (isTablet) {
+      return SelectionArea(
+        child: Scaffold(
+          backgroundColor: surfaceBase,
+          body: InstagramTabletSidebar(
+            currentIndex: 1, // Bíblia
+            isRoute: true,
+            body: scaffold,
+            onSelectIndex: (index) {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+              ref.read(navigationProvider.notifier).setIndex(index);
+            },
+          ),
+        ),
+      );
+    }
+
+    return SelectionArea(child: scaffold);
   }
 
   Widget _buildVersionCard(

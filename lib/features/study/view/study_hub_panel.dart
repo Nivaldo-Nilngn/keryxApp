@@ -22,6 +22,9 @@ import 'package:keryx_app/features/study/model/note_card.dart';
 import 'package:keryx_app/features/study/view_model/note_cards_provider.dart';
 import 'package:keryx_app/features/study/view/annotations_screen.dart';
 import 'package:keryx_app/features/bible/reading/view/text_settings_bottom_sheet.dart';
+import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
+import 'package:keryx_app/core/state/navigation_state.dart';
 
 // ─── Providers de Estado do Hub de Estudos ────────────────────────────────────
 // 0: Comentários Bíblicos (Módulos MyBible)
@@ -558,17 +561,27 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
       );
 
     if (widget.isFullScreen) {
-      return Scaffold(
+      final isTablet = MediaQuery.sizeOf(context).width >= 720;
+      final scaffold = Scaffold(
         backgroundColor: surfaceBase,
         appBar: AppBar(
           backgroundColor: surfaceBase,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: textPrimary, size: 24),
-            onPressed: () => Navigator.pop(context),
-            tooltip: 'Voltar',
-          ),
+          automaticallyImplyLeading: false,
+          leading: (isTablet || shouldHideBackButton(context))
+              ? null
+              : IconButton(
+                  icon: Icon(Icons.arrow_back_rounded, color: textPrimary, size: 24),
+                  onPressed: () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    } else {
+                      ref.read(navigationProvider.notifier).setIndex(1);
+                    }
+                  },
+                  tooltip: 'Voltar para a Bíblia',
+                ),
           title: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -623,6 +636,18 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
               tooltip: 'Configurações de Leitura',
               onPressed: () => showTextSettingsBottomSheet(context),
             ),
+            if (isTablet)
+              IconButton(
+                icon: Icon(Icons.close_rounded, color: textPrimary, size: 24),
+                tooltip: 'Fechar e voltar para a Bíblia',
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    ref.read(navigationProvider.notifier).setIndex(1);
+                  }
+                },
+              ),
             const SizedBox(width: 8),
           ],
         ),
@@ -631,6 +656,27 @@ class _StudyHubPanelState extends ConsumerState<StudyHubPanel> {
           child: contentBody,
         ),
       );
+
+      if (isTablet) {
+        return SelectionArea(
+          child: Scaffold(
+            backgroundColor: surfaceBase,
+            body: InstagramTabletSidebar(
+              currentIndex: 1, // Bíblia
+              isRoute: true,
+              body: scaffold,
+              onSelectIndex: (index) {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+                ref.read(navigationProvider.notifier).setIndex(index);
+              },
+            ),
+          ),
+        );
+      }
+
+      return scaffold;
     }
 
     return Container(

@@ -18,6 +18,7 @@ import 'package:keryx_app/features/study/view_model/note_cards_provider.dart';
 import 'package:keryx_app/features/study/view/note_detail_screen.dart';
 import 'package:keryx_app/core/state/font_state.dart';
 import 'package:keryx_app/core/services/custom_font_loader.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 final selectedCommentaryVersionProvider =
@@ -364,16 +365,17 @@ class _CommentaryReaderScreenState
       ),
       child: Row(
         children: [
-          // Botão Voltar
-          IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: _textColor,
-              size: 20,
+          // Botão Voltar (oculto em web/tablet ou quando há botões do sistema)
+          if (!shouldHideBackButton(context))
+            IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: _textColor,
+                size: 20,
+              ),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Voltar',
             ),
-            onPressed: () => Navigator.pop(context),
-            tooltip: 'Voltar',
-          ),
 
           // Título e Subtítulo
           Expanded(

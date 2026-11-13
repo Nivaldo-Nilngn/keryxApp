@@ -2,6 +2,77 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_fonts.dart';
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 1. CONFIGURAÇÕES GLOBAIS DO SISTEMA (Aplicadas a todo o aplicativo)
+// ══════════════════════════════════════════════════════════════════════════════
+
+class SystemFontSettings {
+  final String fontFamily;
+  final double fontSize; // Base: 16.0 = escala 1.0x
+
+  SystemFontSettings({
+    this.fontFamily = 'Inter',
+    this.fontSize = 16.0,
+  });
+
+  SystemFontSettings copyWith({
+    String? fontFamily,
+    double? fontSize,
+  }) {
+    return SystemFontSettings(
+      fontFamily: fontFamily ?? this.fontFamily,
+      fontSize: fontSize ?? this.fontSize,
+    );
+  }
+}
+
+class SystemFontSettingsNotifier extends StateNotifier<SystemFontSettings> {
+  final SharedPreferences prefs;
+
+  SystemFontSettingsNotifier(this.prefs) : super(_loadInitial(prefs));
+
+  static SystemFontSettings _loadInitial(SharedPreferences prefs) {
+    final family = prefs.getString('system_font_family') ??
+        prefs.getString('bible_font_family') ??
+        'Inter';
+    GoogleFonts.setGlobalFontFamilyOverride(family);
+    final size = prefs.getDouble('system_font_size') ?? 16.0;
+    return SystemFontSettings(
+      fontFamily: family,
+      fontSize: size,
+    );
+  }
+
+  void setFontFamily(String family) async {
+    GoogleFonts.setGlobalFontFamilyOverride(family);
+    state = state.copyWith(fontFamily: family);
+    await prefs.setString('system_font_family', family);
+  }
+
+  void setFontSize(double size) async {
+    final clampedSize = size.clamp(12.0, 36.0);
+    state = state.copyWith(fontSize: clampedSize);
+    await prefs.setDouble('system_font_size', clampedSize);
+  }
+
+  void resetToDefault() async {
+    GoogleFonts.setGlobalFontFamilyOverride('Inter');
+    state = SystemFontSettings(fontFamily: 'Inter', fontSize: 16.0);
+    await prefs.setString('system_font_family', 'Inter');
+    await prefs.setDouble('system_font_size', 16.0);
+  }
+}
+
+final systemFontSettingsProvider =
+    StateNotifierProvider<SystemFontSettingsNotifier, SystemFontSettings>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return SystemFontSettingsNotifier(prefs);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 2. CONFIGURAÇÕES ESPECÍFICAS DA BÍBLIA (Isoladas: afetam somente a leitura bíblica)
+// ══════════════════════════════════════════════════════════════════════════════
+
 class FontSettings {
   final String fontFamily;
   final double fontSize;
@@ -62,7 +133,6 @@ class FontSettingsNotifier extends StateNotifier<FontSettings> {
 
   static FontSettings _loadInitial(SharedPreferences prefs) {
     final family = prefs.getString('bible_font_family') ?? 'Inter';
-    GoogleFonts.setGlobalFontFamilyOverride(family);
     final size = prefs.getDouble('bible_font_size') ?? 16.0;
     final hasTextColor = prefs.containsKey('bible_text_color');
     final textColorVal = hasTextColor ? prefs.getInt('bible_text_color') : null;
@@ -86,7 +156,7 @@ class FontSettingsNotifier extends StateNotifier<FontSettings> {
   }
 
   void setFontFamily(String family) async {
-    GoogleFonts.setGlobalFontFamilyOverride(family);
+    // Configuração isolada: altera apenas a renderização da Bíblia sem interferir no app global
     state = state.copyWith(fontFamily: family);
     await prefs.setString('bible_font_family', family);
   }
@@ -143,7 +213,6 @@ class FontSettingsNotifier extends StateNotifier<FontSettings> {
   }
 
   void resetToDefault() async {
-    GoogleFonts.setGlobalFontFamilyOverride('Inter');
     state = FontSettings(fontFamily: 'Inter', fontSize: 16.0);
     await prefs.setString('bible_font_family', 'Inter');
     await prefs.setDouble('bible_font_size', 16.0);
@@ -156,7 +225,111 @@ class FontSettingsNotifier extends StateNotifier<FontSettings> {
   }
 }
 
-final fontSettingsProvider = StateNotifierProvider<FontSettingsNotifier, FontSettings>((ref) {
+final bibleFontSettingsProvider =
+    StateNotifierProvider<FontSettingsNotifier, FontSettings>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return FontSettingsNotifier(prefs);
+});
+
+/// Alias para manter compatibilidade com leitores bíblicos existentes
+final fontSettingsProvider = bibleFontSettingsProvider;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 3. CONFIGURAÇÕES ESPECÍFICAS DO DEVOCIONAL (Isoladas: afetam somente o devocional)
+// ══════════════════════════════════════════════════════════════════════════════
+
+class DevocionalFontSettings {
+  final String fontFamily;
+  final double fontSize;
+  final int? textColor; // Cor customizada do texto da reflexão/versículo
+  final int? badgeColor; // Cor customizada de destaque, citação e bordas
+
+  DevocionalFontSettings({
+    this.fontFamily = 'Inter',
+    this.fontSize = 16.0,
+    this.textColor,
+    this.badgeColor,
+  });
+
+  DevocionalFontSettings copyWith({
+    String? fontFamily,
+    double? fontSize,
+    int? textColor,
+    bool clearTextColor = false,
+    int? badgeColor,
+    bool clearBadgeColor = false,
+  }) {
+    return DevocionalFontSettings(
+      fontFamily: fontFamily ?? this.fontFamily,
+      fontSize: fontSize ?? this.fontSize,
+      textColor: clearTextColor ? null : (textColor ?? this.textColor),
+      badgeColor: clearBadgeColor ? null : (badgeColor ?? this.badgeColor),
+    );
+  }
+}
+
+class DevocionalFontSettingsNotifier extends StateNotifier<DevocionalFontSettings> {
+  final SharedPreferences prefs;
+
+  DevocionalFontSettingsNotifier(this.prefs) : super(_loadInitial(prefs));
+
+  static DevocionalFontSettings _loadInitial(SharedPreferences prefs) {
+    final family = prefs.getString('devocional_font_family') ?? 'Inter';
+    final size = prefs.getDouble('devocional_font_size') ?? 16.0;
+    final hasTextColor = prefs.containsKey('devocional_text_color');
+    final textColorVal = hasTextColor ? prefs.getInt('devocional_text_color') : null;
+    final hasBadgeColor = prefs.containsKey('devocional_badge_color');
+    final badgeColorVal = hasBadgeColor ? prefs.getInt('devocional_badge_color') : null;
+    return DevocionalFontSettings(
+      fontFamily: family,
+      fontSize: size,
+      textColor: textColorVal,
+      badgeColor: badgeColorVal,
+    );
+  }
+
+  void setFontFamily(String family) async {
+    state = state.copyWith(fontFamily: family);
+    await prefs.setString('devocional_font_family', family);
+  }
+
+  void setFontSize(double size) async {
+    final clampedSize = size.clamp(12.0, 36.0);
+    state = state.copyWith(fontSize: clampedSize);
+    await prefs.setDouble('devocional_font_size', clampedSize);
+  }
+
+  void setTextColor(int? colorVal) async {
+    if (colorVal == null) {
+      state = state.copyWith(clearTextColor: true);
+      await prefs.remove('devocional_text_color');
+    } else {
+      state = state.copyWith(textColor: colorVal);
+      await prefs.setInt('devocional_text_color', colorVal);
+    }
+  }
+
+  void setBadgeColor(int? colorVal) async {
+    if (colorVal == null) {
+      state = state.copyWith(clearBadgeColor: true);
+      await prefs.remove('devocional_badge_color');
+    } else {
+      state = state.copyWith(badgeColor: colorVal);
+      await prefs.setInt('devocional_badge_color', colorVal);
+    }
+  }
+
+  void resetToDefault() async {
+    state = DevocionalFontSettings(fontFamily: 'Inter', fontSize: 16.0);
+    await prefs.setString('devocional_font_family', 'Inter');
+    await prefs.setDouble('devocional_font_size', 16.0);
+    await prefs.remove('devocional_text_color');
+    await prefs.remove('devocional_badge_color');
+  }
+}
+
+final devocionalFontSettingsProvider =
+    StateNotifierProvider<DevocionalFontSettingsNotifier, DevocionalFontSettings>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return DevocionalFontSettingsNotifier(prefs);
 });

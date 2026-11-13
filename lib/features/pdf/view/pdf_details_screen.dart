@@ -19,6 +19,7 @@ import 'package:keryx_app/core/services/telegram/telegram_http_download_service.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:keryx_app/features/store/view/store_item_details_screen.dart';
+import 'package:keryx_app/core/utils/navigation_utils.dart';
 class PdfDetailsScreen extends StatefulWidget {
   final String name;
   final String cleanName;
@@ -904,23 +905,25 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
                     children: [
-                    InkWell(
-                      onTap: () => Navigator.pop(context),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          size: 18,
+                    if (!shouldHideBackButton(context)) ...[
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Theme.of(context).colorScheme.onSurface,
+                            size: 18,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
+                      const SizedBox(width: 12),
+                    ],
                     Text(
                       'Detalhes do Livro',
                       style: GoogleFonts.outfit(
