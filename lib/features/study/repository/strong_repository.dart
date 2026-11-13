@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:keryx_app/core/services/database_service.dart';
 import 'package:keryx_app/features/bible/view_model/bible_state.dart';
@@ -18,6 +19,21 @@ class StrongRepository {
             ? currentVersion.toUpperCase()
             : 'ARA_S';
 
+    try {
+      return await _queryConcordance(strongId, versionToUse);
+    } catch (e) {
+      if (e.toString().contains('code 26') ||
+          e.toString().contains('not a database') ||
+          e.toString().contains('file is not a database')) {
+        debugPrint('⚠️ Erro de base de dados corrompida em concordância. Executando auto-reparo para $versionToUse...');
+        await _dbService.forceRepairDatabase(versionToUse);
+        return await _queryConcordance(strongId, versionToUse);
+      }
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _queryConcordance(String strongId, String versionToUse) async {
     final db = await _dbService.getDatabase(versionToUse);
 
     final tablesResult = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
@@ -63,7 +79,7 @@ class StrongRepository {
     );
 
     final regex = RegExp(
-      '<(?:W)?$strongId>?(?:\\s|[.,;:!?"]|\$)',
+      '<(?:W)?${RegExp.escape(strongId)}[^>]*>',
       caseSensitive: false,
     );
     final List<Map<String, dynamic>> results = [];

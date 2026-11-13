@@ -558,9 +558,47 @@ class _StrongBottomSheetState extends ConsumerState<StrongBottomSheet>
             ),
           ),
           error: (err, _) => Center(
-            child: Text(
-              'Erro ao buscar conexões: $err',
-              style: const TextStyle(color: Colors.redAccent),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_stories_outlined, color: _secondaryColor, size: 40),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Não foi possível carregar as conexões no momento.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      color: _textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Toque abaixo para sincronizar a base de concordância.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      color: _textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _secondaryColor,
+                      side: BorderSide(color: _secondaryColor.withValues(alpha: 0.5)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
+                    onPressed: () {
+                      ref.invalidate(strongConcordanceProvider(widget.strongId));
+                    },
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Recarregar Concordância'),
+                  ),
+                ],
+              ),
             ),
           ),
         );

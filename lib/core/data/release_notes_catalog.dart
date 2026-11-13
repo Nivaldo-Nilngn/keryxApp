@@ -5,6 +5,30 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.13',
+      buildNumber: 22,
+      title: 'Auto-cura da Concordância Strong (ARA_S) e Encaixe Dinâmico da Barra de Seleção',
+      releaseDate: '12 de Novembro de 2026',
+      highlight:
+          'Correção definitiva da concordância Strong com validação de integridade mágica SQLite e restauração automática, além de adaptação refinada da barra de seleção com encaixe no rodapé e respeito à safe area.',
+      items: [
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Correção e Auto-Cura da Concordância Strong (ARA_S)',
+          description:
+              'Implementada validação do cabeçalho binário SQLite 3 e mecanismo de auto-recuperação que detecta e restaura módulos corrompidos sem travar a navegação.',
+          customIcon: Icons.auto_stories_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Encaixe Inteligente da Barra de Seleção',
+          description:
+              'A barra de ações ao selecionar versículos agora desce suavemente para o rodapé da tela quando o áudio estiver recolhido, com proteção total para a Safe Area do dispositivo.',
+          customIcon: Icons.view_agenda_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.11',
       buildNumber: 20,
       title: 'Tipografia Global Dinâmica, Novo Design de Novidades e Acessibilidade',

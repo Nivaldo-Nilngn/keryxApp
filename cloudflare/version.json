@@ -1,11 +1,11 @@
 {
-  "latest_version": 21,
-  "version_name": "2.0.12",
-  "release_date": "2026-11-09",
-  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.12/keryxApp.apk",
+  "latest_version": 22,
+  "version_name": "2.0.13",
+  "release_date": "2026-11-12",
+  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.13/keryxApp.apk",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.12: Novo Editor Visual de Versículos em Story/Status 9:16 com acervo de 80+ imagens HD; otimizações de layout no leitor e barra flutuante; atalho de teclado oculto em smartphones; correções de permissões do Firestore e máxima fluidez multiplataforma.",
+  "release_notes": "Versão 2.0.13: Correção e auto-cura completa da concordância exaustiva Strong (ARA_S); novo encaixe inteligente da barra de seleção ao rodapé com suporte à safe-area quando sem áudio; deploy web atualizado e melhorias de performance.",
   "force_update": false,
   "min_version": 1,
-  "sha256": "d3152744fa698ea938c68173b0cf022fedb9b60dd0a1ee313e494aeb8e31a279"
+  "sha256": "cb2c852565c2285902083dae9f0f4b26718b9ce701bf21bde6364559c455187c"
 }

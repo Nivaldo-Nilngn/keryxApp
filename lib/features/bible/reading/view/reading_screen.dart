@@ -870,35 +870,67 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final double audioBarHeight = isFloatingNavBar ? 64.0 : 54.0;
     final double toolkitBottom = showAudioBar
         ? (audioBarHeight + bottomSafe + 8.0)
-        : (bottomSafe > 0 ? (bottomSafe + 10.0) : 14.0);
+        : 0.0;
+    final double toolkitHorizontal = showAudioBar ? 12.0 : 0.0;
+
+    final containerBorderRadius = showAudioBar
+        ? BorderRadius.circular(24)
+        : const BorderRadius.vertical(top: Radius.circular(22));
+    final containerPadding = showAudioBar
+        ? const EdgeInsets.symmetric(vertical: 11)
+        : EdgeInsets.only(
+            top: 10,
+            bottom: bottomSafe > 0 ? (bottomSafe + 4) : 12,
+          );
+    final containerBorder = showAudioBar
+        ? Border.all(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.1),
+          )
+        : Border(
+            top: BorderSide(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.12),
+              width: 1,
+            ),
+          );
+    final containerShadows = showAudioBar
+        ? [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ];
 
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOutCubic,
       bottom: toolkitBottom,
-      left: 12,
-      right: 12,
+      left: toolkitHorizontal,
+      right: toolkitHorizontal,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 860),
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 11),
+            padding: containerPadding,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.1),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+              borderRadius: containerBorderRadius,
+              border: containerBorder,
+              boxShadow: containerShadows,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

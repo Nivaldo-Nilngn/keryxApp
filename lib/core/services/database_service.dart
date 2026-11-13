@@ -78,6 +78,89 @@ class DatabaseService {
     return name;
   }
 
+  /// Valida se os bytes correspondem ao cabeçalho padrão de um banco SQLite 3 ("SQLite format 3\0")
+  static bool isValidSqliteBytes(List<int> bytes) {
+    if (bytes.length < 16) return false;
+    const magic = [
+      0x53, 0x51, 0x4C, 0x69, 0x74, 0x65, 0x20, 0x66, 0x6F, 0x72, 0x6D, 0x61, 0x74, 0x20, 0x33, 0x00
+    ];
+    for (int i = 0; i < 16; i++) {
+      if (bytes[i] != magic[i]) return false;
+    }
+    return true;
+  }
+
+  /// Verifica se um arquivo SQLite local existe e possui cabeçalho válido
+  static Future<bool> isValidSqliteFile(String filePath) async {
+    try {
+      final f = io.File(filePath);
+      if (!await f.exists()) return false;
+      if (await f.length() < 16) return false;
+      final raf = await f.open(mode: io.FileMode.read);
+      final header = await raf.read(16);
+      await raf.close();
+      return isValidSqliteBytes(header);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verifica se um banco no sistema de arquivos virtual do Sqflite Web existe e é válido
+  static Future<bool> isValidSqliteWeb(String path) async {
+    try {
+      final factory = databaseFactoryFfiWeb;
+      if (!await factory.databaseExists(path)) return false;
+      final bytes = await factory.readDatabaseBytes(path);
+      return isValidSqliteBytes(bytes);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Força o reparo e exclusão de uma base de dados local ou virtual no Web caso esteja corrompida
+  Future<void> forceRepairDatabase(String version) async {
+    final key = version.toUpperCase();
+    _resolvedDbPaths.remove(key);
+    _knownMissingVersions.remove(key);
+    if (_databases.containsKey(key)) {
+      try {
+        await _databases[key]!.close();
+      } catch (_) {}
+      _databases.remove(key);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('web_db_ready_$key');
+    await prefs.remove('db_indexed_$key');
+
+    final dbPath = !kIsWeb
+        ? await getDatabasesPath()
+        : await databaseFactoryFfiWeb.getDatabasesPath();
+    final candidates = [
+      join(dbPath, "$key.sqlite"),
+      join(dbPath, "$key.db"),
+      "$key.sqlite",
+      "$key.db",
+      "/$key.sqlite",
+      "/$key.db",
+    ];
+
+    for (final p in candidates) {
+      try {
+        if (kIsWeb) {
+          if (await databaseFactoryFfiWeb.databaseExists(p)) {
+            await databaseFactoryFfiWeb.deleteDatabase(p);
+          }
+        } else {
+          final f = io.File(p);
+          if (await f.exists()) {
+            await f.delete();
+          }
+        }
+      } catch (_) {}
+    }
+    debugPrint('🧹 Banco $key resetado com sucesso para recuperação limpa.');
+  }
+
   /// Fecha e esquece a conexão em cache de um módulo.
   /// Chame antes de excluir o arquivo e depois de baixar uma versão nova,
   /// senão o app continua usando a conexão antiga.
@@ -243,10 +326,8 @@ class DatabaseService {
       // No web, verificamos se o banco existe no sistema de arquivos virtual do sqflite_ffi_web
       try {
         final prefs = await SharedPreferences.getInstance();
-        if (prefs.getBool('web_db_ready_$key') == true) {
-          exists = true;
-        } else {
-        final factory = databaseFactoryFfiWeb;
+        final isMarkedReady = prefs.getBool('web_db_ready_$key') == true;
+
         final possibleWebNames = <String>{
           '$key.sqlite',
           '$key.bbl.mybible',
@@ -264,7 +345,6 @@ class DatabaseService {
 
         // Lê a lista de pacotes baixados em SharedPreferences para obter os nomes reais de arquivos (com case original)
         try {
-          final prefs = await SharedPreferences.getInstance();
           final downloadedItems = prefs.getStringList('downloaded_store_items') ?? [];
           for (final raw in downloadedItems) {
             final clean = raw.contains('/') ? raw.split('/').last : raw;
@@ -292,7 +372,7 @@ class DatabaseService {
 
           for (final testPath in candidates) {
             try {
-              if (await factory.databaseExists(testPath)) {
+              if (await isValidSqliteWeb(testPath)) {
                 path = testPath;
                 exists = true;
                 break;
@@ -301,8 +381,36 @@ class DatabaseService {
           }
           if (exists) break;
         }
+
+        if (isMarkedReady && !exists) {
+          debugPrint('⚠️ Flag web_db_ready_$key estava ativo, mas nenhum arquivo SQLite válido foi encontrado no Web.');
+          await prefs.remove('web_db_ready_$key');
+          await prefs.remove('db_indexed_$key');
         }
       } catch (e) {
+        exists = false;
+      }
+    }
+
+    // Auto-cura: validação profunda de cabeçalho SQLite do arquivo existente
+    if (exists) {
+      final isHealthy = kIsWeb
+          ? await isValidSqliteWeb(path)
+          : await isValidSqliteFile(path);
+      if (!isHealthy) {
+        debugPrint('🚨 Banco em $path é inválido ou corrompido! Purgando para recriar dos assets...');
+        if (kIsWeb) {
+          try {
+            await databaseFactoryFfiWeb.deleteDatabase(path);
+          } catch (_) {}
+        } else {
+          try {
+            await io.File(path).delete();
+          } catch (_) {}
+        }
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('web_db_ready_$key');
+        await prefs.remove('db_indexed_$key');
         exists = false;
       }
     }
@@ -314,48 +422,69 @@ class DatabaseService {
         throw Exception("Banco de dados da versão $version não encontrado localmente.");
       }
 
-      // Se não existir e for versão nativa, copia dos assets
+      // Se não existir e for versão nativa, copia dos assets com verificação rigorosa de cabeçalho SQLite
       try {
         if (!kIsWeb) {
           await io.Directory(dirname(path)).create(recursive: true);
         }
 
-        // Caminho nos assets principal
-        String assetPath = "assets/bible/sql/$key.sqlite";
+        // Caminhos candidatos de assets por versão conhecida (garante ARA_S.db antes de qualquer outro)
+        final List<String> candidateAssetPaths;
+        if (key == 'ARA_S') {
+          candidateAssetPaths = [
+            'assets/database/ARA_S.db',
+            'assets/database/ara_s.db',
+            'assets/bible/sql/ARA_S.sqlite',
+          ];
+        } else if (key == 'NVI') {
+          candidateAssetPaths = [
+            'assets/bible/sql/NVI.sqlite',
+            'assets/database/nvi.db',
+            'assets/database/NVI.db',
+          ];
+        } else {
+          candidateAssetPaths = [
+            'assets/bible/sql/$key.sqlite',
+            'assets/database/$key.db',
+            'assets/database/${key.toLowerCase()}.db',
+          ];
+        }
 
-        ByteData? data;
-        try {
-          data = await rootBundle.load(assetPath);
-        } catch (_) {
-          // Fallback para .db em assets/database/
+        Uint8List? validBytes;
+        for (final assetPath in candidateAssetPaths) {
           try {
-            assetPath = "assets/database/${key.toLowerCase()}.db";
-            data = await rootBundle.load(assetPath);
-          } catch (_) {
-            try {
-              assetPath = "assets/database/$key.db";
-              data = await rootBundle.load(assetPath);
-            } catch (_) {
-              rethrow;
+            final data = await rootBundle.load(assetPath);
+            final rawBytes = data.buffer.asUint8List(
+              data.offsetInBytes,
+              data.lengthInBytes,
+            );
+            if (isValidSqliteBytes(rawBytes)) {
+              validBytes = rawBytes;
+              debugPrint('✅ Asset SQLite válido carregado para $key: $assetPath (${rawBytes.length} bytes)');
+              break;
+            } else {
+              debugPrint('⚠️ Asset $assetPath descartado (conteúdo não-SQLite, provável HTML 404).');
             }
+          } catch (_) {
+            // Continua para o próximo candidato
           }
         }
-        List<int> bytes = data.buffer.asUint8List(
-          data.offsetInBytes,
-          data.lengthInBytes,
-        );
+
+        if (validBytes == null) {
+          throw Exception("Nenhum binário SQLite válido encontrado para a versão nativa $key.");
+        }
 
         if (!kIsWeb) {
           // Escreve no arquivo local (Mobile/Desktop)
-          await io.File(path).writeAsBytes(bytes, flush: true);
+          await io.File(path).writeAsBytes(validBytes, flush: true);
         } else {
           // No Web, usamos o factory para escrever no IndexedDB virtual filesystem
           final factory = databaseFactoryFfiWeb;
-          await factory.writeDatabaseBytes(path, Uint8List.fromList(bytes));
+          await factory.writeDatabaseBytes(path, validBytes);
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('web_db_ready_$key', true);
         }
-        debugPrint("Banco de dados $key copiado para o armazenamento local.");
+        debugPrint("Banco de dados $key copiado para o armazenamento local com sucesso.");
       } catch (e) {
         debugPrint("Erro ao copiar banco de dados dos assets ($key): $e");
         rethrow;
@@ -397,13 +526,25 @@ class DatabaseService {
       debugPrint('Aviso ao indexar Bíblia $key: $e');
     }
 
-    // Abre o banco de dados
-    final db = kIsWeb
-        ? await databaseFactoryFfiWeb.openDatabase(
-            path,
-            options: OpenDatabaseOptions(readOnly: true),
-          )
-        : await openDatabase(path, readOnly: true);
+    // Abre o banco de dados com auto-recuperação resiliente
+    Database db;
+    try {
+      db = kIsWeb
+          ? await databaseFactoryFfiWeb.openDatabase(
+              path,
+              options: OpenDatabaseOptions(readOnly: true),
+            )
+          : await openDatabase(path, readOnly: true);
+    } catch (e) {
+      if (e.toString().contains('code 26') ||
+          e.toString().contains('not a database') ||
+          e.toString().contains('file is not a database')) {
+        debugPrint('🚨 Erro "not a database" ao abrir $key ($path). Executando auto-reparo e reabrindo...');
+        await forceRepairDatabase(key);
+        return await _loadDatabaseInternal(key, version);
+      }
+      rethrow;
+    }
     _databases[key] = db;
     _resolvedDbPaths[key] = path;
     _knownMissingVersions.remove(key);
@@ -609,9 +750,18 @@ class DatabaseService {
 
         for (final assetPath in possiblePaths) {
           try {
-            data = await rootBundle.load(assetPath);
-            assetFoundPath = assetPath;
-            break; // Encontrou!
+            final testData = await rootBundle.load(assetPath);
+            final testBytes = testData.buffer.asUint8List(
+              testData.offsetInBytes,
+              testData.lengthInBytes,
+            );
+            if (isValidSqliteBytes(testBytes)) {
+              data = testData;
+              assetFoundPath = assetPath;
+              break; // Encontrou!
+            } else {
+              debugPrint('⚠️ Comentário em $assetPath descartado (não é SQLite válido).');
+            }
           } catch (_) {
             continue; // Tenta próxima pasta
           }
@@ -1071,6 +1221,9 @@ class DatabaseService {
           data.offsetInBytes,
           data.lengthInBytes,
         );
+        if (!isValidSqliteBytes(bytes)) {
+          throw Exception("Arquivo de dicionário $filename em $assetPath não é um banco SQLite válido.");
+        }
 
         if (!kIsWeb) {
           await io.File(path).writeAsBytes(bytes, flush: true);
@@ -1569,6 +1722,9 @@ class DatabaseService {
           data.offsetInBytes,
           data.lengthInBytes,
         );
+        if (!isValidSqliteBytes(bytes)) {
+          throw Exception("Arquivo Strong $_strongAsset não é um banco SQLite válido.");
+        }
 
         if (!kIsWeb) {
           await io.File(destPath).writeAsBytes(bytes, flush: true);
@@ -1721,6 +1877,9 @@ class DatabaseService {
           data.offsetInBytes,
           data.lengthInBytes,
         );
+        if (!isValidSqliteBytes(bytes)) {
+          throw Exception("Arquivo de referências $_referencesAsset não é um banco SQLite válido.");
+        }
 
         if (!kIsWeb) {
           await io.File(destPath).writeAsBytes(bytes, flush: true);
@@ -1884,6 +2043,9 @@ class DatabaseService {
             data.offsetInBytes,
             data.lengthInBytes,
           );
+          if (!isValidSqliteBytes(bytes)) {
+            throw Exception("Arquivo Estudos $_estudosAsset não é um banco SQLite válido.");
+          }
 
           if (!kIsWeb) {
             await io.File(destPath).writeAsBytes(bytes, flush: true);
