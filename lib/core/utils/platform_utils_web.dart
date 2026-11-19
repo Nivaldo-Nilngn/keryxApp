@@ -63,6 +63,7 @@ Future<bool> downloadFile(
   String url, {
   String fileName = 'keryxApp.apk',
   DownloadProgressCallback? onProgress,
+  Map<String, String>? headers,
 }) async {
   final directUrl = url.contains('github.com') ? '$kWorkerBase/download' : url;
 
@@ -70,6 +71,12 @@ Future<bool> downloadFile(
     final request = html.HttpRequest();
     request.open('GET', directUrl);
     request.responseType = 'blob';
+
+    if (headers != null) {
+      headers.forEach((key, value) {
+        request.setRequestHeader(key, value);
+      });
+    }
 
     if (onProgress != null) {
       request.onProgress.listen((event) {
@@ -149,4 +156,17 @@ void downloadBytes(Uint8List bytes, String fileName, String mimeType) {
     const Duration(seconds: 15),
     () => html.Url.revokeObjectUrl(url),
   );
+}
+
+/// Cria uma URL Blob para streaming de áudio/mídia no navegador Web
+String createBlobUrl(Uint8List bytes, [String mimeType = 'audio/mpeg']) {
+  final blob = html.Blob([bytes], mimeType);
+  return html.Url.createObjectUrlFromBlob(blob);
+}
+
+/// Libera a URL Blob da memória do navegador
+void revokeBlobUrl(String url) {
+  try {
+    html.Url.revokeObjectUrl(url);
+  } catch (_) {}
 }

@@ -1,11 +1,11 @@
 {
-  "latest_version": 23,
-  "version_name": "2.0.14",
-  "release_date": "2026-11-13",
-  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.14/keryxApp.apk",
+  "latest_version": 24,
+  "version_name": "2.0.15",
+  "release_date": "2026-11-19",
+  "download_url": "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.15/keryxApp.apk",
   "ios_url": "https://keryxapp.pages.dev",
-  "release_notes": "Versão 2.0.14: Navegação adaptativa com detecção dos botões na Safe Area; eliminação de colisões com a sidebar; isolamento contextual de fontes na Bíblia e Devocional; expansão para 24 famílias tipográficas; correção definitiva do worker SQLite no Web e auto-cura da concordância Strong.",
+  "release_notes": "Versão 2.0.15: Streaming oficial dos 640 hinos da Harpa Cristã via canal Telegram (@HinosHarpa), suporte a áudio Blob sem bloqueios no Web/PWA, resolução instantânea de versículos bíblicos no Devocional Diário e limpeza automática de códigos Strong.",
   "force_update": false,
   "min_version": 1,
-  "sha256": "f908f2fa9cb658377f90e65cc2fb6dd2adfa98e01791d16adc57d62c38d769cd"
+  "sha256": "bb808d706fa6d89f3b5913bf431e7df3d9653b861630a5c223ecaf304d75d316"
 }

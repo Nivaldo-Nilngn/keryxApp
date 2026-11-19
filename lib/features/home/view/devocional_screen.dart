@@ -18,6 +18,9 @@ import 'package:keryx_app/features/bible/view/tts_settings_sheet.dart';
 import 'package:keryx_app/core/utils/navigation_utils.dart';
 import 'package:keryx_app/core/widgets/instagram_tablet_sidebar.dart';
 import 'package:keryx_app/core/state/navigation_state.dart';
+import 'package:keryx_app/core/constants/bible_metadata.dart';
+import 'package:keryx_app/core/utils/bible_text_parser.dart';
+import 'package:keryx_app/core/utils/bible_reference_helper.dart';
 
 class DevocionalScreen extends ConsumerStatefulWidget {
   final DevocionalData devocional;
@@ -33,6 +36,7 @@ class _DevocionalScreenState extends ConsumerState<DevocionalScreen> {
   bool _isPlaying = false;
   int _currentPartIndex = 0;
   List<String> _speechParts = [];
+  String? _activeVerseModalRef;
 
   @override
   void initState() {
@@ -442,22 +446,32 @@ ${widget.devocional.content}
           ),
         ),
       ),
-      body: SafeArea(
-        top: false,
-        bottom: true,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 820),
-            child: MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.noScaling,
-              ),
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(20, 20, 20, bottomPadding),
-                child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+      body: PopScope(
+        canPop: _activeVerseModalRef == null,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (_activeVerseModalRef != null) {
+            setState(() => _activeVerseModalRef = null);
+          }
+        },
+        child: Stack(
+          children: [
+            SafeArea(
+              top: false,
+              bottom: true,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 820),
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      textScaler: TextScaler.noScaling,
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(20, 20, 20, bottomPadding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                   // 1. Tag de Categoria com Linha Divisória Sutil
                   Row(
                     children: [
@@ -539,12 +553,25 @@ ${widget.devocional.content}
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerRight,
-                          child: Text(
-                            '— ${widget.devocional.verseReference}',
-                            style: GoogleFonts.outfit(
-                              color: accentColor,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _activeVerseModalRef = widget.devocional.verseReference;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              child: Text(
+                                '— ${widget.devocional.verseReference}',
+                                style: GoogleFonts.outfit(
+                                  color: accentColor,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: accentColor.withValues(alpha: 0.4),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -672,7 +699,12 @@ ${widget.devocional.content}
           ),
         ),
       ),
-    );
+      if (_activeVerseModalRef != null)
+        _buildVerseOverlay(context, fontSettings, accentColor, isDark),
+    ],
+  ),
+),
+);
 
     if (isTablet) {
       return SelectionArea(
@@ -748,8 +780,10 @@ ${widget.devocional.content}
     Color contentTextColor,
     Color linkColor,
   ) {
-    // Regex para encontrar referências bíblicas como "Atos 1:8", "Mateus 5:13-16", "1 João 3:1"
-    final refRegex = RegExp(r'([1-3]?\s?[A-ZÇÃ][a-záãçéíóú]+\s+\d+:\d+(?:-\d+)?)');
+    // Regex robusta para capturar referências bíblicas com acentos e livros compostos
+    final refRegex = RegExp(
+      r'((?:[1-3]\s+)?[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][a-záéíóúâêîôûãõç]+(?:\s+(?:de|dos|da)\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][a-záéíóúâêîôûãõç]+)?\s+\d+[:\.,\s]+\d+(?:-\d+)?)',
+    );
     final matches = refRegex.allMatches(paragraph);
 
     final baseStyle = _getDevocionalTextStyle(
@@ -788,7 +822,9 @@ ${widget.devocional.content}
         ),
         recognizer: TapGestureRecognizer()
           ..onTap = () {
-            _showVerseModal(context, ref, verseRef, fontSettings, accentColor: linkColor);
+            setState(() {
+              _activeVerseModalRef = verseRef;
+            });
           },
       ));
       lastMatchEnd = match.end;
@@ -806,75 +842,199 @@ ${widget.devocional.content}
     );
   }
 
-  void _showVerseModal(
+  /// Janela compacta, padronizada e moderna para leitura rápida do versículo dentro do devocional.
+  /// Não abre na tela toda, mantém proporções ideais (máx. 480px) e não sobrepõe a barra lateral.
+  Widget _buildVerseOverlay(
     BuildContext context,
-    WidgetRef ref,
-    String reference,
-    DevocionalFontSettings fontSettings, {
-    required Color accentColor,
-  }) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.auto_stories, color: accentColor),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                reference,
-                style: GoogleFonts.outfit(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
+    DevocionalFontSettings fontSettings,
+    Color accentColor,
+    bool isDark,
+  ) {
+    if (_activeVerseModalRef == null) return const SizedBox.shrink();
+    final reference = _activeVerseModalRef!;
+
+    final surfaceColor = isDark ? const Color(0xFF1E1E2C) : Colors.white;
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.black.withValues(alpha: 0.08);
+
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. Backdrop suave (apenas sobre a área do devocional, preservando o menu lateral)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _activeVerseModalRef = null),
+            child: Container(
+              color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.4),
             ),
-          ],
-        ),
-        content: FutureBuilder<String>(
-          future: _fetchVerseText(ref, reference),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return SizedBox(
-                height: 100,
-                child: Center(
-                  child: CircularProgressIndicator(color: accentColor),
-                ),
-              );
-            }
-            if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-              return Text(
-                'Não foi possível carregar os versículos.',
-                style: GoogleFonts.outfit(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontSize: 16,
-                ),
-              );
-            }
-            return SingleChildScrollView(
-              child: Text(
-                snapshot.data!,
-                style: _getDevocionalTextStyle(
-                  fontSettings.fontFamily,
-                  fontSize: fontSettings.fontSize,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  height: 1.6,
-                ),
+          ),
+
+          // 2. Janela padronizada centralizada
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+              constraints: const BoxConstraints(maxWidth: 480),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: borderColor, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.15),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'FECHAR',
-              style: GoogleFonts.outfit(
-                color: accentColor,
-                fontWeight: FontWeight.bold,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header com ícone, referência e botão fechar (X)
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(18, 14, 10, 12),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: isDark ? 0.08 : 0.05),
+                        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: accentColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.auto_stories_rounded, color: accentColor, size: 19),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              reference,
+                              style: GoogleFonts.outfit(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                              size: 20,
+                            ),
+                            tooltip: 'Fechar',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                            onPressed: () => setState(() => _activeVerseModalRef = null),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Conteúdo do Versículo com FutureBuilder e rolagem se necessário
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+                      child: FutureBuilder<String>(
+                        future: _fetchVerseText(ref, reference),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return SizedBox(
+                              height: 90,
+                              child: Center(
+                                child: CircularProgressIndicator(color: accentColor, strokeWidth: 2.5),
+                              ),
+                            );
+                          }
+                          if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Center(
+                                child: Text(
+                                  'Não foi possível carregar os versículos.',
+                                  style: GoogleFonts.outfit(
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          return ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 340),
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              child: SelectableText(
+                                snapshot.data!,
+                                style: _getDevocionalTextStyle(
+                                  fontSettings.fontFamily,
+                                  fontSize: fontSettings.fontSize.clamp(14.0, 18.0),
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  height: 1.6,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    // Rodapé com Botões de Ação
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 6, 18, 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              final refText = _activeVerseModalRef;
+                              setState(() => _activeVerseModalRef = null);
+                              if (refText != null) {
+                                BibleReferenceHelper.openReference(context, ref, refText);
+                              }
+                            },
+                            icon: Icon(Icons.menu_book_rounded, size: 16, color: accentColor),
+                            label: Text(
+                              'LER NA BÍBLIA',
+                              style: GoogleFonts.outfit(
+                                color: accentColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: accentColor.withValues(alpha: 0.5)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () => setState(() => _activeVerseModalRef = null),
+                            style: TextButton.styleFrom(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            ),
+                            child: Text(
+                              'FECHAR',
+                              style: GoogleFonts.outfit(
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -884,44 +1044,68 @@ ${widget.devocional.content}
   }
 
   Future<String> _fetchVerseText(WidgetRef ref, String reference) async {
-    final books = ref.read(booksProvider).value ?? [];
-    if (books.isEmpty) return '';
+    final parsed = BibleReferenceHelper.parse(reference);
+    final rawBook = parsed?.rawBookName ??
+        reference.split(RegExp(r'\s+\d')).first.trim();
+    final bookId = BibleMetadata.findBookId(rawBook);
+    final bookDetails = BibleMetadata.bookDetails[bookId];
+    final abbrev = bookDetails?['abbrev'] as String? ?? 'lc';
 
-    final bookNameOrAbbrev =
-        reference.split(RegExp(r'\s+\d')).first.trim().toLowerCase();
-
-    final book = books.firstWhere(
-      (b) =>
-          b.name.toLowerCase() == bookNameOrAbbrev ||
-          b.abbrev.toLowerCase() == bookNameOrAbbrev ||
-          reference.toLowerCase().startsWith(b.name.toLowerCase()) ||
-          reference.toLowerCase().startsWith('${b.name.toLowerCase()} '),
-      orElse: () => books.first,
-    );
-
-    final match = RegExp(r'(\d+):(\d+)(?:-(\d+))?').firstMatch(reference);
+    // Parse capítulo e versículos com tolerância a formatos (ex: 5:5, 5:5-10, 5.5)
+    final match =
+        RegExp(r'(\d+)[:\.,\s]+(\d+)(?:-(\d+))?').firstMatch(reference);
     if (match == null) return '';
 
-    int chapter = int.parse(match.group(1)!);
-    int startVerse = int.parse(match.group(2)!);
-    int endVerse =
-        match.group(3) != null ? int.parse(match.group(3)!) : startVerse;
+    final chapter = int.tryParse(match.group(1)!) ?? 1;
+    final startVerse = int.tryParse(match.group(2)!) ?? 1;
+    final endVerse = match.group(3) != null
+        ? (int.tryParse(match.group(3)!) ?? startVerse)
+        : startVerse;
 
     try {
       final bibleService = ref.read(bibleServiceProvider);
-      final version = ref.read(selectedVersionProvider);
-      final chapterData =
-          await bibleService.getChapter(version, book.abbrev, chapter);
+      var version = ref.read(selectedVersionProvider);
+      if (version.isEmpty) {
+        version = 'NVI';
+      }
 
-      String text = '';
+      var chapterData =
+          await bibleService.getChapter(version, abbrev, chapter);
+
+      // Fallback para NVI se a versão padrão estiver vazia
+      if (chapterData.verses.isEmpty && version != 'NVI') {
+        chapterData = await bibleService.getChapter('NVI', abbrev, chapter);
+      }
+
+      final buffer = StringBuffer();
       for (final v in chapterData.verses) {
         if (v.number >= startVerse && v.number <= endVerse) {
-          text += '${v.number}. ${v.text} ';
+          final clean = BibleTextParser.cleanToPlainText(v.text);
+          if (clean.isNotEmpty) {
+            buffer.write('${v.number}. $clean ');
+          }
         }
       }
-      return text.trim();
+      return buffer.toString().trim();
     } catch (e) {
-      return '';
+      // Fallback para NVI se a versão atual lançar exceção
+      try {
+        final bibleService = ref.read(bibleServiceProvider);
+        final chapterData =
+            await bibleService.getChapter('NVI', abbrev, chapter);
+        final buffer = StringBuffer();
+        for (final v in chapterData.verses) {
+          if (v.number >= startVerse && v.number <= endVerse) {
+            final clean = BibleTextParser.cleanToPlainText(v.text);
+            if (clean.isNotEmpty) {
+              buffer.write('${v.number}. $clean ');
+            }
+          }
+        }
+        return buffer.toString().trim();
+      } catch (_) {
+        return '';
+      }
     }
   }
 }

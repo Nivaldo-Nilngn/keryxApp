@@ -13,6 +13,9 @@ class B2Service {
   String? _apiUrl;
   String? _bucketId;
   DateTime? _tokenExpiry;
+  static String? _cachedDownloadToken;
+  static DateTime? _cachedDownloadExpiry;
+  static String? _cachedPrefix;
   
   // Remove BOM (Byte Order Mark) se presente
   String _removeBOM(String str) {
@@ -111,6 +114,71 @@ class B2Service {
     final url = '$downloadUrl/$_bucketName/$encodedFileName';
     debugPrint('🔗 URL de download: $url');
     return url;
+  }
+
+  /// Retorna uma URL com token de autorização de download embutido como query parameter (?Authorization=...),
+  /// permitindo reprodução direta via streaming em navegadores (HTML5 Audio / PWA / iOS Safari)
+  /// e downloads diretos no navegador sem necessidade de cabeçalhos customizados.
+  Future<String> getAuthorizedStreamUrl(
+    String fileName, {
+    int validDurationSeconds = 86400,
+  }) async {
+    if (_keyId.isEmpty || _applicationKey.isEmpty) {
+      return 'https://example.com/commentaries/$fileName';
+    }
+
+    await _authenticate();
+
+    final prefix = fileName.contains('/')
+        ? '${fileName.substring(0, fileName.lastIndexOf('/'))}/'
+        : '';
+
+    final isTokenValid = _cachedDownloadToken != null &&
+        _cachedPrefix == prefix &&
+        _cachedDownloadExpiry != null &&
+        DateTime.now().isBefore(_cachedDownloadExpiry!);
+
+    if (!isTokenValid) {
+      try {
+        final bucketId = await _getBucketId();
+        final baseUrl = _apiUrl ?? 'https://api.backblaze.com';
+        final response = await http.post(
+          Uri.parse('$baseUrl/b2api/v2/b2_get_download_authorization'),
+          headers: {
+            'Authorization': _authorizationToken ?? '',
+            'Content-Type': 'application/json',
+          },
+          body: json.encode({
+            'bucketId': bucketId,
+            'fileNamePrefix': prefix,
+            'validDurationInSeconds': validDurationSeconds,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final data = json.decode(utf8.decode(response.bodyBytes));
+          _cachedDownloadToken = data['authorizationToken'];
+          _cachedPrefix = prefix;
+          // Expira 5 minutos antes para garantir margem de segurança
+          _cachedDownloadExpiry = DateTime.now().add(
+            Duration(seconds: validDurationSeconds - 300),
+          );
+          debugPrint('✅ Token B2 gerado para prefixo "$prefix" (válido por $validDurationSeconds s)');
+        } else {
+          debugPrint('⚠️ Falha ao obter autorização B2: ${response.statusCode} ${response.body}');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Erro ao solicitar b2_get_download_authorization: $e');
+      }
+    }
+
+    final rawUrl = await getDownloadUrl(fileName);
+    if (_cachedDownloadToken != null && _cachedDownloadToken!.isNotEmpty) {
+      final separator = rawUrl.contains('?') ? '&' : '?';
+      return '$rawUrl${separator}Authorization=$_cachedDownloadToken';
+    }
+
+    return rawUrl;
   }
 
   /// Retorna os headers necessários para download (incluindo token)

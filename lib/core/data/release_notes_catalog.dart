@@ -5,6 +5,37 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.15',
+      buildNumber: 24,
+      title: 'Streaming Harpa Cristã via Telegram, Resolução de Versículos e Melhorias Devocional',
+      releaseDate: '19 de Novembro de 2026',
+      highlight:
+          'Migração do acervo de 640 hinos da Harpa Cristã para streaming oficial de alta velocidade via canal do Telegram (@HinosHarpa), suporte a reprodução Blob no Web/PWA, resolução imediata de referências bíblicas no Devocional Diário e limpeza automática de códigos Strong.',
+      items: [
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Streaming e Download da Harpa Cristã via Telegram',
+          description:
+              'Todos os 640 hinos da Harpa Cristã agora contam com streaming ultrarrápido pelo canal oficial do Telegram (@HinosHarpa), com reprodução contínua no Web/PWA e download seguro para escuta offline.',
+          customIcon: Icons.music_note_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Resolução de Referências Bíblicas no Devocional',
+          description:
+              'Versículos citados no Devocional Diário agora abrem instantaneamente em janela dedicada sem cobrir a barra lateral, com remoção automática de tags técnicas e tags Strong.',
+          customIcon: Icons.menu_book_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Busca e Seleção Acentuada na Harpa Cristã',
+          description:
+              'Aprimoramento do algoritmo de pesquisa da Harpa Cristã com suporte a acentuação e abertura direta do hino pesquisado na lista.',
+          customIcon: Icons.search_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.14',
       buildNumber: 23,
       title: 'Navegação Adaptativa, Isolamento de Fontes e Auto-Cura SQLite Web',
