@@ -4,15 +4,15 @@
  */
 
 const DEFAULT_CONFIG = {
-  latest_version: 24,
-  version_name: "2.0.15",
-  release_date: "2026-11-19",
-  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.15/keryxApp.apk",
+  latest_version: 25,
+  version_name: "2.0.16",
+  release_date: "2026-11-20",
+  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.16/keryxApp.apk",
   ios_url: "https://keryxapp.pages.dev",
-  release_notes: "Versão 2.0.15: Streaming oficial dos 640 hinos da Harpa Cristã via canal Telegram (@HinosHarpa), suporte a áudio Blob sem bloqueios no Web/PWA, resolução instantânea de versículos bíblicos no Devocional Diário e limpeza automática de códigos Strong.",
+  release_notes: "Versão 2.0.16: Player da Harpa Cristã unificado no Android com visual compacto padrão, indicador visual de carregamento (spinner) ao iniciar streaming via Telegram, streaming nativo com suporte a HTTP 206 Partial Content e download integrado com barra de progresso no card.",
   force_update: false,
   min_version: 1,
-  sha256: "bb808d706fa6d89f3b5913bf431e7df3d9653b861630a5c223ecaf304d75d316"
+  sha256: "251ada42481f5a9c729ecd34b05b5d44f7b2d769e8ef29610c3f6174db3082a7"
 };
 
 export default {

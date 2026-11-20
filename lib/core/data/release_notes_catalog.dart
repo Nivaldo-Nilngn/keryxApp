@@ -5,6 +5,37 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.16',
+      buildNumber: 25,
+      title: 'Player Unificado da Harpa Cristã, Streaming HTTP 206 e Indicador de Carregamento',
+      releaseDate: '20 de Novembro de 2026',
+      highlight:
+          'Padronização do player da Harpa Cristã no Android com o visual compacto elegante das demais telas, adição de indicador visual de carregamento (spinner) ao tocar para ouvir via streaming, suporte a Range Requests (HTTP 206) no proxy Cloudflare e download offline integrado no próprio card.',
+      items: [
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Player Unificado e Compacto no Android',
+          description:
+              'Substituição dos botões duplos volumosos pelo card compacto padrão com botão circular de Play, tempo decorrido/total, controle de velocidade, avanço/retrocesso de 10s e botão de download.',
+          customIcon: Icons.play_circle_fill_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.feature,
+          title: 'Indicador Visual de Carregamento / Buffering',
+          description:
+              'Feedback imediato ao iniciar o streaming: o botão de Play exibe animação de carregamento circular enquanto conecta ao Telegram e prepara o áudio.',
+          customIcon: Icons.hourglass_top_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Streaming Nativo e Instantâneo (HTTP 206)',
+          description:
+              'Ponte Cloudflare Worker aprimorada com suporte a cabeçalhos Accept-Ranges e autenticação via query param, garantindo início de reprodução quase em tempo real no Web e Android.',
+          customIcon: Icons.bolt_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.15',
       buildNumber: 24,
       title: 'Streaming Harpa Cristã via Telegram, Resolução de Versículos e Melhorias Devocional',

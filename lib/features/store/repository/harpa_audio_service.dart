@@ -61,7 +61,10 @@ class HarpaAudioService {
     final fileId = getTelegramFileId(hymnNumber);
 
     if (fileId != null && fileId.isNotEmpty) {
-      return '$_telegramProxyBase?file_id=${Uri.encodeComponent(fileId)}&title=Harpa_$numStr.mp3';
+      final appToken = dotenv.isInitialized && (dotenv.env['APP_TOKEN']?.isNotEmpty == true)
+          ? dotenv.env['APP_TOKEN']!
+          : _defaultAppToken;
+      return '$_telegramProxyBase?file_id=${Uri.encodeComponent(fileId)}&title=Harpa_$numStr.mp3&token=${Uri.encodeComponent(appToken)}';
     }
 
     // Fallback transparente para Backblaze B2

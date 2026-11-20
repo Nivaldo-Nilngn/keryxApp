@@ -576,7 +576,8 @@ export default {
 
     // ---- Download via Telegram -------------------------------------
     if (request.method === "GET" && url.pathname === "/download") {
-      if (!env.APP_TOKEN || request.headers.get("X-App-Token") !== env.APP_TOKEN) {
+      const token = request.headers.get("X-App-Token") || url.searchParams.get("token");
+      if (!env.APP_TOKEN || token !== env.APP_TOKEN) {
         return textResp("Unauthorized", 401);
       }
       const fileId = url.searchParams.get("file_id");
@@ -600,9 +601,18 @@ export default {
             tooBig ? 413 : 400
           );
         }
-        const fileResponse = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${json.result.file_path}`);
+        const reqHeaders = {};
+        const range = request.headers.get("Range");
+        if (range) reqHeaders["Range"] = range;
+
+        const fileResponse = await fetch(
+          `https://api.telegram.org/file/bot${env.BOT_TOKEN}/${json.result.file_path}`,
+          { headers: reqHeaders }
+        );
         const headers = new Headers(fileResponse.headers);
         for (const [k, v] of Object.entries(CORS)) headers.set(k, v);
+        headers.set("Content-Type", "audio/mpeg");
+        headers.set("Accept-Ranges", "bytes");
         return new Response(fileResponse.body, { status: fileResponse.status, headers });
       } catch (e) {
         return textResp("Erro interno da ponte: " + e.message, 500);

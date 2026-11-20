@@ -479,7 +479,14 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
       if (mounted) setState(() => _position = p);
     });
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) setState(() => _isPlaying = state == PlayerState.playing);
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+          if (state == PlayerState.playing || state == PlayerState.paused) {
+            _isLoadingAudio = false;
+          }
+        });
+      }
     });
     _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) {
@@ -518,7 +525,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
 
     if (kIsWeb) {
       setState(() {
-        _fileExists = true; // No Web/PWA, o player fica pronto para tocar via streaming
+        _fileExists = false; // No Web, streaming online
         _isStreaming = true;
         _isLoadingAudio = false;
       });
@@ -532,6 +539,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
       setState(() {
         _fileExists = true;
         _isStreaming = false;
+        _isLoadingAudio = false;
       });
       await _audioPlayer.setSource(DeviceFileSource(localPath));
       await _audioPlayer.setPlaybackRate(_playbackRate);
@@ -540,6 +548,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
       setState(() {
         _fileExists = false;
         _isStreaming = true;
+        _isLoadingAudio = false;
       });
     }
   }
@@ -550,7 +559,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
       return;
     }
 
-    if (_position > Duration.zero) {
+    if (_position > Duration.zero && _duration > Duration.zero) {
       await _audioPlayer.resume();
       return;
     }
@@ -559,23 +568,32 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
     final harpaService = HarpaAudioService.instance;
 
     try {
-      if (kIsWeb) {
-        // Baixa os bytes do Telegram via proxy com X-App-Token e gera Blob URL local
-        final bytes = await harpaService.fetchAudioBytes(hymn.number);
-        final blobUrl = createBlobUrl(bytes, 'audio/mpeg');
-        _streamUrl = blobUrl;
-        await _audioPlayer.setSource(UrlSource(blobUrl));
+      final localPath = await harpaService.getLocalAudioPath(hymn.number);
+      if (localPath != null) {
+        setState(() {
+          _fileExists = true;
+          _isStreaming = false;
+        });
+        await _audioPlayer.setSource(DeviceFileSource(localPath));
         await _audioPlayer.setPlaybackRate(_playbackRate);
         await _audioPlayer.resume();
       } else {
-        final localPath = await harpaService.getLocalAudioPath(hymn.number);
-        if (localPath != null) {
-          await _audioPlayer.setSource(DeviceFileSource(localPath));
-          await _audioPlayer.setPlaybackRate(_playbackRate);
-          await _audioPlayer.resume();
+        setState(() => _isStreaming = true);
+        final streamUrl = await harpaService.getStreamUrl(hymn.number);
+        _streamUrl = streamUrl;
+        await _audioPlayer.setSource(UrlSource(streamUrl));
+        await _audioPlayer.setPlaybackRate(_playbackRate);
+        await _audioPlayer.resume();
+      }
+    } catch (e) {
+      debugPrint('Tentativa direta falhou ($e). Tentando fallback por bytes...');
+      try {
+        final bytes = await harpaService.fetchAudioBytes(hymn.number);
+        if (kIsWeb) {
+          final blobUrl = createBlobUrl(bytes, 'audio/mpeg');
+          _streamUrl = blobUrl;
+          await _audioPlayer.setSource(UrlSource(blobUrl));
         } else {
-          // Nativo: obtém bytes do Telegram e salva em cache local do app
-          final bytes = await harpaService.fetchAudioBytes(hymn.number);
           final dir = await getApplicationDocumentsDirectory();
           final saveDir = Directory(p.join(dir.path, 'store', 'audios', 'Harpa_Crista'));
           if (!await saveDir.exists()) await saveDir.create(recursive: true);
@@ -584,23 +602,23 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
           await File(savePath).writeAsBytes(bytes);
           setState(() => _fileExists = true);
           await _audioPlayer.setSource(DeviceFileSource(savePath));
-          await _audioPlayer.setPlaybackRate(_playbackRate);
-          await _audioPlayer.resume();
         }
-      }
-    } catch (e) {
-      debugPrint('Erro ao reproduzir áudio: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Falha ao reproduzir áudio online: $e'),
-          backgroundColor: Colors.redAccent,
-          action: SnackBarAction(
-            label: 'BAIXAR HINO',
-            textColor: Colors.yellow,
-            onPressed: _downloadAudio,
-          ),
-          duration: const Duration(seconds: 7),
-        ));
+        await _audioPlayer.setPlaybackRate(_playbackRate);
+        await _audioPlayer.resume();
+      } catch (e2) {
+        debugPrint('Erro definitivo ao reproduzir áudio: $e2');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Falha ao reproduzir áudio online: $e2'),
+            backgroundColor: Colors.redAccent,
+            action: SnackBarAction(
+              label: 'BAIXAR HINO',
+              textColor: Colors.yellow,
+              onPressed: _downloadAudio,
+            ),
+            duration: const Duration(seconds: 7),
+          ));
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoadingAudio = false);
@@ -770,10 +788,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                   children: [
                     // Player de Áudio
                     if (widget.isHarpa) ...[
-                      if (_fileExists)
-                        _buildAudioPlayer(numStr)
-                      else
-                        _buildDownloadBox(),
+                      _buildAudioPlayer(numStr),
                     ],
                     
                     const SizedBox(height: 16),
@@ -931,7 +946,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
           Row(
             children: [
               GestureDetector(
-                onTap: _togglePlayPause,
+                onTap: _isLoadingAudio ? null : _togglePlayPause,
                 child: Container(
                   width: 44,
                   height: 44,
@@ -941,9 +956,9 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                   ),
                   child: _isLoadingAudio
                       ? Padding(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(11),
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                            strokeWidth: 2.5,
                             color: Theme.of(context).colorScheme.surface,
                           ),
                         )
@@ -971,7 +986,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                         ),
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
@@ -979,7 +994,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                           child: Text(
                             kIsWeb
                                 ? 'PWA / Web'
-                                : (_isStreaming ? 'Streaming' : 'Offline'),
+                                : (_fileExists ? 'Offline' : (_isStreaming ? 'Streaming' : 'Online')),
                             style: GoogleFonts.outfit(
                               color: Theme.of(context).colorScheme.primary,
                               fontSize: 10,
@@ -1055,12 +1070,26 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    icon: Icon(
-                      _isDownloading ? Icons.hourglass_top_rounded : Icons.download_rounded,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                      size: 22,
-                    ),
-                    tooltip: 'Baixar MP3',
+                    icon: _isDownloading
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              value: _downloadProgress > 0 ? _downloadProgress : null,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          )
+                        : Icon(
+                            _fileExists ? Icons.check_circle_rounded : Icons.download_rounded,
+                            color: _fileExists
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            size: 22,
+                          ),
+                    tooltip: _fileExists
+                        ? 'Áudio salvo offline'
+                        : (kIsWeb ? 'Baixar MP3' : 'Baixar para ouvir offline'),
                     onPressed: _isDownloading ? null : _downloadAudio,
                   ),
                 ],
@@ -1088,83 +1117,6 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDownloadBox() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
-      ),
-      child: _isDownloading
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Baixando áudio (aprox. 4MB)... ${(_downloadProgress * 100).toInt()}%',
-                  style: GoogleFonts.outfit(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: _downloadProgress,
-                  color: Theme.of(context).colorScheme.primary,
-                  backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ],
-            )
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _togglePlayPause,
-                  icon: Icon(
-                    _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Theme.of(context).colorScheme.surface,
-                  ),
-                  label: Text(
-                    _isPlaying ? 'Pausar Áudio' : 'Ouvir Online (Streaming)',
-                    style: GoogleFonts.outfit(
-                      color: Theme.of(context).colorScheme.surface,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: _downloadAudio,
-                  icon: Icon(
-                    Icons.cloud_download_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  label: Text(
-                    'Baixar para Ouvir Offline (4MB)',
-                    style: GoogleFonts.outfit(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
-                    minimumSize: const Size(double.infinity, 46),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ],
-            ),
     );
   }
 }
