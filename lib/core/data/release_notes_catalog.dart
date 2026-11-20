@@ -5,6 +5,30 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.17',
+      buildNumber: 26,
+      title: 'Player Harpa Minimalista e Otimização de Layout Responsivo',
+      releaseDate: '20 de Novembro de 2026',
+      highlight:
+          'Remoção completa de tags e badges desnecessárias no player da Harpa Cristã para um visual limpo e minimalista, eliminação definitiva de overflow horizontal em telas móveis compactas e refinamento das dimensões dos controles.',
+      items: [
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Design Minimalista do Player de Áudio',
+          description:
+              'Removidas todas as marcações de texto (PWA/Web, Streaming, Offline) do corpo do player, mantendo o título "Ouvir Hino" e o contador de tempo de forma limpa e direta.',
+          customIcon: Icons.clean_hands_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Correção de RenderFlex Overflow no Android',
+          description:
+              'Ajustados os espaçamentos e limites de largura dos controles em telas menores, garantindo layout 100% responsivo e livre de erros visuais em qualquer celular.',
+          customIcon: Icons.smartphone_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.16',
       buildNumber: 25,
       title: 'Player Unificado da Harpa Cristã, Streaming HTTP 206 e Indicador de Carregamento',

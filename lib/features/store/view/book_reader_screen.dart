@@ -456,7 +456,6 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   bool _fileExists = false;
-  bool _isStreaming = false;
   bool _isLoadingAudio = false;
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
@@ -512,7 +511,6 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
       _position = Duration.zero;
       _duration = Duration.zero;
       _fileExists = false;
-      _isStreaming = false;
       _isLoadingAudio = false;
       _isDownloading = false;
       _streamUrl = null;
@@ -525,8 +523,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
 
     if (kIsWeb) {
       setState(() {
-        _fileExists = false; // No Web, streaming online
-        _isStreaming = true;
+        _fileExists = false;
         _isLoadingAudio = false;
       });
       return;
@@ -538,16 +535,13 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
     if (localPath != null) {
       setState(() {
         _fileExists = true;
-        _isStreaming = false;
         _isLoadingAudio = false;
       });
       await _audioPlayer.setSource(DeviceFileSource(localPath));
       await _audioPlayer.setPlaybackRate(_playbackRate);
     } else {
-      // Arquivo local não baixado: streaming via Telegram
       setState(() {
         _fileExists = false;
-        _isStreaming = true;
         _isLoadingAudio = false;
       });
     }
@@ -570,15 +564,11 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
     try {
       final localPath = await harpaService.getLocalAudioPath(hymn.number);
       if (localPath != null) {
-        setState(() {
-          _fileExists = true;
-          _isStreaming = false;
-        });
+        setState(() => _fileExists = true);
         await _audioPlayer.setSource(DeviceFileSource(localPath));
         await _audioPlayer.setPlaybackRate(_playbackRate);
         await _audioPlayer.resume();
       } else {
-        setState(() => _isStreaming = true);
         final streamUrl = await harpaService.getStreamUrl(hymn.number);
         _streamUrl = streamUrl;
         await _audioPlayer.setSource(UrlSource(streamUrl));
@@ -973,47 +963,26 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Ouvir Hino',
-                          style: GoogleFonts.outfit(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            kIsWeb
-                                ? 'PWA / Web'
-                                : (_fileExists ? 'Offline' : (_isStreaming ? 'Streaming' : 'Online')),
-                            style: GoogleFonts.outfit(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Ouvir Hino',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-                          style: GoogleFonts.outfit(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
+                      maxLines: 1,
+                      style: GoogleFonts.outfit(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -1024,56 +993,56 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                 children: [
                   IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     icon: Icon(
                       Icons.replay_10_rounded,
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                      size: 24,
+                      size: 22,
                     ),
                     onPressed: () {
                       final newPos = _position - const Duration(seconds: 15);
                       _audioPlayer.seek(newPos < Duration.zero ? Duration.zero : newPos);
                     },
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 4),
                   GestureDetector(
                     onTap: _changePlaybackRate,
-                    child: SizedBox(
+                    child: Container(
                       width: 28,
-                      child: Center(
-                        child: Text(
-                          '${_playbackRate.toStringAsFixed(1).replaceAll('.0', '')}x',
-                          style: GoogleFonts.outfit(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      height: 28,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${_playbackRate.toStringAsFixed(1).replaceAll('.0', '')}x',
+                        style: GoogleFonts.outfit(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 4),
                   IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     icon: Icon(
                       Icons.forward_10_rounded,
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                      size: 24,
+                      size: 22,
                     ),
                     onPressed: () {
                       final newPos = _position + const Duration(seconds: 15);
                       _audioPlayer.seek(newPos > _duration ? _duration : newPos);
                     },
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     icon: _isDownloading
                         ? SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               value: _downloadProgress > 0 ? _downloadProgress : null,
