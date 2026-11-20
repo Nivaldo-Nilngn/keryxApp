@@ -4,6 +4,7 @@ import 'package:keryx_app/core/utils/bible_text_parser.dart';
 import 'package:keryx_app/core/utils/bible_reference_helper.dart';
 import 'package:keryx_app/core/utils/search_helper.dart';
 import 'package:keryx_app/features/store/repository/harpa_audio_service.dart';
+import 'package:keryx_app/features/home/service/devocional_service.dart';
 
 class _HymnTestModel {
   final String number;
@@ -57,6 +58,27 @@ void main() {
       final bookIdJoao = BibleMetadata.findBookId(parsedJoao!.rawBookName);
       expect(bookIdJoao, 43); // João é o livro 43
       expect(BibleMetadata.bookDetails[bookIdJoao]?['abbrev'], 'jo');
+    });
+
+    test('DevocionalData.decodeHtmlEntities decodes &#39;, &quot;, &amp;, and numeric/hex entities', () {
+      const rawSample = "Ao terminar, Jesus fez uma pergunta que ainda ecoa em nós: &#39;Vocês compreendem o que lhes fiz?&#39;. Se Ele,...";
+      final clean = DevocionalData.decodeHtmlEntities(rawSample);
+      expect(clean, "Ao terminar, Jesus fez uma pergunta que ainda ecoa em nós: 'Vocês compreendem o que lhes fiz?'. Se Ele,...");
+      expect(clean.contains('&#39;'), isFalse);
+
+      const doubleEscaped = "&amp;#39;Graça e Paz&amp;#39; &quot;KeryxApp&quot; &amp; &lt;Amém&gt;";
+      final cleanDouble = DevocionalData.decodeHtmlEntities(doubleEscaped);
+      expect(cleanDouble, "'Graça e Paz' \"KeryxApp\" & <Amém>");
+
+      final devocional = DevocionalData(
+        title: 'A Bacia e a Toalha &#39;Amor em Ação&#39;',
+        verse: '&#39;Vocês compreendem o que lhes fiz?&#39;',
+        verseReference: 'João 13:14-15',
+        content: '&#39;Ainda ecoa em nós: &#39;Vocês compreendem o que lhes fiz?&#39;',
+      );
+      expect(devocional.title, "A Bacia e a Toalha 'Amor em Ação'");
+      expect(devocional.verse, "'Vocês compreendem o que lhes fiz?'");
+      expect(devocional.content, "'Ainda ecoa em nós: 'Vocês compreendem o que lhes fiz?'");
     });
   });
 

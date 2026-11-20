@@ -4,15 +4,15 @@
  */
 
 const DEFAULT_CONFIG = {
-  latest_version: 26,
-  version_name: "2.0.17",
+  latest_version: 27,
+  version_name: "2.0.18",
   release_date: "2026-11-20",
-  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.17/keryxApp.apk",
+  download_url: "https://github.com/Nivaldo-Nilngn/keryxApp/releases/download/v2.0.18/keryxApp.apk",
   ios_url: "https://keryxapp.pages.dev",
-  release_notes: "Versão 2.0.17: Player da Harpa Cristã minimalista sem tags ou badges desnecessárias (PWA/Web, Streaming, Offline), layout 100% responsivo e livre de erros visuais em celulares compactos.",
+  release_notes: "Versão 2.0.18: Player da Harpa Cristã remodelado com título e tempo completos sem reticências (...), e sanitização universal de entidades HTML (como &#39;) no Devocional Diário.",
   force_update: false,
   min_version: 1,
-  sha256: "2a4be10304ba5780cfc8005f23f7b21b407e1d30ef42edf5734f5ef9fc6a443a"
+  sha256: "880016c8f7913a81a8f79b7b981a24119780e45626f56584d176d1b5993d6f8f"
 };
 
 export default {

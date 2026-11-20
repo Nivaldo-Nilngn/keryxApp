@@ -924,7 +924,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
 
   Widget _buildAudioPlayer(String numStr) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
@@ -932,6 +932,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -959,7 +960,7 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                         ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -968,10 +969,9 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                     Text(
                       'Ouvir Hino',
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
                         color: Theme.of(context).colorScheme.onSurface,
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -980,92 +980,42 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                       '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
                       maxLines: 1,
                       style: GoogleFonts.outfit(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    icon: Icon(
-                      Icons.replay_10_rounded,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                      size: 22,
-                    ),
-                    onPressed: () {
-                      final newPos = _position - const Duration(seconds: 15);
-                      _audioPlayer.seek(newPos < Duration.zero ? Duration.zero : newPos);
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: _changePlaybackRate,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${_playbackRate.toStringAsFixed(1).replaceAll('.0', '')}x',
-                        style: GoogleFonts.outfit(
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                icon: _isDownloading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          value: _downloadProgress > 0 ? _downloadProgress : null,
                           color: Theme.of(context).colorScheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
                         ),
+                      )
+                    : Icon(
+                        _fileExists ? Icons.check_circle_rounded : Icons.download_rounded,
+                        color: _fileExists
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        size: 24,
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    icon: Icon(
-                      Icons.forward_10_rounded,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                      size: 22,
-                    ),
-                    onPressed: () {
-                      final newPos = _position + const Duration(seconds: 15);
-                      _audioPlayer.seek(newPos > _duration ? _duration : newPos);
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    icon: _isDownloading
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              value: _downloadProgress > 0 ? _downloadProgress : null,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          )
-                        : Icon(
-                            _fileExists ? Icons.check_circle_rounded : Icons.download_rounded,
-                            color: _fileExists
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                            size: 22,
-                          ),
-                    tooltip: _fileExists
-                        ? 'Áudio salvo offline'
-                        : (kIsWeb ? 'Baixar MP3' : 'Baixar para ouvir offline'),
-                    onPressed: _isDownloading ? null : _downloadAudio,
-                  ),
-                ],
+                tooltip: _fileExists
+                    ? 'Áudio salvo offline'
+                    : (kIsWeb ? 'Baixar MP3' : 'Baixar para ouvir offline'),
+                onPressed: _isDownloading ? null : _downloadAudio,
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           SliderTheme(
             data: SliderThemeData(
               trackHeight: 3,
@@ -1083,6 +1033,59 @@ class _HymnDetailScreenState extends ConsumerState<_HymnDetailScreen> {
                 _audioPlayer.seek(Duration(seconds: val.toInt()));
               },
             ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                icon: Icon(
+                  Icons.replay_10_rounded,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                  size: 22,
+                ),
+                tooltip: 'Voltar 10s',
+                onPressed: () {
+                  final newPos = _position - const Duration(seconds: 10);
+                  _audioPlayer.seek(newPos < Duration.zero ? Duration.zero : newPos);
+                },
+              ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: _changePlaybackRate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_playbackRate.toStringAsFixed(1).replaceAll('.0', '')}x',
+                    style: GoogleFonts.outfit(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                icon: Icon(
+                  Icons.forward_10_rounded,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                  size: 22,
+                ),
+                tooltip: 'Avançar 10s',
+                onPressed: () {
+                  final newPos = _position + const Duration(seconds: 10);
+                  _audioPlayer.seek(newPos > _duration ? _duration : newPos);
+                },
+              ),
+            ],
           ),
         ],
       ),

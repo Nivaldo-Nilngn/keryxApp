@@ -113,15 +113,15 @@ class _DevocionalScreenState extends ConsumerState<DevocionalScreen> {
     final List<String> parts = [];
 
     if (widget.devocional.title.trim().isNotEmpty) {
-      parts.add(widget.devocional.title.trim());
+      parts.add(DevocionalData.decodeHtmlEntities(widget.devocional.title.trim()));
     }
 
     if (widget.devocional.verse.trim().isNotEmpty) {
-      parts.add(widget.devocional.verse.trim());
+      parts.add(DevocionalData.decodeHtmlEntities(widget.devocional.verse.trim()));
     }
 
     if (widget.devocional.verseReference.trim().isNotEmpty) {
-      final cleanRef = widget.devocional.verseReference
+      final cleanRef = DevocionalData.decodeHtmlEntities(widget.devocional.verseReference)
           .replaceAll('—', '')
           .replaceAll('(', '')
           .replaceAll(')', '')
@@ -129,7 +129,7 @@ class _DevocionalScreenState extends ConsumerState<DevocionalScreen> {
       if (cleanRef.isNotEmpty) parts.add(cleanRef);
     }
 
-    final rawParagraphs = widget.devocional.content.split(RegExp(r'\n+'));
+    final rawParagraphs = DevocionalData.decodeHtmlEntities(widget.devocional.content).split(RegExp(r'\n+'));
     for (final p in rawParagraphs) {
       final clean = p
           .replaceAll('*', '')
@@ -218,20 +218,25 @@ class _DevocionalScreenState extends ConsumerState<DevocionalScreen> {
   }
 
   void _shareDevocional() {
+    final cleanTitle = DevocionalData.decodeHtmlEntities(widget.devocional.title);
+    final cleanVerse = DevocionalData.decodeHtmlEntities(widget.devocional.verse);
+    final cleanVerseRef = DevocionalData.decodeHtmlEntities(widget.devocional.verseReference);
+    final cleanContent = DevocionalData.decodeHtmlEntities(widget.devocional.content);
+
     final text = '''
-✨ *${widget.devocional.title}*
+✨ *$cleanTitle*
 📖 Devocional Diário • KeryxApp
 
-"${widget.devocional.verse}"
-— ${widget.devocional.verseReference}
+"$cleanVerse"
+— $cleanVerseRef
 
-${widget.devocional.content}
+$cleanContent
 ''';
     try {
       SharePlus.instance.share(
         ShareParams(
           text: text,
-          subject: 'Devocional: ${widget.devocional.title}',
+          subject: 'Devocional: $cleanTitle',
         ),
       );
     } catch (e) {
@@ -736,8 +741,9 @@ ${widget.devocional.content}
     Color contentTextColor,
     Color linkColor,
   ) {
+    final cleanContent = DevocionalData.decodeHtmlEntities(content);
     // Separa os parágrafos do devocional para diagramação elegante
-    final paragraphs = content
+    final paragraphs = cleanContent
         .split(RegExp(r'\n{2,}|\r\n\r\n'))
         .map((p) => p.trim())
         .where((p) => p.isNotEmpty)

@@ -5,6 +5,30 @@ class ReleaseNotesCatalog {
   /// Lista de notas de versão ordenadas da mais recente para a mais antiga
   static const List<ReleaseNoteVersion> allVersions = [
     ReleaseNoteVersion(
+      versionName: '2.0.18',
+      buildNumber: 27,
+      title: 'Player Espaçoso sem Reticências e Sanitização do Devocional',
+      releaseDate: '20 de Novembro de 2026',
+      highlight:
+          'Remodelação visual completa do player da Harpa Cristã para exibição total do título e tempo sem reticências em qualquer tela, e decodificação universal de entidades HTML (como &#39;) no Devocional Diário.',
+      items: [
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.improvement,
+          title: 'Remodelação do Player de Áudio',
+          description:
+              'O título "Ouvir Hino" e o contador de tempo agora ocupam a largura total superior do card ao lado dos botões Play e Download, com os controles secundários (10s voltar, velocidade e 10s avançar) elegantemente centralizados abaixo da barra de progresso, eliminando qualquer corte de texto (...) em qualquer celular.',
+          customIcon: Icons.music_note_rounded,
+        ),
+        ReleaseNoteItem(
+          category: ReleaseNoteCategory.fix,
+          title: 'Sanitização de Entidades HTML no Devocional',
+          description:
+              'Corrigida a exibição de símbolos e códigos HTML residuais (como &#39; e aspas codificadas) no Devocional Diário, garantindo leitura limpa na tela, no compartilhamento e no áudio TTS.',
+          customIcon: Icons.auto_awesome_rounded,
+        ),
+      ],
+    ),
+    ReleaseNoteVersion(
       versionName: '2.0.17',
       buildNumber: 26,
       title: 'Player Harpa Minimalista e Otimização de Layout Responsivo',

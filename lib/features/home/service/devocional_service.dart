@@ -12,15 +12,63 @@ class DevocionalData {
 
   DevocionalData({
     required String title,
-    required this.verse,
-    required this.verseReference,
-    required this.content,
-  }) : _title = sanitizeTitle(title);
+    required String verse,
+    required String verseReference,
+    required String content,
+  })  : _title = sanitizeTitle(decodeHtmlEntities(title)),
+        verse = decodeHtmlEntities(verse),
+        verseReference = decodeHtmlEntities(verseReference),
+        content = decodeHtmlEntities(content);
 
-  String get title => sanitizeTitle(_title);
+  String get title => sanitizeTitle(decodeHtmlEntities(_title));
+
+  static String decodeHtmlEntities(String text) {
+    if (text.isEmpty) return text;
+    var result = text;
+    // Até 2 passadas para resolver entidades duplamente escapadas (ex: &amp;#39; -> &#39; -> ')
+    for (int i = 0; i < 2; i++) {
+      if (!result.contains('&')) break;
+      result = result
+          .replaceAll('&quot;', '"')
+          .replaceAll('&#34;', '"')
+          .replaceAll('&apos;', "'")
+          .replaceAll('&#39;', "'")
+          .replaceAll('&#039;', "'")
+          .replaceAll('&lsquo;', '‘')
+          .replaceAll('&#8216;', '‘')
+          .replaceAll('&rsquo;', '’')
+          .replaceAll('&#8217;', '’')
+          .replaceAll('&ldquo;', '“')
+          .replaceAll('&#8220;', '“')
+          .replaceAll('&rdquo;', '”')
+          .replaceAll('&#8221;', '”')
+          .replaceAll('&ndash;', '–')
+          .replaceAll('&#8211;', '–')
+          .replaceAll('&mdash;', '—')
+          .replaceAll('&#8212;', '—')
+          .replaceAll('&hellip;', '…')
+          .replaceAll('&#8230;', '…')
+          .replaceAll('&lt;', '<')
+          .replaceAll('&#60;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&#62;', '>')
+          .replaceAll('&nbsp;', ' ')
+          .replaceAll('&#160;', ' ')
+          .replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
+            final code = int.tryParse(match.group(1)!);
+            return (code != null && code > 0) ? String.fromCharCode(code) : match.group(0)!;
+          })
+          .replaceAllMapped(RegExp(r'&#x([0-9a-fA-F]+);'), (match) {
+            final code = int.tryParse(match.group(1)!, radix: 16);
+            return (code != null && code > 0) ? String.fromCharCode(code) : match.group(0)!;
+          })
+          .replaceAll('&amp;', '&');
+    }
+    return result;
+  }
 
   static String sanitizeTitle(String raw) {
-    String clean = raw.trim();
+    String clean = decodeHtmlEntities(raw.trim());
     if (clean.contains('"],"url":')) {
       clean = clean.split('"],"url":').first.trim();
     }
@@ -31,6 +79,7 @@ class DevocionalData {
       clean = clean.split('"url":').first.trim();
     }
     clean = clean.replaceAll(RegExp(r'["\]\[,]+$'), '').trim();
+    clean = decodeHtmlEntities(clean);
     return clean.isEmpty ? 'Devocional Diário' : clean;
   }
 
@@ -193,7 +242,11 @@ class DevocionalService {
       final cachedStr = prefs.getString(_cacheKey);
       if (cachedStr != null) {
         final map = jsonDecode(cachedStr);
-        return DevocionalData.fromMap(map);
+        final cachedDevocional = DevocionalData.fromMap(map);
+        if (cachedStr.contains('&#') || cachedStr.contains('&quot;') || cachedStr.contains('&apos;')) {
+          await prefs.setString(_cacheKey, jsonEncode(cachedDevocional.toMap()));
+        }
+        return cachedDevocional;
       }
     } catch (e) {
       debugPrint('Erro ao ler cache do devocional: $e');
@@ -212,7 +265,9 @@ class DevocionalService {
     String textRaw,
     void Function(String verse, String verseRef, String content) onParsed,
   ) {
-    String decodedText = textRaw.replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
+    String decodedText = DevocionalData.decodeHtmlEntities(
+      textRaw.replaceAll(r'\n', '\n').replaceAll(r'\"', '"'),
+    );
 
     String verse = '“O Senhor é o meu pastor; de nada terei falta.”';
     String verseRef = 'Bíblia Sagrada';
